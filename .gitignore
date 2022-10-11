@@ -42,6 +42,8 @@
 /individual_ops
 /libsync.a
 /measure_contention
+/sample_generic
+/sample_mcs
 /stress_latency
 /stress_latency_arrays
 /stress_latency_clhs
@@ -75,6 +77,7 @@
 /stress_test_spinlocks
 /stress_test_tickets
 /stress_test_ttass
+/test_array_alloc
 /test_correctness
 /test_correctness_arrays
 /test_correctness_clhs
@@ -86,5 +89,6 @@
 /test_correctness_spinlocks
 /test_correctness_tickets
 /test_correctness_ttass
+/test_trylock
 /trylock_test
 /uncontended

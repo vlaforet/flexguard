@@ -58,6 +58,7 @@ ifndef LOCK_VERSION
   # LOCK_VERSION=-DUSE_HCLH_LOCKS
   # LOCK_VERSION=-DUSE_TTAS_LOCKS
   LOCK_VERSION=-DUSE_SPINLOCK_LOCKS
+	# LOCK_VERSION=-DUSE_HYBRIDLOCK_LOCKS
   # LOCK_VERSION=-DUSE_MCS_LOCKS
   # LOCK_VERSION=-DUSE_ARRAY_LOCKS
   # LOCK_VERSION=-DUSE_RW_LOCKS
@@ -78,20 +79,23 @@ SRCPATH := $(TOP)/src
 MAININCLUDE := $(TOP)/include
 
 INCLUDES := -I$(MAININCLUDE)
-OBJ_FILES :=  mcs.o clh.o ttas.o spinlock.o rw_ttas.o ticket.o alock.o hclh.o gl_lock.o htlock.o
+OBJ_FILES :=  mcs.o clh.o ttas.o spinlock.o rw_ttas.o ticket.o alock.o hclh.o gl_lock.o htlock.o hybridlock.o
 
 
 all:  bank bank_one bank_simple test_array_alloc test_trylock sample_generic sample_mcs test_correctness stress_one stress_test stress_latency atomic_bench individual_ops uncontended  htlock_test measure_contention libsync.a
 	@echo "############### Used: " $(LOCK_VERSION) " on " $(PLATFORM) " with " $(OPTIMIZE)
 
-libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o include/atomic_ops.h include/utils.h include/lock_if.h
-	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o alock.o hclh.o htlock.o spinlock.o include/atomic_ops.h include/utils.h
+libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o hybridlock.o include/atomic_ops.h include/utils.h include/lock_if.h
+	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o hybridlock.o include/atomic_ops.h include/utils.h
 
 ttas.o: src/ttas.c 
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/ttas.c $(LIBS)
 
 spinlock.o: src/spinlock.c
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/spinlock.c $(LIBS)
+
+hybridlock.o: src/hybridlock.c
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/hybridlock.c $(LIBS)
 
 rw_ttas.o: src/rw_ttas.c
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/rw_ttas.c $(LIBS)
@@ -172,4 +176,4 @@ htlock_test: htlock.o bmarks/htlock_test.c Makefile
 	$(GCC) -O0 -D_GNU_SOURCE $(COMPILE_FLAGS) $(PLATFORM) $(DEBUG_FLAGS) $(INCLUDES) bmarks/htlock_test.c -o htlock_test htlock.o $(LIBS)
 
 clean:
-	rm -f *.o locks mcs_test hclh_test bank_one bank_simple bank* stress_latency* test_array_alloc test_trylock sample_generic test_correctness stress_one stress_test*  atomic_bench uncontended individual_ops trylock_test htlock_test measure_contention libsync.a
+	rm -f *.o locks mcs_test hclh_test bank_one bank_simple bank* stress_latency* test_array_alloc test_trylock sample_* test_correctness stress_one stress_test* atomic_bench uncontended individual_ops trylock_test htlock_test measure_contention libsync.a
