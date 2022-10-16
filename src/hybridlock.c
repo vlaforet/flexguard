@@ -1,6 +1,6 @@
 /*
  * File: hybridlock.c
- * Author: Tudor David <tudor.david@epfl.ch>
+ * Author: Tudor David <tudor.david@epfl.ch>mus
  *         Victor Laforet <victor.laforet@ip-paris.fr>
  *
  * Description:
@@ -37,18 +37,26 @@ __thread unsigned long *hybridlock_seeds;
 
 int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
 {
-    if (TAS_U8(&(the_lock->lock)) == 0)
+    if (TAS_U8(&(the_lock->data.lock)) == 0 && pthread_mutex_trylock(&the_lock->data.blocking_lock) == 0)
         return 0;
     return 1;
 }
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
 {
-    volatile hybridlock_lock_data_t *l = &(the_lock->lock);
-    while (TAS_U8(l))
+    volatile hybridlock_lock_type_t *l = &(the_lock->data.lock);
+    volatile int *spinning = &(the_lock->data.spinning);
+
+    while (TAS_U8(l) && *spinning)
     {
         PAUSE;
     }
+
+    if (*spinning && pthread_mutex_trylock(&the_lock->data.blocking_lock) == 0)
+        return;
+
+    pthread_mutex_lock(&the_lock->data.blocking_lock);
+    TAS_U8(l);
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock)
@@ -57,14 +65,20 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock)
 #ifdef __tile__
     MEM_BARRIER;
 #endif
-    the_lock->lock = UNLOCKED;
+    the_lock->data.lock = UNLOCKED;
+    pthread_mutex_unlock(&the_lock->data.blocking_lock);
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
 {
-    if (the_lock->lock == UNLOCKED)
+    if (the_lock->data.lock == UNLOCKED)
         return 1;
     return 0;
+}
+
+void set_blocking(hybridlock_lock_t *the_lock)
+{
+    the_lock->data.spinning = 0;
 }
 
 /*
@@ -78,7 +92,9 @@ hybridlock_lock_t *init_hybridlock_array_global(uint32_t num_locks)
     uint32_t i;
     for (i = 0; i < num_locks; i++)
     {
-        the_locks[i].lock = UNLOCKED;
+        the_locks[i].data.lock = UNLOCKED;
+        the_locks[i].data.spinning = 1;
+        pthread_mutex_init(&the_locks[i].data.blocking_lock, NULL);
     }
 
     MEM_BARRIER;
@@ -114,7 +130,10 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks)
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
-    the_lock->lock = UNLOCKED;
+    the_lock->data.lock = UNLOCKED;
+    the_lock->data.spinning = 1;
+    pthread_mutex_init(&the_lock->data.blocking_lock, NULL);
+
     MEM_BARRIER;
     return 0;
 }

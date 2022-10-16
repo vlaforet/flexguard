@@ -45,18 +45,24 @@
 #include "atomic_ops.h"
 #include "utils.h"
 
-typedef volatile uint32_t hybridlock_index_t;
 #ifdef __tile__
-typedef uint32_t hybridlock_lock_data_t;
+typedef uint32_t hybridlock_lock_type_t;
 #else
-typedef uint8_t hybridlock_lock_data_t;
+typedef uint8_t hybridlock_lock_type_t;
 #endif
+
+typedef struct hybridlock_data_t
+{
+  hybridlock_lock_type_t lock;
+  pthread_mutex_t blocking_lock;
+  int spinning;
+} hybridlock_data_t;
 
 typedef struct hybridlock_lock_t
 {
   union
   {
-    hybridlock_lock_data_t lock;
+    hybridlock_data_t data;
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
 #else
