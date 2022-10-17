@@ -45,14 +45,13 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
 void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
 {
     volatile hybridlock_lock_type_t *l = &(the_lock->data.lock);
-    volatile int *spinning = &(the_lock->data.spinning);
 
-    while (TAS_U8(l) && *spinning)
+    while (TAS_U8(l) && the_lock->data.spinning)
     {
         PAUSE;
     }
 
-    if (*spinning && pthread_mutex_trylock(&the_lock->data.blocking_lock) == 0)
+    if (the_lock->data.spinning && pthread_mutex_trylock(&the_lock->data.blocking_lock) == 0)
         return;
 
     pthread_mutex_lock(&the_lock->data.blocking_lock);

@@ -83,6 +83,8 @@ void hybridlock_unlock(hybridlock_lock_t *the_locks);
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock);
 
+void set_blocking(hybridlock_lock_t *the_lock);
+
 /*
  *  Some methods for easy lock array manipluation
  */

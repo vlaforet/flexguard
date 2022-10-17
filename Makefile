@@ -57,8 +57,8 @@ endif
 ifndef LOCK_VERSION
   # LOCK_VERSION=-DUSE_HCLH_LOCKS
   # LOCK_VERSION=-DUSE_TTAS_LOCKS
-  LOCK_VERSION=-DUSE_SPINLOCK_LOCKS
-	# LOCK_VERSION=-DUSE_HYBRIDLOCK_LOCKS
+  # LOCK_VERSION=-DUSE_SPINLOCK_LOCKS
+  LOCK_VERSION=-DUSE_HYBRIDLOCK_LOCKS
   # LOCK_VERSION=-DUSE_MCS_LOCKS
   # LOCK_VERSION=-DUSE_ARRAY_LOCKS
   # LOCK_VERSION=-DUSE_RW_LOCKS
@@ -82,7 +82,7 @@ INCLUDES := -I$(MAININCLUDE)
 OBJ_FILES :=  mcs.o clh.o ttas.o spinlock.o rw_ttas.o ticket.o alock.o hclh.o gl_lock.o htlock.o hybridlock.o
 
 
-all:  bank bank_one bank_simple test_array_alloc test_trylock sample_generic sample_mcs test_correctness stress_one stress_test stress_latency atomic_bench individual_ops uncontended  htlock_test measure_contention libsync.a
+all: bank scheduling bank_one bank_simple test_array_alloc test_trylock sample_generic sample_mcs test_correctness stress_one stress_test stress_latency atomic_bench individual_ops uncontended  htlock_test measure_contention libsync.a
 	@echo "############### Used: " $(LOCK_VERSION) " on " $(PLATFORM) " with " $(OPTIMIZE)
 
 libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o hybridlock.o include/atomic_ops.h include/utils.h include/lock_if.h
@@ -123,8 +123,12 @@ alock.o: src/alock.c
 
 htlock.o: src/htlock.c include/htlock.h
 	 $(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/htlock.c $(LIBS) 
+
 bank: bmarks/bank_th.c $(OBJ_FILES) Makefile
 	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(ACCOUNT_PADDING) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/bank_th.c -o bank $(LIBS)
+
+scheduling: bmarks/scheduling.c $(OBJ_FILES) Makefile
+	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(ACCOUNT_PADDING) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/scheduling.c -o scheduling $(LIBS)
 
 bank_one: bmarks/bank_one.c $(OBJ_FILES) Makefile
 	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(ACCOUNT_PADDING) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/bank_one.c -o bank_one $(LIBS)

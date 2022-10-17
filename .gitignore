@@ -44,6 +44,7 @@
 /measure_contention
 /sample_generic
 /sample_mcs
+/scheduling
 /stress_latency
 /stress_latency_arrays
 /stress_latency_clhs
