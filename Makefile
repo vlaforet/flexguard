@@ -19,7 +19,7 @@ endif
 
 ifeq ($(PLATFORM), -DDEFAULT)
 CORE_NUM := $(shell nproc)
-ifneq ($(CORE_SPEED_KHz), )
+ifneq ($(CORE_NUM), )
 COMPILE_FLAGS += -DCORE_NUM=${CORE_NUM}
 else
 COMPILE_FLAGS += -DCORE_NUM=8
