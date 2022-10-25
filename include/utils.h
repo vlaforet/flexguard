@@ -41,6 +41,7 @@
 #include <inttypes.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <limits.h>
 #ifdef __sparc__
 #  include <sys/types.h>
 #  include <sys/processor.h>
@@ -123,6 +124,8 @@ extern "C" {
     }
 
     static inline void set_cpu(int cpu) {
+        // INT_MAX cpu id disables cpu pinning (Useful for some benchmarks)
+        if (cpu >= INT_MAX) return;
 #ifdef __sparc__
         processor_bind(P_LWPID,P_MYID, cpu, NULL);
 #elif defined(__tile__)
