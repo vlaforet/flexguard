@@ -51,9 +51,6 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
         PAUSE;
     }
 
-    if (the_lock->data.spinning && pthread_mutex_trylock(&the_lock->data.blocking_lock) == 0)
-        return;
-
     pthread_mutex_lock(&the_lock->data.blocking_lock);
     TAS_U8(l);
 }
