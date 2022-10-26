@@ -72,9 +72,18 @@ int is_free_hybridlock(hybridlock_lock_t *the_lock)
     return 0;
 }
 
-void set_blocking(hybridlock_lock_t *the_lock)
+void set_blocking(hybridlock_lock_t *the_lock, int blocking)
 {
-    the_lock->data.spinning = 0;
+    if (blocking)
+    {
+        the_lock->data.spinning = 0;
+        DPRINT("Hybrid Lock: Blocking\n");
+    }
+    else
+    {
+        the_lock->data.spinning = 1;
+        DPRINT("Hybrid Lock: Spinning\n");
+    }
 }
 
 /*
