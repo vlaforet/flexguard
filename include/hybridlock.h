@@ -31,12 +31,24 @@
 #ifndef _HYBRIDLOCK_H_
 #define _HYBRIDLOCK_H_
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <unistd.h>
+
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/syscall.h>
+#include <linux/futex.h>
+
 #include <fcntl.h>
 #ifndef __sparc__
 #include <numa.h>
@@ -44,6 +56,20 @@
 #include <pthread.h>
 #include "atomic_ops.h"
 #include "utils.h"
+
+#ifndef HYBRIDLOCK_PTHREAD_MUTEX
+enum
+{
+  FREE = 0,             /* the lock is free */
+  BUSY_NO_WAITER = 1,   /* the lock is BUSY and I don't have waiters => no futex_wake at the end of unlock */
+  BUSY_WITH_WAITERS = 2 /* the lock is BUSY and I have waiters => futex_wake at the end of unlock */
+};
+
+typedef struct
+{
+  uint64_t _Atomic state;
+} futex_lock_t;
+#endif
 
 #ifdef __tile__
 typedef uint32_t hybridlock_lock_type_t;
@@ -54,7 +80,11 @@ typedef uint8_t hybridlock_lock_type_t;
 typedef struct hybridlock_data_t
 {
   hybridlock_lock_type_t lock;
-  pthread_mutex_t blocking_lock;
+#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+  pthread_mutex_t mutex_lock;
+#else
+  futex_lock_t futex_lock;
+#endif
   int spinning;
 } hybridlock_data_t;
 

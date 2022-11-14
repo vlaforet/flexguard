@@ -35,11 +35,82 @@
 
 __thread unsigned long *hybridlock_seeds;
 
-int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
+#ifndef HYBRIDLOCK_PTHREAD_MUTEX
+long futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2, int val3)
 {
-    if (TAS_U8(&(the_lock->data.lock)) == 0 && pthread_mutex_trylock(&the_lock->data.blocking_lock) == 0)
+    return syscall(SYS_futex, addr1, op, val1, timeout, addr2, val3);
+}
+
+void futex_wait(void *addr, int val)
+{
+    futex(addr, FUTEX_WAIT, val, NULL, NULL, 0); /* wait if *addr == val */
+}
+
+void futex_wake(void *addr, int nb_threads)
+{
+    futex(addr, FUTEX_WAKE, nb_threads, NULL, NULL, 0);
+}
+
+int futex_trylock(futex_lock_t *lock)
+{
+    uint64_t state = atomic_load(&lock->state);
+
+    if (state == FREE && atomic_compare_exchange_strong(&lock->state, &state, BUSY_NO_WAITER))
         return 0;
     return 1;
+}
+
+void futex_lock(futex_lock_t *lock)
+{
+    uint64_t state;
+
+restart:
+    state = atomic_load(&lock->state);
+
+    switch (state)
+    {
+    case BUSY_NO_WAITER:
+        /* if the lock is busy without waiter, notify that we have now a waiter */
+        if (!atomic_compare_exchange_strong(&lock->state, &state, BUSY_WITH_WAITERS))
+            goto restart;
+        /* continue the execution in BUSY_WITH_WAITERS */
+    case BUSY_WITH_WAITERS:
+        futex_wait(&lock->state, BUSY_WITH_WAITERS);
+        goto restart;
+    case FREE:
+        if (!atomic_compare_exchange_strong(&lock->state, &state, BUSY_NO_WAITER))
+            goto restart;
+    }
+}
+
+void futex_unlock(futex_lock_t *lock)
+{
+    uint64_t state;
+
+    do
+    {
+        state = atomic_load(&lock->state);
+    } while (!atomic_compare_exchange_strong(&lock->state, &state, FREE));
+
+    if (state == BUSY_WITH_WAITERS)
+        futex_wake(&lock->state, 1);
+}
+#endif
+
+int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
+{
+    if (TAS_U8(&(the_lock->data.lock)) != 0)
+        return 1;
+
+#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+    if (pthread_mutex_trylock(&the_lock->data.mutex_lock) != 0)
+        return 1;
+#else
+    if (futex_trylock(&the_lock->data.futex_lock) != 0)
+        return 1;
+#endif
+
+    return 0;
 }
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
@@ -51,7 +122,11 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
         PAUSE;
     }
 
-    pthread_mutex_lock(&the_lock->data.blocking_lock);
+#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+    pthread_mutex_lock(&the_lock->data.mutex_lock);
+#else
+    futex_lock(&the_lock->data.futex_lock);
+#endif
     TAS_U8(l);
 }
 
@@ -62,7 +137,12 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock)
     MEM_BARRIER;
 #endif
     the_lock->data.lock = UNLOCKED;
-    pthread_mutex_unlock(&the_lock->data.blocking_lock);
+
+#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+    pthread_mutex_unlock(&the_lock->data.mutex_lock);
+#else
+    futex_unlock(&the_lock->data.futex_lock);
+#endif
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
@@ -99,7 +179,9 @@ hybridlock_lock_t *init_hybridlock_array_global(uint32_t num_locks)
     {
         the_locks[i].data.lock = UNLOCKED;
         the_locks[i].data.spinning = 1;
-        pthread_mutex_init(&the_locks[i].data.blocking_lock, NULL);
+#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+        pthread_mutex_init(&the_locks[i].data.mutex_lock, NULL);
+#endif
     }
 
     MEM_BARRIER;
@@ -137,7 +219,9 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
     the_lock->data.lock = UNLOCKED;
     the_lock->data.spinning = 1;
-    pthread_mutex_init(&the_lock->data.blocking_lock, NULL);
+#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+    pthread_mutex_init(&the_lock->data.mutex_lock, NULL);
+#endif
 
     MEM_BARRIER;
     return 0;
