@@ -115,7 +115,6 @@ void measurement()
 
 int main(int argc, char **argv)
 {
-    set_cpu(the_cores[0]);
     int i, c;
     int max_nb_threads = DEFAULT_NB_THREADS;
     int launch_delay = DEFAULT_LAUNCH_DELAY_MS;
@@ -250,8 +249,11 @@ int main(int argc, char **argv)
         nanosleep(&launch_timeout, NULL);
     }
 
-    while (needed_threads-- > 0)
+    while (needed_threads > 0)
     {
+        if (thread_count == needed_threads)
+            needed_threads--;
+
         measurement();
         nanosleep(&launch_timeout, NULL);
     }
