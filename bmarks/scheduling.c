@@ -20,6 +20,7 @@
 #define DEFAULT_USE_LOCKS 1
 #define DEFAULT_LAUNCH_DELAY_MS 1000
 #define DEFAULT_CS_CYCLES 10000
+#define DEFAULT_SWITCH_THREAD_COUNT 48
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -118,6 +119,7 @@ int main(int argc, char **argv)
     int i, c;
     int max_nb_threads = DEFAULT_NB_THREADS;
     int launch_delay = DEFAULT_LAUNCH_DELAY_MS;
+    int switch_thread_count = DEFAULT_SWITCH_THREAD_COUNT;
 
     struct option long_options[] = {
         {"help", no_argument, NULL, 'h'},
@@ -125,12 +127,13 @@ int main(int argc, char **argv)
         {"launch-delay", required_argument, NULL, 'd'},
         {"use-locks", required_argument, NULL, 'l'},
         {"num-threads", required_argument, NULL, 'n'},
+        {"switch-thread-count", required_argument, NULL, 's'},
         {NULL, 0, NULL, 0}};
 
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hc:d:l:n:", long_options, &i);
+        c = getopt_long(argc, argv, "hc:d:l:n:s:", long_options, &i);
 
         if (c == -1)
             break;
@@ -160,6 +163,9 @@ int main(int argc, char **argv)
             printf("        Use locks or not (default=" XSTR(DEFAULT_USE_LOCKS) ")\n");
             printf("  -n, --num-threads <int>\n");
             printf("        Number of threads (default=" XSTR(DEFAULT_NB_THREADS) ")\n");
+            printf("  -s, --switch-thread-count <int>\n");
+            printf("        Core count after which the lock will be blocking (default=" XSTR(DEFAULT_SWITCH_THREAD_COUNT) ")\n");
+            printf("        A value of -1 will disable the switch (always spin) and with a value of 0 the lock will never spin.\n");
         case 'c':
             cs_cycles = atoi(optarg);
             break;
@@ -171,6 +177,9 @@ int main(int argc, char **argv)
             break;
         case 'n':
             max_nb_threads = atoi(optarg);
+            break;
+        case 's':
+            switch_thread_count = atoi(optarg);
             break;
         case '?':
             printf("Use -h or --help for help\n");
@@ -206,6 +215,11 @@ int main(int argc, char **argv)
     DPRINT("Initializing locks\n");
     init_lock_global_nt(max_nb_threads, &the_lock);
 
+#ifdef USE_HYBRIDLOCK_LOCKS
+    if (switch_thread_count == 0)
+        set_blocking(&the_lock, 1);
+#endif
+
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -220,7 +234,7 @@ int main(int argc, char **argv)
     for (i = 0; i < max_nb_threads; i++)
     {
 #ifdef USE_HYBRIDLOCK_LOCKS
-        if (i == 48)
+        if (switch_thread_count > 0 && i == switch_thread_count)
             set_blocking(&the_lock, 1);
 #endif
 
@@ -241,7 +255,7 @@ int main(int argc, char **argv)
     for (i = 0; i < 10; i++)
     {
 #ifdef USE_HYBRIDLOCK_LOCKS
-        if (i == 5)
+        if (switch_thread_count > 0 && i == 5)
             set_blocking(&the_lock, 0);
 #endif
 

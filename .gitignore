@@ -1,5 +1,8 @@
 *.o
 *~
+*.csv
+*.png
+
 /#README.md#
 /atomic_bench
 /atomic_latency

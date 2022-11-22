@@ -23,6 +23,17 @@ make
 ```
 
 The `scheduling` benchmark has been tailored to test the hybrid lock.
+The `scheduling_bench.sh` script can compute the required data.
+For example with 55 max threads and 1000 critical section cycles:
+
+```
+./scheduling_bench.sh -n 55 -c 1000
+```
+
+Then to generate the `out.png` chart:
+```
+python3 chart.py
+```
 
 ## BPF tests
 For the moment, bpf hasn't been integrated into the lock. Code that is close to what will be implemented later is available in `libbpg-test`.
