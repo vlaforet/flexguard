@@ -19,7 +19,7 @@
 #define DEFAULT_NB_THREADS 10
 #define DEFAULT_USE_LOCKS 1
 #define DEFAULT_LAUNCH_DELAY_MS 1000
-#define DEFAULT_CS_CYCLES 10000
+#define DEFAULT_COMPUTE_CYCLES 10000
 #define DEFAULT_SWITCH_THREAD_COUNT 48
 
 #define XSTR(s) STR(s)
@@ -32,7 +32,7 @@
  * ################################################################### */
 
 int use_locks = DEFAULT_USE_LOCKS;
-int cs_cycles;
+int compute_cycles;
 
 struct timeval start;
 unsigned long cs_count = 0;
@@ -72,8 +72,6 @@ void *test(void *data)
             acquire_write(&(local_th_data[d->id]), &the_lock);
 
         cs_count++;
-        cpause(cs_cycles);
-
         if (thread_count > needed_threads)
         {
             thread_count--;
@@ -83,7 +81,7 @@ void *test(void *data)
         if (use_locks)
             release_write(&(local_th_data[d->id]), &the_lock);
 
-        cpause(cs_cycles);
+        cpause(compute_cycles);
     }
 
     free_lock_local(local_th_data[d->id]);
@@ -155,8 +153,8 @@ int main(int argc, char **argv)
             printf("Options:\n");
             printf("  -h, --help\n");
             printf("        Print this message\n");
-            printf("  -c, --cs-cycles <int>\n");
-            printf("        Critical section length in cycles (default=" XSTR(DEFAULT_CS_CYCLES) ")\n");
+            printf("  -c, --compute-cycles <int>\n");
+            printf("        Compute delay between critical sections, in cycles (default=" XSTR(DEFAULT_COMPUTE_CYCLES) ")\n");
             printf("  -d, --launch-delay <int>\n");
             printf("        Delay between thread creations in milliseconds (default=" XSTR(DEFAULT_LAUNCH_DELAY_MS) ")\n");
             printf("  -l, --use-locks <int>\n");
@@ -167,7 +165,7 @@ int main(int argc, char **argv)
             printf("        Core count after which the lock will be blocking (default=" XSTR(DEFAULT_SWITCH_THREAD_COUNT) ")\n");
             printf("        A value of -1 will disable the switch (always spin) and with a value of 0 the lock will never spin.\n");
         case 'c':
-            cs_cycles = atoi(optarg);
+            compute_cycles = atoi(optarg);
             break;
         case 'd':
             launch_delay = atoi(optarg);
