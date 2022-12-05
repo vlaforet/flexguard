@@ -25,7 +25,7 @@
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
-#define DURATION(t1, t2) (t2.tv_sec * 1000 + t2.tv_usec / 1000) - (t1.tv_sec * 1000 + t1.tv_usec / 1000)
+#define DURATION(t1, t2) (t2.tv_sec * 1000 + t2.tv_usec / (double)1000) - (t1.tv_sec * 1000 + t1.tv_usec / (double)1000)
 
 /* ################################################################### *
  * GLOBALS
@@ -35,7 +35,6 @@ int use_locks = DEFAULT_USE_LOCKS;
 int compute_cycles;
 
 struct timeval start;
-unsigned long cs_count = 0;
 _Atomic int thread_count = 0;
 int needed_threads;
 
@@ -54,6 +53,8 @@ typedef struct thread_data
         struct
         {
             int id;
+            double cs_time;
+            int reset;
         };
         uint8_t padding[CACHE_LINE_SIZE];
     };
@@ -61,17 +62,20 @@ typedef struct thread_data
 
 void *test(void *data)
 {
+    struct timeval t1, t2;
+    int stop = 0;
+    int cs_count = 0;
+
     thread_data_t *d = (thread_data_t *)data;
     init_lock_local(INT_MAX, &the_lock, &(local_th_data[d->id]));
     thread_count++;
-    int stop = 0;
 
     while (!stop)
     {
+        gettimeofday(&t1, NULL);
         if (use_locks)
             acquire_write(&(local_th_data[d->id]), &the_lock);
 
-        cs_count++;
         if (thread_count > needed_threads)
         {
             thread_count--;
@@ -81,35 +85,53 @@ void *test(void *data)
         if (use_locks)
             release_write(&(local_th_data[d->id]), &the_lock);
 
+        if (d->reset)
+        {
+            cs_count = 0;
+            d->cs_time = 0;
+            d->reset = 0;
+        }
+        cs_count++;
+        gettimeofday(&t2, NULL);
+        d->cs_time = (d->cs_time * (cs_count - 1) + DURATION(t1, t2)) / cs_count;
+
         cpause(compute_cycles);
     }
 
+    d->cs_time = 0;
     free_lock_local(local_th_data[d->id]);
     return NULL;
 }
 
-void measurement()
+void measurement(thread_data_t *data, int len)
 {
-    static unsigned long last_cs_count = 0;
     static struct timeval last_measurement, current;
-    static unsigned int diff;
-    static double duration;
+    static int tc;
+    static double tmp;
+    static double sum = 0;
 
-    if (thread_count <= 0)
+    sum = 0;
+    tc = thread_count;
+
+    if (tc <= 0)
         return;
 
     if (last_measurement.tv_sec == 0 && last_measurement.tv_usec == 0)
         last_measurement = start;
-
     gettimeofday(&current, NULL);
-    duration = DURATION(last_measurement, current);
-    diff = cs_count - last_cs_count;
 
-    last_measurement = current;
-    last_cs_count += diff;
+    // Always go through all threads as they won't stop in any particular order.
+    for (int i = 0; i < len; i++)
+    {
+        tmp = data[i].cs_time;
+        if (tmp > 0)
+        {
+            sum += tmp;
+            data[i].reset = 1;
+        }
+    }
 
-    if (diff > 0)
-        printf("%d, %f, %f\n", thread_count, (double)DURATION(start, current), diff / duration);
+    printf("%d, %f, %f\n", tc, DURATION(start, current), sum / tc);
 }
 
 int main(int argc, char **argv)
@@ -213,6 +235,13 @@ int main(int argc, char **argv)
     DPRINT("Initializing locks\n");
     init_lock_global_nt(max_nb_threads, &the_lock);
 
+    for (i = 0; i < max_nb_threads; i++)
+    {
+        data[i].id = i;
+        data[i].cs_time = 0;
+        data[i].reset = 0;
+    }
+
 #ifdef USE_HYBRIDLOCK_LOCKS
     if (switch_thread_count == 0)
         set_blocking(&the_lock, 1);
@@ -237,15 +266,13 @@ int main(int argc, char **argv)
 #endif
 
         DPRINT("Creating thread %d\n", i);
-
-        data[i].id = i;
         if (pthread_create(&threads[i], &attr, test, (void *)(&data[i])) != 0)
         {
             fprintf(stderr, "Error creating thread\n");
             exit(1);
         }
 
-        measurement();
+        measurement(data, max_nb_threads);
         nanosleep(&launch_timeout, NULL);
     }
     pthread_attr_destroy(&attr);
@@ -257,7 +284,7 @@ int main(int argc, char **argv)
             set_blocking(&the_lock, 0);
 #endif
 
-        measurement();
+        measurement(data, max_nb_threads);
         nanosleep(&launch_timeout, NULL);
     }
 
@@ -266,7 +293,7 @@ int main(int argc, char **argv)
         if (thread_count == needed_threads)
             needed_threads--;
 
-        measurement();
+        measurement(data, max_nb_threads);
         nanosleep(&launch_timeout, NULL);
     }
 

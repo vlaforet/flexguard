@@ -24,7 +24,7 @@ make
 
 The `scheduling` benchmark has been tailored to test the hybrid lock.
 The `scheduling_bench.sh` script can compute the required data.
-For example with 55 max threads and 1000 critical section cycles:
+For example with 55 max threads and 1000 cycles delay between critical sections:
 
 ```
 ./scheduling_bench.sh -n 55 -c 1000
