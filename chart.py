@@ -20,6 +20,7 @@ def load(filename):
 thread_count, time, hybrid = load("hybrid.csv")
 _, time_futex, futex = load("futex.csv")
 _, time_hybrid_spin, hybrid_spin = load("hybrid_spin.csv")
+_, time_spin, spin = load("spin.csv")
 
 if len(time) == 0:
     sys.exit(1)
@@ -33,7 +34,8 @@ ax2 = ax.twinx()
 ax2.plot(time, hybrid, label="Hybrid", color="blue")
 ax2.plot(time_futex, futex, label="Futex", color="green")
 ax2.plot(time_hybrid_spin, hybrid_spin, label="Hybrid spin", color="orange")
-# ax2.set_yscale("log")
+ax2.plot(time_spin, spin, label="Pure spin", color="purple")
+ax2.set_yscale("log")
 ax2.set_ylabel("Critical Section delay (ms)")
 
 fig.legend()
