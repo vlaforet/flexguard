@@ -2,32 +2,39 @@
 #include <bpf/bpf_helpers.h>
 #include "sched_switch.h"
 
-pid_t target_pid = 0;
+int *input_pid;
+int *input_spinning;
 
 char _license[4] SEC("license") = "GPL";
-
-struct
-{
-	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(u32));
-	__uint(value_size, sizeof(u32));
-} events SEC(".maps");
 
 SEC("tp_btf/sched_switch")
 int handle_sched_switch(u64 *ctx)
 {
 	bool preempt = (bool)ctx[0];
 	struct task_struct *prev = (struct task_struct *)ctx[1];
-	struct task_struct *next = (struct task_struct *)ctx[2];
 
-	struct data_t data = {};
-	int pid = next->pid;
-
-	if (!preempt || !pid || target_pid != pid)
+	if (!preempt || !prev->pid)
 		return 0;
 
-	data.pid = pid;
-	bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &data, sizeof(data));
+	int pid;
+	int err;
+
+	err = bpf_probe_read_user(&pid, sizeof(int), (const void *)input_pid);
+	if (err != 0)
+	{
+		bpf_printk("Error on bpf_probe_read_user(pid) -> %d.\n", err);
+		return 0;
+	}
+
+	/*if (pid == 0 || prev->pid != pid)
+		return 0;*/
+
+	bpf_printk("Spinning = 0.\n");
+	int spinning = 0;
+
+	err = bpf_probe_write_user(input_spinning, &spinning, sizeof(int));
+	if (err != 0)
+		bpf_printk("Error on bpf_probe_write_user(spinning) -> %d.\n", err);
 
 	return 0;
 }

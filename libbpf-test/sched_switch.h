@@ -1,9 +1,10 @@
 #ifndef __SCHED_SWITCH_H
 #define __SCHED_SWITCH_H
 
-struct data_t
+struct hybridlock
 {
-  pid_t pid;
+  int pid;
+  int spinning;
 };
 
 #endif
