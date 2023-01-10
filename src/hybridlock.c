@@ -30,6 +30,10 @@
 
 #include "hybridlock.h"
 
+#include <bpf/libbpf.h>
+#include <sys/resource.h>
+#include "hybridlock.skel.h"
+
 #define UNLOCKED 0
 #define LOCKED 1
 
@@ -215,13 +219,49 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks)
     free(the_locks);
 }
 
+static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
+{
+    return vfprintf(stderr, format, args);
+}
+
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
+    struct hybridlock_bpf *skel;
+    int err;
+
+    libbpf_set_print(libbpf_print_fn);
+
+    skel = hybridlock_bpf__open();
+    if (!skel)
+    {
+        fprintf(stderr, "Failed to open BPF skeleton\n");
+        return 1;
+    }
+
     the_lock->data.lock = UNLOCKED;
     the_lock->data.spinning = 1;
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
     pthread_mutex_init(&the_lock->data.mutex_lock, NULL);
 #endif
+
+    skel->bss->input_pid = &the_lock->data.lock;
+    skel->bss->input_spinning = &the_lock->data.spinning;
+
+    err = hybridlock_bpf__load(skel);
+    if (err)
+    {
+        fprintf(stderr, "Failed to load and verify BPF skeleton\n");
+        hybridlock_bpf__destroy(skel);
+        return 1;
+    }
+
+    err = hybridlock_bpf__attach(skel);
+    if (err)
+    {
+        fprintf(stderr, "Failed to attach BPF skeleton\n");
+        hybridlock_bpf__destroy(skel);
+        return 1;
+    }
 
     MEM_BARRIER;
     return 0;

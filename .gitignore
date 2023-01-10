@@ -3,6 +3,7 @@
 *.csv
 *.png
 
+/.output
 /#README.md#
 /atomic_bench
 /atomic_latency
