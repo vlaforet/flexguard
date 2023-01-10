@@ -50,10 +50,8 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	lock->pid = getpid();
-
 	while (lock->spinning)
-		;
+		lock->pid = getpid();
 
 	printf("Done.");
 

@@ -20,20 +20,22 @@ int handle_sched_switch(u64 *ctx)
 	int err;
 
 	err = bpf_probe_read_user(&pid, sizeof(int), (const void *)input_pid);
+	if (err == -14) // EFAULT -14: raised when the variable is not in use thus no thread is waiting.
+		return 0;
 	if (err != 0)
 	{
 		bpf_printk("Error on bpf_probe_read_user(pid) -> %d.\n", err);
 		return 0;
 	}
 
-	/*if (pid == 0 || prev->pid != pid)
-		return 0;*/
+	if (pid == 0 || prev->pid != pid)
+		return 0;
 
 	bpf_printk("Spinning = 0.\n");
 	int spinning = 0;
 
-	err = bpf_probe_write_user(input_spinning, &spinning, sizeof(int));
-	if (err != 0)
+	err = bpf_probe_write_user((const void *)input_spinning, &spinning, sizeof(int));
+	if (err != 0 && err != -1) // EPERM -1: raised when another thread is writing at the same time.
 		bpf_printk("Error on bpf_probe_write_user(spinning) -> %d.\n", err);
 
 	return 0;
