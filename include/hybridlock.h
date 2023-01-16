@@ -71,11 +71,7 @@ typedef struct
 } futex_lock_t;
 #endif
 
-#ifdef __tile__
 typedef uint32_t hybridlock_lock_type_t;
-#else
-typedef uint8_t hybridlock_lock_type_t;
-#endif
 
 typedef struct hybridlock_data_t
 {

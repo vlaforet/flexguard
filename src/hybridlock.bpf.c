@@ -30,6 +30,7 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
+pid_t tgid;
 uint8_t *input_pid;
 int *input_spinning;
 
@@ -40,24 +41,25 @@ int handle_sched_switch(u64 *ctx)
 {
 	bool preempt = (bool)ctx[0];
 	struct task_struct *prev = (struct task_struct *)ctx[1];
+	struct task_struct *next = (struct task_struct *)ctx[2];
 
-	if (!preempt || !prev->pid)
+	if (!preempt || !(prev->tgid == tgid || next->tgid == tgid))
 		return 0;
 
 	uint8_t pid;
 	int err;
 
 	err = bpf_probe_read_user(&pid, sizeof(pid), (const void *)input_pid);
-	if (err == -14) // EFAULT -14: raised when the variable is not in use thus no thread is waiting.
-		return 0;
 	if (err != 0)
 	{
 		bpf_printk("Error on bpf_probe_read_user(pid) -> %d.\n", err);
 		return 0;
 	}
 
-	/*if (pid == 0 || prev->pid != pid)
-		return 0;*/
+	bpf_printk("p: %d %d %d\n", pid, prev->pid, next->pid);
+
+	if (pid == 0 || prev->pid != pid)
+		return 0;
 
 	bpf_printk("Spinning = 0.\n");
 	int spinning = 0;

@@ -35,7 +35,6 @@
 #include "hybridlock.skel.h"
 
 #define UNLOCKED 0
-#define LOCKED 1
 
 __thread unsigned long *hybridlock_seeds;
 
@@ -103,7 +102,8 @@ void futex_unlock(futex_lock_t *lock)
 
 int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
 {
-    if (TAS_U8(&(the_lock->data.lock)) != 0)
+    uint32_t pid = gettid();
+    if (CAS_U32(&(the_lock->data.lock), UNLOCKED, pid) != 0)
         return 1;
 
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
@@ -119,9 +119,10 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
 {
+    uint32_t pid = gettid();
     volatile hybridlock_lock_type_t *l = &(the_lock->data.lock);
 
-    while (TAS_U8(l) && the_lock->data.spinning)
+    while (CAS_U32(l, UNLOCKED, pid) && the_lock->data.spinning)
     {
         PAUSE;
     }
@@ -131,7 +132,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
 #else
     futex_lock(&the_lock->data.futex_lock);
 #endif
-    TAS_U8(l);
+    SWAP_U32(l, pid);
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock)
@@ -244,6 +245,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     pthread_mutex_init(&the_lock->data.mutex_lock, NULL);
 #endif
 
+    skel->bss->tgid = getpid();
     skel->bss->input_pid = &the_lock->data.lock;
     skel->bss->input_spinning = &the_lock->data.spinning;
 
