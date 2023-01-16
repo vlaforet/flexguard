@@ -58,17 +58,20 @@
 #include "utils.h"
 
 #ifndef HYBRIDLOCK_PTHREAD_MUTEX
-enum
-{
-  FREE = 0,             /* the lock is free */
-  BUSY_NO_WAITER = 1,   /* the lock is BUSY and I don't have waiters => no futex_wake at the end of unlock */
-  BUSY_WITH_WAITERS = 2 /* the lock is BUSY and I have waiters => futex_wake at the end of unlock */
-};
-
 typedef struct
 {
-  uint64_t _Atomic state;
+  union
+  {
+    volatile int state;
+
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#else
+    uint8_t padding;
+#endif
+  };
 } futex_lock_t;
+
 #endif
 
 typedef uint32_t hybridlock_lock_type_t;
