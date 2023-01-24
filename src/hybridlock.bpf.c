@@ -31,7 +31,7 @@
 #include <bpf/bpf_helpers.h>
 
 pid_t tgid;
-uint8_t *input_pid;
+uint32_t *input_pid;
 int *input_spinning;
 
 char _license[4] SEC("license") = "GPL";
@@ -39,14 +39,12 @@ char _license[4] SEC("license") = "GPL";
 SEC("tp_btf/sched_switch")
 int handle_sched_switch(u64 *ctx)
 {
-	bool preempt = (bool)ctx[0];
 	struct task_struct *prev = (struct task_struct *)ctx[1];
-	struct task_struct *next = (struct task_struct *)ctx[2];
 
-	if (!preempt || !(prev->tgid == tgid || next->tgid == tgid))
+	if (prev->tgid != tgid)
 		return 0;
 
-	uint8_t pid;
+	uint32_t pid;
 	int err;
 
 	err = bpf_probe_read_user(&pid, sizeof(pid), (const void *)input_pid);
@@ -56,15 +54,13 @@ int handle_sched_switch(u64 *ctx)
 		return 0;
 	}
 
-	bpf_printk("p: %d %d %d\n", pid, prev->pid, next->pid);
-
 	if (pid == 0 || prev->pid != pid)
 		return 0;
 
 	bpf_printk("Spinning = 0.\n");
 	int spinning = 0;
 
-	err = bpf_probe_write_user((const void *)input_spinning, &spinning, sizeof(int));
+	err = bpf_probe_write_user((void *)input_spinning, &spinning, sizeof(int));
 	if (err != 0 && err != -1) // EPERM -1: raised when another thread is writing at the same time.
 		bpf_printk("Error on bpf_probe_write_user(spinning) -> %d.\n", err);
 
