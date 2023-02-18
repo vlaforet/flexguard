@@ -71,29 +71,14 @@ typedef struct
 #endif
   };
 } futex_lock_t;
+
 #endif
 
-typedef struct mcs_qnode
-{
-  volatile uint8_t waiting;
-  volatile uint8_t locking;
-  volatile struct mcs_qnode *volatile next;
-#ifdef ADD_PADDING
-#if CACHE_LINE_SIZE == 17
-#else
-  uint8_t padding[CACHE_LINE_SIZE - 17];
-#endif
-#endif
-} mcs_qnode;
-
-typedef volatile mcs_qnode *mcs_qnode_ptr;
-typedef mcs_qnode_ptr mcs_lock;
-typedef mcs_lock *hybridlock_lock_type_t;
-typedef mcs_qnode hybridlock_local_params;
+typedef uint32_t hybridlock_lock_type_t;
 
 typedef struct hybridlock_data_t
 {
-  hybridlock_lock_type_t mcs_lock;
+  hybridlock_lock_type_t lock;
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
   pthread_mutex_t mutex_lock;
 #else
@@ -119,11 +104,11 @@ typedef struct hybridlock_lock_t
  *  Lock manipulation methods
  */
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *local_params);
+void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits);
 
-int hybridlock_trylock(hybridlock_lock_t *the_locks, hybridlock_local_params *local_params);
+int hybridlock_trylock(hybridlock_lock_t *the_locks, uint32_t *limits);
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *local_params);
+void hybridlock_unlock(hybridlock_lock_t *the_locks);
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock);
 
@@ -135,11 +120,11 @@ void set_blocking(hybridlock_lock_t *the_lock, int blocking);
 
 hybridlock_lock_t *init_hybridlock_array_global(uint32_t num_locks);
 
-hybridlock_local_params *init_hybridlock_array_local(uint32_t thread_num, uint32_t size);
+uint32_t *init_hybridlock_array_local(uint32_t thread_num, uint32_t size);
 
-void end_hybridlock_array_local(hybridlock_local_params *local_params);
+void end_hybridlock_array_local(uint32_t *limits);
 
-void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size);
+void end_hybridlock_array_global(hybridlock_lock_t *the_locks);
 
 /*
  *  Methods for single lock manipulation
@@ -147,7 +132,7 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size);
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock);
 
-int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *local_params);
+int init_hybridlock_local(uint32_t thread_num, uint32_t *limit);
 
 void end_hybridlock_local();
 

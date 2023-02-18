@@ -94,7 +94,7 @@ typedef unsigned int lock_local_data;
 #elif defined(USE_SPINLOCK_LOCKS)
 typedef unsigned int lock_local_data;
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-typedef unsigned int lock_local_data;
+typedef hybridlock_local_params lock_local_data;
 #elif defined(USE_ARRAY_LOCKS)
 typedef array_lock_t lock_local_data;
 #elif defined(USE_CLH_LOCKS)
@@ -256,7 +256,7 @@ static inline void release_lock(lock_local_data *local_d, lock_global_data *glob
 #elif defined(USE_SPINLOCK_LOCKS)
     spinlock_unlock(global_d);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    hybridlock_unlock(global_d);
+    hybridlock_unlock(global_d, local_d);
 #elif defined(USE_ARRAY_LOCKS)
     alock_unlock(local_d);
 #elif defined(USE_CLH_LOCKS)
@@ -283,7 +283,7 @@ static inline void release_write(lock_local_data *local_d, lock_global_data *glo
 #elif defined(USE_SPINLOCK_LOCKS)
     spinlock_unlock(global_d);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    hybridlock_unlock(global_d);
+    hybridlock_unlock(global_d, local_d);
 #elif defined(USE_ARRAY_LOCKS)
     alock_unlock(local_d);
 #elif defined(USE_CLH_LOCKS)
@@ -310,7 +310,7 @@ static inline void release_read(lock_local_data *local_d, lock_global_data *glob
 #elif defined(USE_SPINLOCK_LOCKS)
     spinlock_unlock(global_d);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    hybridlock_unlock(global_d);
+    hybridlock_unlock(global_d, local_d);
 #elif defined(USE_ARRAY_LOCKS)
     alock_unlock(local_d);
 #elif defined(USE_CLH_LOCKS)
@@ -400,7 +400,7 @@ static inline void free_lock_local(lock_local_data local_d){
 #elif defined(USE_SPINLOCK_LOCKS)
     //    end_spinlock_array_local(local_d);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    //    end_hybridlock_array_local(local_d);
+    end_hybridlock_local(local_d);
 #elif defined(USE_ARRAY_LOCKS)
    // end_alock_local(local_d);
 #elif defined(USE_CLH_LOCKS)
@@ -520,7 +520,7 @@ static inline void free_lock_array_global(global_data the_locks, int num_locks) 
 #elif defined(USE_SPINLOCK_LOCKS)
     end_spinlock_array_global(the_locks);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    end_hybridlock_array_global(the_locks);
+    end_hybridlock_array_global(the_locks, num_locks);
 #elif defined(USE_ARRAY_LOCKS)
     end_alock_array_global(the_locks, num_locks);
 #elif defined(USE_RW_LOCKS)
@@ -614,7 +614,7 @@ static inline void release_trylock(lock_local_data* local_d, lock_global_data* g
 #elif defined(USE_SPINLOCK_LOCKS)
     spinlock_unlock(global_d);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    hybridlock_unlock(global_d);
+    hybridlock_unlock(global_d, local_d);
 #elif defined(USE_ARRAY_LOCKS)
     alock_unlock(local_d);
 #elif defined(USE_RW_LOCKS)

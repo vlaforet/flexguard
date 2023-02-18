@@ -34,10 +34,6 @@
 #include <sys/resource.h>
 #include "hybridlock.skel.h"
 
-#define UNLOCKED 0
-
-__thread unsigned long *hybridlock_seeds;
-
 #ifndef HYBRIDLOCK_PTHREAD_MUTEX
 static long futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2, int val3)
 {
@@ -80,15 +76,20 @@ static void futex_unlock(futex_lock_t *lock)
 }
 #endif
 
-int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
+int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
 {
-    uint32_t pid = gettid();
-    if (CAS_U32(&(the_lock->data.lock), UNLOCKED, pid) != 0)
+    my_qnode->next = NULL;
+#ifndef __tile__
+    if (CAS_PTR(the_lock->data.mcs_lock, NULL, my_qnode) != NULL)
         return 1;
+#else
+    MEM_BARRIER;
+    if (CAS_PTR(the_lock->data.mcs_lock, NULL, my_qnode) != NULL)
+        return 1;
+#endif
 
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
-    if (pthread_mutex_trylock(&the_lock->data.mutex_lock) != 0)
-        return 1;
+    pthread_mutex_lock(&the_lock->data.mutex_lock);
 #else
     futex_lock(&the_lock->data.futex_lock);
 #endif
@@ -96,14 +97,33 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
     return 0;
 }
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
+void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
 {
-    uint32_t pid = gettid();
-    volatile hybridlock_lock_type_t *l = &(the_lock->data.lock);
-
-    while (CAS_U32(l, UNLOCKED, pid) && the_lock->data.spinning)
+    my_qnode->next = NULL;
+    my_qnode->locking = 1;
+#ifndef __tile__
+    mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->data.mcs_lock, (void *)my_qnode);
+#else
+    MEM_BARRIER;
+    mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR(the_lock->data.mcs_lock, my_qnode);
+#endif
+    if (pred != NULL) /* lock was not free */
     {
-        PAUSE;
+        my_qnode->waiting = 1; // word on which to spin
+        MEM_BARRIER;
+        pred->next = my_qnode; // make pred point to me
+
+#if defined(OPTERON_OPTIMIZE)
+        PREFETCHW(my_qnode);
+#endif /* OPTERON_OPTIMIZE */
+        while (my_qnode->waiting != 0 && the_lock->data.spinning)
+        {
+            PAUSE;
+#if defined(OPTERON_OPTIMIZE)
+            pause_rep(23);
+            PREFETCHW(my_qnode);
+#endif /* OPTERON_OPTIMIZE */
+        }
     }
 
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
@@ -111,16 +131,40 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
 #else
     futex_lock(&the_lock->data.futex_lock);
 #endif
-    SWAP_U32(l, pid);
 }
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock)
+void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
 {
-    COMPILER_BARRIER;
 #ifdef __tile__
     MEM_BARRIER;
 #endif
-    the_lock->data.lock = UNLOCKED;
+
+    mcs_qnode_ptr succ;
+#if defined(OPTERON_OPTIMIZE)
+    PREFETCHW(my_qnode);
+#endif                            /* OPTERON_OPTIMIZE */
+    if (!(succ = my_qnode->next)) /* I seem to have no succ. */
+    {
+        /* try to fix global pointer */
+        if (CAS_PTR(the_lock->data.mcs_lock, my_qnode, NULL) == my_qnode)
+        {
+            my_qnode->locking = 0;
+
+#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+            pthread_mutex_unlock(&the_lock->data.mutex_lock);
+#else
+            futex_unlock(&the_lock->data.futex_lock);
+#endif
+            return;
+        }
+        do
+        {
+            succ = my_qnode->next;
+            PAUSE;
+        } while (!succ); // wait for successor
+    }
+    succ->waiting = 0;
+    my_qnode->locking = 0;
 
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
     pthread_mutex_unlock(&the_lock->data.mutex_lock);
@@ -131,7 +175,7 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock)
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
 {
-    if (the_lock->data.lock == UNLOCKED)
+    if ((*the_lock->data.mcs_lock) == NULL)
         return 1;
     return 0;
 }
@@ -154,14 +198,14 @@ void set_blocking(hybridlock_lock_t *the_lock, int blocking)
    Some methods for easy lock array manipulation
    */
 
-hybridlock_lock_t *init_hybridlock_array_global(uint32_t num_locks)
+hybridlock_lock_t *init_hybridlock_array_global(uint32_t size)
 {
-    hybridlock_lock_t *the_locks;
-    the_locks = (hybridlock_lock_t *)malloc(num_locks * sizeof(hybridlock_lock_t));
-    uint32_t i;
-    for (i = 0; i < num_locks; i++)
+    hybridlock_lock_t *the_locks = (hybridlock_lock_t *)malloc(size * sizeof(hybridlock_lock_t));
+    for (uint32_t i = 0; i < size; i++)
     {
-        the_locks[i].data.lock = UNLOCKED;
+        the_locks[i].data.mcs_lock = (mcs_lock *)malloc(sizeof(mcs_lock));
+        *(the_locks[i].data.mcs_lock) = 0;
+
         the_locks[i].data.spinning = 1;
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
         pthread_mutex_init(&the_locks[i].data.mutex_lock, NULL);
@@ -172,88 +216,46 @@ hybridlock_lock_t *init_hybridlock_array_global(uint32_t num_locks)
     return the_locks;
 }
 
-uint32_t *init_hybridlock_array_local(uint32_t thread_num, uint32_t size)
+hybridlock_local_params *init_hybridlock_array_local(uint32_t thread_num, uint32_t size)
 {
-    // assign the thread to the correct core
     set_cpu(thread_num);
-    hybridlock_seeds = seed_rand();
 
-    uint32_t *limits;
-    limits = (uint32_t *)malloc(size * sizeof(uint32_t));
-    uint32_t i;
-    for (i = 0; i < size; i++)
-    {
-        limits[i] = 1;
-    }
+    hybridlock_local_params *local_params = (hybridlock_local_params *)malloc(size * sizeof(hybridlock_local_params));
     MEM_BARRIER;
-    return limits;
+    return local_params;
 }
 
-void end_hybridlock_array_local(uint32_t *limits)
+void end_hybridlock_array_local(hybridlock_local_params *local_params)
 {
-    free(limits);
+    free(local_params);
 }
 
-void end_hybridlock_array_global(hybridlock_lock_t *the_locks)
+void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size)
 {
+    for (uint32_t i = 0; i < size; i++)
+        free(the_locks[i].data.mcs_lock);
     free(the_locks);
-}
-
-static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
-{
-    return vfprintf(stderr, format, args);
 }
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
-    struct hybridlock_bpf *skel;
-    int err;
+    the_lock->data.mcs_lock = (mcs_lock *)malloc(sizeof(mcs_lock));
+    *(the_lock->data.mcs_lock) = 0;
 
-    libbpf_set_print(libbpf_print_fn);
-
-    skel = hybridlock_bpf__open();
-    if (!skel)
-    {
-        fprintf(stderr, "Failed to open BPF skeleton\n");
-        return 1;
-    }
-
-    the_lock->data.lock = UNLOCKED;
     the_lock->data.spinning = 1;
+
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
     pthread_mutex_init(&the_lock->data.mutex_lock, NULL);
 #endif
-
-    skel->bss->tgid = getpid();
-    skel->bss->input_pid = &the_lock->data.lock;
-    skel->bss->input_spinning = &the_lock->data.spinning;
-
-    err = hybridlock_bpf__load(skel);
-    if (err)
-    {
-        fprintf(stderr, "Failed to load and verify BPF skeleton\n");
-        hybridlock_bpf__destroy(skel);
-        return 1;
-    }
-
-    err = hybridlock_bpf__attach(skel);
-    if (err)
-    {
-        fprintf(stderr, "Failed to attach BPF skeleton\n");
-        hybridlock_bpf__destroy(skel);
-        return 1;
-    }
 
     MEM_BARRIER;
     return 0;
 }
 
-int init_hybridlock_local(uint32_t thread_num, uint32_t *limit)
+int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode)
 {
-    // assign the thread to the correct core
     set_cpu(thread_num);
-    *limit = 1;
-    hybridlock_seeds = seed_rand();
+    my_qnode->locking = 0;
     MEM_BARRIER;
     return 0;
 }
