@@ -14,7 +14,10 @@
 #include "atomic_ops.h"
 #include "utils.h"
 #include "lock_if.h"
+
+#ifdef USE_HYBRIDLOCK_LOCKS
 #include "hybridlock.h"
+#endif
 
 #define DEFAULT_NB_THREADS 10
 #define DEFAULT_USE_LOCKS 1
