@@ -133,19 +133,6 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qn
 #else
     futex_lock(&the_lock->data.futex_lock);
 #endif
-
-// Ensure the MCS lock is acquired
-#ifndef __tile__
-    pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->data.mcs_lock, (void *)my_qnode);
-#else
-    MEM_BARRIER;
-    pred = (mcs_qnode *)SWAP_PTR(the_lock->data.mcs_lock, my_qnode);
-#endif
-
-    if (pred != my_qnode && pred != NULL)
-    {
-        perror("MCS lock was not free after futex lock was acquired.");
-    }
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
