@@ -101,12 +101,14 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qn
 {
     my_qnode->next = NULL;
     my_qnode->locking = 1;
+
 #ifndef __tile__
     mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->data.mcs_lock, (void *)my_qnode);
 #else
     MEM_BARRIER;
     mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR(the_lock->data.mcs_lock, my_qnode);
 #endif
+
     if (pred != NULL) /* lock was not free */
     {
         my_qnode->waiting = 1; // word on which to spin
@@ -131,10 +133,29 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qn
 #else
     futex_lock(&the_lock->data.futex_lock);
 #endif
+
+// Ensure the MCS lock is acquired
+#ifndef __tile__
+    pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->data.mcs_lock, (void *)my_qnode);
+#else
+    MEM_BARRIER;
+    pred = (mcs_qnode *)SWAP_PTR(the_lock->data.mcs_lock, my_qnode);
+#endif
+
+    if (pred != my_qnode && pred != NULL)
+    {
+        perror("MCS lock was not free after futex lock was acquired.");
+    }
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
 {
+#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+    pthread_mutex_unlock(&the_lock->data.mutex_lock);
+#else
+    futex_unlock(&the_lock->data.futex_lock);
+#endif
+
 #ifdef __tile__
     MEM_BARRIER;
 #endif
@@ -149,12 +170,6 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_
         if (CAS_PTR(the_lock->data.mcs_lock, my_qnode, NULL) == my_qnode)
         {
             my_qnode->locking = 0;
-
-#ifdef HYBRIDLOCK_PTHREAD_MUTEX
-            pthread_mutex_unlock(&the_lock->data.mutex_lock);
-#else
-            futex_unlock(&the_lock->data.futex_lock);
-#endif
             return;
         }
         do
@@ -165,12 +180,6 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_
     }
     succ->waiting = 0;
     my_qnode->locking = 0;
-
-#ifdef HYBRIDLOCK_PTHREAD_MUTEX
-    pthread_mutex_unlock(&the_lock->data.mutex_lock);
-#else
-    futex_unlock(&the_lock->data.futex_lock);
-#endif
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
