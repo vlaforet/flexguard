@@ -245,11 +245,6 @@ int main(int argc, char **argv)
         data[i].reset = 0;
     }
 
-#ifdef USE_HYBRIDLOCK_LOCKS
-    if (switch_thread_count == 0)
-        set_blocking(&the_lock, 1);
-#endif
-
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
@@ -264,8 +259,8 @@ int main(int argc, char **argv)
     for (i = 0; i < max_nb_threads; i++)
     {
 #ifdef USE_HYBRIDLOCK_LOCKS
-        if (switch_thread_count > 0 && i == switch_thread_count)
-            set_blocking(&the_lock, 1);
+        if (i == switch_thread_count)
+            the_lock.data.spinning = 0;
 #endif
 
         DPRINT("Creating thread %d\n", i);
@@ -284,7 +279,7 @@ int main(int argc, char **argv)
     {
 #ifdef USE_HYBRIDLOCK_LOCKS
         if (switch_thread_count > 0 && i == 5)
-            set_blocking(&the_lock, 0);
+            the_lock.data.spinning = 1;
 #endif
 
         measurement(data, max_nb_threads);

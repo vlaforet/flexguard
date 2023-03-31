@@ -370,7 +370,7 @@ static inline int init_lock_local(int core_to_pin,  lock_global_data* the_lock, 
 #elif defined(USE_SPINLOCK_LOCKS)
     return init_spinlock_local(core_to_pin, local_data);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    return init_hybridlock_local(core_to_pin, local_data);
+    return init_hybridlock_local(core_to_pin, local_data, the_lock);
 #elif defined(USE_ARRAY_LOCKS)
     return init_alock_local(core_to_pin, the_lock, local_data);
 #elif defined(USE_RW_LOCKS)

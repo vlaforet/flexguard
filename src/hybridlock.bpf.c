@@ -28,41 +28,60 @@
  */
 
 #include "vmlinux.h"
+#include "hybridlock_bpf.h"
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 
-pid_t tgid;
-uint32_t *input_pid;
 int *input_spinning;
 
 char _license[4] SEC("license") = "GPL";
+
+typedef mcs_qnode *map_value;
+
+struct
+{
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u32);
+	__type(value, map_value);
+} nodes_map SEC(".maps");
 
 SEC("tp_btf/sched_switch")
 int handle_sched_switch(u64 *ctx)
 {
 	struct task_struct *prev = (struct task_struct *)ctx[1];
 
-	if (prev->tgid != tgid)
+	int err, spinning;
+
+	// Lookup thread qnode
+	u32 k = prev->pid;
+	mcs_qnode **qnode = bpf_map_lookup_elem(&nodes_map, &k);
+	if (qnode == NULL)
 		return 0;
 
-	uint32_t pid;
-	int err;
+	// Ignore if thread not lock holder
+	if (!BPF_PROBE_READ_USER(*qnode, locking) || BPF_PROBE_READ_USER(*qnode, waiting))
+		return 0;
 
-	err = bpf_probe_read_user(&pid, sizeof(pid), (const void *)input_pid);
-	if (err != 0)
+	// Retrieve current lock state
+	err = bpf_probe_read_user(&spinning, sizeof(spinning), (const void *)input_spinning);
+	if (err)
 	{
-		bpf_printk("Error on bpf_probe_read_user(pid) -> %d.\n", err);
+		bpf_printk("Error on bpf_probe_read_user(spinning) -> %d", err);
 		return 0;
 	}
 
-	if (pid == 0 || prev->pid != pid)
+	// Ignore if already blocking
+	if (!spinning)
 		return 0;
 
-	bpf_printk("Spinning = 0.\n");
-	int spinning = 0;
+	bpf_printk("Spinning = 0");
 
-	err = bpf_probe_write_user((void *)input_spinning, &spinning, sizeof(int));
-	if (err != 0 && err != -1) // EPERM -1: raised when another thread is writing at the same time.
-		bpf_printk("Error on bpf_probe_write_user(spinning) -> %d.\n", err);
+	// Changing lock state to blocking
+	spinning = 0;
+	err = bpf_probe_write_user((void *)input_spinning, &spinning, sizeof(spinning));
+	if (err && err != -1) // EPERM -1: raised when another thread is writing at the same time.
+		bpf_printk("Error on bpf_probe_write_user(spinning) -> %d", err);
 
 	return 0;
 }

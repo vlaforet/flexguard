@@ -30,8 +30,6 @@
 
 #include "hybridlock.h"
 
-#include <bpf/libbpf.h>
-#include <sys/resource.h>
 #include "hybridlock.skel.h"
 
 #ifndef HYBRIDLOCK_PTHREAD_MUTEX
@@ -176,20 +174,6 @@ int is_free_hybridlock(hybridlock_lock_t *the_lock)
     return 0;
 }
 
-void set_blocking(hybridlock_lock_t *the_lock, int blocking)
-{
-    if (blocking)
-    {
-        the_lock->data.spinning = 0;
-        DPRINT("Hybrid Lock: Blocking\n");
-    }
-    else
-    {
-        the_lock->data.spinning = 1;
-        DPRINT("Hybrid Lock: Spinning\n");
-    }
-}
-
 /*
    Some methods for easy lock array manipulation
    */
@@ -233,8 +217,49 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size)
     free(the_locks);
 }
 
+static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
+{
+    return vfprintf(stderr, format, args);
+}
+
+static int get_max_pid()
+{
+    int max_pid;
+    FILE *f;
+
+    f = fopen("/proc/sys/kernel/pid_max", "r");
+    if (!f)
+        return -1;
+    if (fscanf(f, "%d\n", &max_pid) != 1)
+        max_pid = -1;
+    fclose(f);
+    return max_pid;
+}
+
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
+    struct hybridlock_bpf *skel;
+    int err;
+
+    // Open BPF skeleton
+    libbpf_set_print(libbpf_print_fn);
+    skel = hybridlock_bpf__open();
+    if (!skel)
+    {
+        fprintf(stderr, "Failed to open BPF skeleton\n");
+        return 1;
+    }
+
+    // Set max size of map to max pid
+    int max_pid = get_max_pid();
+    if (max_pid < 0)
+    {
+        fprintf(stderr, "Failed to get max_pid\n");
+        return 1;
+    }
+    bpf_map__set_max_entries(skel->maps.nodes_map, max_pid);
+
+    // Initialize all lock objects
     the_lock->data.mcs_lock = (mcs_lock *)malloc(sizeof(mcs_lock));
     *(the_lock->data.mcs_lock) = 0;
 
@@ -244,14 +269,51 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     pthread_mutex_init(&the_lock->data.mutex_lock, NULL);
 #endif
 
+    // Set pointer to spinning variable for BPF
+    skel->bss->input_spinning = &the_lock->data.spinning;
+
+    // Load BPF skeleton
+    err = hybridlock_bpf__load(skel);
+    if (err)
+    {
+        fprintf(stderr, "Failed to load and verify BPF skeleton\n");
+        hybridlock_bpf__destroy(skel);
+        return 1;
+    }
+
+    // Store map
+    the_lock->data.nodes_map = skel->maps.nodes_map;
+
+    // Attach BPF skeleton
+    err = hybridlock_bpf__attach(skel);
+    if (err)
+    {
+        fprintf(stderr, "Failed to attach BPF skeleton\n");
+        hybridlock_bpf__destroy(skel);
+        return 1;
+    }
+
     MEM_BARRIER;
     return 0;
 }
 
-int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode)
+int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode, hybridlock_lock_t *the_lock)
 {
     set_cpu(thread_num);
     my_qnode->locking = 0;
+    my_qnode->waiting = 0;
+
+    printf("Pointer: %lld\n", my_qnode);
+
+    // Register thread in BPF map
+    __u32 tid = gettid();
+    int err = bpf_map__update_elem(the_lock->data.nodes_map, &tid, sizeof(tid), &my_qnode, sizeof(mcs_qnode *), BPF_ANY);
+    if (err)
+    {
+        fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
+        return 1;
+    }
+
     MEM_BARRIER;
     return 0;
 }

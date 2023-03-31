@@ -47,6 +47,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <sys/resource.h>
 #include <linux/futex.h>
 
 #include <fcntl.h>
@@ -54,37 +55,18 @@
 #include <numa.h>
 #endif
 #include <pthread.h>
+#include <bpf/libbpf.h>
+
 #include "atomic_ops.h"
 #include "utils.h"
+#include "hybridlock_bpf.h"
 
 #ifndef HYBRIDLOCK_PTHREAD_MUTEX
 typedef struct
 {
-  union
-  {
-    volatile int state;
-
-#ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE];
-#else
-    uint8_t padding;
-#endif
-  };
+  volatile int state;
 } futex_lock_t;
 #endif
-
-typedef struct mcs_qnode
-{
-  volatile uint8_t waiting;
-  volatile uint8_t locking;
-  volatile struct mcs_qnode *volatile next;
-#ifdef ADD_PADDING
-#if CACHE_LINE_SIZE == 17
-#else
-  uint8_t padding[CACHE_LINE_SIZE - 17];
-#endif
-#endif
-} mcs_qnode;
 
 typedef volatile mcs_qnode *mcs_qnode_ptr;
 typedef mcs_qnode_ptr mcs_lock;
@@ -100,6 +82,7 @@ typedef struct hybridlock_data_t
   futex_lock_t futex_lock;
 #endif
   int spinning;
+  struct bpf_map *nodes_map;
 } hybridlock_data_t;
 
 typedef struct hybridlock_lock_t
@@ -147,7 +130,7 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size);
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock);
 
-int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *local_params);
+int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *local_params, hybridlock_lock_t *the_lock);
 
 void end_hybridlock_local();
 
