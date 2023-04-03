@@ -303,8 +303,6 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode
     my_qnode->locking = 0;
     my_qnode->waiting = 0;
 
-    printf("Pointer: %lld\n", my_qnode);
-
     // Register thread in BPF map
     __u32 tid = gettid();
     int err = bpf_map__update_elem(the_lock->data.nodes_map, &tid, sizeof(tid), &my_qnode, sizeof(mcs_qnode *), BPF_ANY);
