@@ -131,6 +131,17 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qn
 #else
     futex_lock(&the_lock->data.futex_lock);
 #endif
+
+    while (my_qnode->waiting != 0)
+    {
+#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+        pthread_mutex_unlock(&the_lock->data.mutex_lock);
+        pthread_mutex_lock(&the_lock->data.mutex_lock);
+#else
+        futex_unlock(&the_lock->data.futex_lock);
+        futex_lock(&the_lock->data.futex_lock);
+#endif
+    }
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
