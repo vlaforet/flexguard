@@ -47,11 +47,12 @@ struct
 } nodes_map SEC(".maps");
 
 SEC("tp_btf/sched_switch")
-int handle_sched_switch(u64 *ctx)
+int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
 {
-	struct task_struct *prev = (struct task_struct *)ctx[1];
-
 	int err, spinning;
+
+	if (!preempt)
+		return 0;
 
 	// Lookup thread qnode
 	u32 k = prev->pid;
@@ -61,18 +62,6 @@ int handle_sched_switch(u64 *ctx)
 
 	// Ignore if thread not lock holder
 	if (!BPF_PROBE_READ_USER(*qnode, locking) || BPF_PROBE_READ_USER(*qnode, waiting))
-		return 0;
-
-	// Retrieve current lock state
-	err = bpf_probe_read_user(&spinning, sizeof(spinning), (const void *)input_spinning);
-	if (err)
-	{
-		bpf_printk("Error on bpf_probe_read_user(spinning) -> %d", err);
-		return 0;
-	}
-
-	// Ignore if already blocking
-	if (!spinning)
 		return 0;
 
 	bpf_printk("Spinning = 0");
