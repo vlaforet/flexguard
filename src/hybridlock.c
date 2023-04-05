@@ -31,8 +31,6 @@
 #include "hybridlock.h"
 #include "hybridlock.skel.h"
 
-#define DURATION(t1, t2) (t2.tv_sec * 1000 + t2.tv_usec / (double)1000) - (t1.tv_sec * 1000 + t1.tv_usec / (double)1000)
-
 static void futex_wait(void *addr, int val)
 {
     int ret = 0;
