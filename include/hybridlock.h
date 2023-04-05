@@ -61,13 +61,6 @@
 #include "utils.h"
 #include "hybridlock_bpf.h"
 
-#ifndef HYBRIDLOCK_PTHREAD_MUTEX
-typedef struct
-{
-  volatile int state;
-} futex_lock_t;
-#endif
-
 typedef volatile mcs_qnode *mcs_qnode_ptr;
 typedef mcs_qnode_ptr mcs_lock;
 typedef mcs_lock *hybridlock_lock_type_t;
@@ -76,11 +69,6 @@ typedef mcs_qnode hybridlock_local_params;
 typedef struct hybridlock_data_t
 {
   hybridlock_lock_type_t mcs_lock;
-#ifdef HYBRIDLOCK_PTHREAD_MUTEX
-  pthread_mutex_t mutex_lock;
-#else
-  futex_lock_t futex_lock;
-#endif
   int spinning;
   struct bpf_map *nodes_map;
 } hybridlock_data_t;
@@ -109,8 +97,6 @@ int hybridlock_trylock(hybridlock_lock_t *the_locks, hybridlock_local_params *lo
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *local_params);
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock);
-
-void set_blocking(hybridlock_lock_t *the_lock, int blocking);
 
 /*
  *  Some methods for easy lock array manipluation

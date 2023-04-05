@@ -32,7 +32,7 @@
 
 typedef struct mcs_qnode
 {
-  volatile uint8_t waiting;
+  volatile uint32_t waiting; // 32 bits as requested by futex syscall
   volatile uint8_t locking;
   volatile struct mcs_qnode *volatile next;
 } mcs_qnode;
