@@ -60,10 +60,6 @@ static void futex_wake(void *addr, int nb_threads)
 int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
 {
     my_qnode->next = NULL;
-
-#ifdef __tile__
-    MEM_BARRIER;
-#endif
     if (CAS_PTR(the_lock->data.mcs_lock, NULL, my_qnode) == NULL)
         return 0;
     return 1;
@@ -74,9 +70,6 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qn
     my_qnode->next = NULL;
     my_qnode->locking = 1;
 
-#ifdef __tile__
-    MEM_BARRIER;
-#endif
     mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->data.mcs_lock, (void *)my_qnode);
 
     if (pred == NULL) /* lock was free */
@@ -86,19 +79,10 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qn
     MEM_BARRIER;
     pred->next = my_qnode; // make pred point to me
 
-#if defined(OPTERON_OPTIMIZE)
-    PREFETCHW(my_qnode);
-#endif /* OPTERON_OPTIMIZE */
     while (my_qnode->waiting != 0)
     {
         if (the_lock->data.spinning)
-        {
             PAUSE;
-#if defined(OPTERON_OPTIMIZE)
-            pause_rep(23);
-            PREFETCHW(my_qnode);
-#endif /* OPTERON_OPTIMIZE */
-        }
         else
             futex_wait((void *)&my_qnode->waiting, 1);
     }
@@ -106,14 +90,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qn
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
 {
-#ifdef __tile__
-    MEM_BARRIER;
-#endif
-
     mcs_qnode_ptr succ;
-#if defined(OPTERON_OPTIMIZE)
-    PREFETCHW(my_qnode);
-#endif                            /* OPTERON_OPTIMIZE */
     if (!(succ = my_qnode->next)) /* I seem to have no succ. */
     {
         /* try to fix global pointer */

@@ -117,9 +117,6 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
 void hybridlock_unlock(hybridlock_lock_t *the_lock)
 {
     COMPILER_BARRIER;
-#ifdef __tile__
-    MEM_BARRIER;
-#endif
     the_lock->data.lock = UNLOCKED;
 
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
