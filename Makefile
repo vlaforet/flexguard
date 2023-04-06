@@ -110,7 +110,13 @@ OBJ_FILES :=  mcs.o clh.o ttas.o spinlock.o rw_ttas.o ticket.o alock.o hclh.o gl
 OBJ_FILES += $(LIBBPF_OBJ)
 LIBS += -lelf -lz
 
-all: bank scheduling bank_one bank_simple test_array_alloc test_trylock sample_generic sample_mcs test_correctness stress_one stress_test stress_latency atomic_bench individual_ops uncontended  htlock_test measure_contention libsync.a
+ALL := bank scheduling bank_one bank_simple test_array_alloc test_trylock sample_generic sample_mcs test_correctness stress_one stress_test stress_latency atomic_bench individual_ops uncontended measure_contention libsync.a
+
+ifeq ($(LOCK_VERSION), -DUSE_HTICKET_LOCKS)
+ALL += htlock_test
+endif
+
+all: $(ALL)
 	@echo "############### Used: " $(LOCK_VERSION) " on " $(PLATFORM) " with " $(OPTIMIZE)
 
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
@@ -235,8 +241,11 @@ uncontended: bmarks/uncontended.c $(OBJ_FILES) Makefile
 atomic_bench: bmarks/atomic_bench.c Makefile
 	$(GCC) $(ALTERNATE_SOCKETS) $(PRIMITIVE) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) bmarks/atomic_bench.c -o atomic_bench $(LIBS)
 
+ifeq ($(LOCK_VERSION), -DUSE_HTICKET_LOCKS)
 htlock_test: htlock.o bmarks/htlock_test.c Makefile
 	$(GCC) -O0 -D_GNU_SOURCE $(COMPILE_FLAGS) $(PLATFORM) $(DEBUG_FLAGS) $(INCLUDES) bmarks/htlock_test.c -o htlock_test htlock.o $(LIBS)
+endif
+
 
 clean:
 	rm -rf $(OUTPUT) *.o locks mcs_test hclh_test bank_one bank_simple bank* stress_latency* test_array_alloc test_trylock sample_* test_correctness stress_one stress_test* atomic_bench uncontended individual_ops trylock_test htlock_test measure_contention libsync.a
