@@ -275,7 +275,7 @@ void end_hclh_local(hclh_local_params local_params) {
 void end_hclh_global(hclh_global_params global_params) {
     free(global_params.shared_queue);
     int i;
-    for (i=0;i<sizeof(global_params.local_queues)/sizeof(global_params.local_queues[0]);i++) {
+    for (i=0;i<NUMBER_OF_SOCKETS;i++) {
        free(global_params.local_queues[i]); 
     }
     free(global_params.local_queues);
