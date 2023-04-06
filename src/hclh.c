@@ -52,9 +52,6 @@ volatile qnode * hclh_acquire(local_queue *lq, global_queue *gq, qnode *my_qnode
     volatile qnode* my_pred;
     do 
     {
-#if defined(OPTERON_OPTIMIZE)
-        PREFETCHW(lq);
-#endif	/* OPTERON_OPTIMIZE */
         my_pred = *lq;
     }  while (CAS_PTR(lq, my_pred, my_qnode)!=my_pred);
 
@@ -71,25 +68,14 @@ volatile qnode * hclh_acquire(local_queue *lq, global_queue *gq, qnode *my_qnode
     volatile qnode * local_tail;
     do 
     {
-#if defined(OPTERON_OPTIMIZE)
-        PREFETCHW(gq);
-        PREFETCHW(lq);
-#endif	/* OPTERON_OPTIMIZE */
         my_pred = *gq;
         local_tail = *lq;
         PAUSE;
     } while(CAS_PTR(gq, my_pred, local_tail)!=my_pred);
 
     local_tail->fields.tail_when_spliced = 1;
-#if defined(OPTERON_OPTIMIZE)
-    PREFETCHW(my_pred);
-#endif	/* OPTERON_OPTIMIZE */
     while (my_pred->fields.successor_must_wait) {
         PAUSE;
-#if defined(OPTERON_OPTIMIZE)
-        pause_rep(23);
-        PREFETCHW(my_pred);
-#endif	/* OPTERON_OPTIMIZE */
     }
     return my_pred;
 }
@@ -116,17 +102,11 @@ qnode* hclh_release(qnode *my_qnode, qnode * my_pred) {
     new_node.fields.successor_must_wait = 1;
     new_node.fields.tail_when_spliced=0;
 
-#if defined(OPTERON_OPTIMIZE)
-    PREFETCHW(pr);
-#endif	/* OPTERON_OPTIMIZE */
     uint32_t old_data = pr->data;
     while (CAS_U32(&pr->data,old_data,new_node.data)!=old_data) 
     {
         old_data=pr->data; 
         PAUSE;
-#if defined(OPTERON_OPTIMIZE)
-        PREFETCHW(pr);
-#endif	/* OPTERON_OPTIMIZE */
     }
     my_qnode=pr;
     return my_qnode;
@@ -163,18 +143,6 @@ hclh_local_params* init_hclh_array_local(uint32_t phys_core, uint32_t num_locks,
     hclh_local_params* local_params;
     local_params = (hclh_local_params*)malloc(num_locks * sizeof(hclh_local_params));
     uint32_t i;
-#ifdef XEON
-    MEM_BARRIER;
-    uint32_t real_core_num = 0;
-    for (i = 0; i < (NUMBER_OF_SOCKETS * CORES_PER_SOCKET); i++) {
-        if (the_cores[i]==phys_core) {
-            real_core_num = i;
-            break;
-        }
-    }
-    phys_core=real_core_num;
-    MEM_BARRIER;
-#endif
     hclh_node_mine = phys_core/CORES_PER_SOCKET;
     for (i = 0; i < num_locks; i++) {
         //local_params[i]=(hclh_local_params*) malloc(sizeof(hclh_local_params));
@@ -186,9 +154,6 @@ hclh_local_params* init_hclh_array_local(uint32_t phys_core, uint32_t num_locks,
         if (phys_core%CORES_PER_SOCKET==0) {
             the_params[i].local_queues[phys_core/CORES_PER_SOCKET] = (local_queue*)malloc(sizeof(local_queue));
             *(the_params[i].local_queues[phys_core/CORES_PER_SOCKET]) = NULL;
-#ifdef __tile__
-        MEM_BARRIER;
-#endif
             the_params[i].init_done[phys_core/CORES_PER_SOCKET]=INIT_VAL;
         }
         while(the_params[i].init_done[phys_core/CORES_PER_SOCKET]!=INIT_VAL) {}
@@ -233,19 +198,6 @@ int init_hclh_global(hclh_global_params* the_params) {
 int init_hclh_local(uint32_t phys_core, hclh_global_params* the_params, hclh_local_params* local_params) {
     //assign the thread to the correct core
     set_cpu(phys_core);
-#ifdef XEON
-    MEM_BARRIER;
-    uint32_t real_core_num = 0;
-    int i;
-    for (i = 0; i < (NUMBER_OF_SOCKETS * CORES_PER_SOCKET); i++) {
-        if (the_cores[i]==phys_core) {
-            real_core_num = i;
-            break;
-        }
-    }
-    phys_core=real_core_num;
-    MEM_BARRIER;
-#endif
 
     hclh_node_mine = phys_core/CORES_PER_SOCKET;
 //    local_params=(hclh_local_params*) malloc(sizeof(hclh_local_params));
@@ -257,9 +209,6 @@ int init_hclh_local(uint32_t phys_core, hclh_global_params* the_params, hclh_loc
     if (phys_core%CORES_PER_SOCKET==0) {
         the_params->local_queues[phys_core/CORES_PER_SOCKET] = (local_queue*)malloc(sizeof(local_queue));
         *(the_params->local_queues[phys_core/CORES_PER_SOCKET]) = NULL;
-#ifdef __tile__
-        MEM_BARRIER;
-#endif
         the_params->init_done[phys_core/CORES_PER_SOCKET]=INIT_VAL;
     }
     while(the_params->init_done[phys_core/CORES_PER_SOCKET]!=INIT_VAL) {}

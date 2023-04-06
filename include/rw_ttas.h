@@ -46,17 +46,10 @@
 
 #define MAX_DELAY 1000
 
-#ifdef __tile__
-#define MAX_RW UINT32_MAX
-#define W_MASK 0x100000000
-typedef uint32_t rw_data_t;
-typedef uint64_t all_data_t;
-#else
 #define MAX_RW UINT8_MAX
 #define W_MASK 0x100
 typedef uint8_t rw_data_t;
 typedef uint16_t all_data_t;
-#endif
 
 typedef struct rw_ttas_data {
     volatile rw_data_t read_lock;

@@ -140,9 +140,6 @@ void *test(void *data)
 #ifdef PRINT_OUTPUT
         fprintf(stderr, "%d %llu\n",d->id, (unsigned long long int) end);
 #endif
-#ifdef __tile__
-        MEM_BARRIER;
-#endif
         COMPILER_BARRIER;
         head++;
         d->num_acquires++;

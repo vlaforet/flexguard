@@ -5,7 +5,6 @@
  * Description: 
  *      An implementation of a ticket lock with:
  *       - proportional back-off optimization
- *       - pretetchw for write optitization for the AMD Opteron
  *           Magny-Cours processors
  *
  * The MIT License (MIT)
@@ -72,57 +71,6 @@ ticket_acquire(ticketlock_t* lock)
 {
   uint32_t my_ticket = IAF_U32(&(lock->tail));
 
-
-#if defined(OPTERON_OPTIMIZE)
-  uint32_t wait = TICKET_BASE_WAIT;
-  uint32_t distance_prev = 1;
-#  if defined(MEASURE_CONTENTION)
-  uint8_t once = 1;
-  ticket_acquires++;
-#  endif
-
-  while (1)
-    {
-      PREFETCHW(lock);
-      uint32_t cur = lock->head;
-      if (cur == my_ticket)
-        {
-	  break;
-        }
-      uint32_t distance = sub_abs(cur, my_ticket);
-
-#  if defined(MEASURE_CONTENTION)
-      if (once)
-        {
-	  ticket_queued_total += distance;
-	  once = 0;
-        }
-#  endif
-
-      if (distance > 1)
-        {
-	  if (distance != distance_prev)
-            {
-	      distance_prev = distance;
-	      wait = TICKET_BASE_WAIT;
-            }
-
-	  nop_rep(distance * wait);
-	  /* wait = (wait + TICKET_BASE_WAIT) & TICKET_MAX_WAIT; */
-        }
-      else
-        {
-	  nop_rep(TICKET_WAIT_NEXT);
-        }
-
-      if (distance > 20)
-        {
-	  sched_yield();
-	  /* pthread_yield(); */
-        }
-    }
-
-#else  /* !OPTERON_OPTIMIZE */
   /* backoff proportional to the distance would make sense even without the PREFETCHW */
   /* however, I did some tests on the Niagara and it performed worse */
 
@@ -178,18 +126,11 @@ ticket_acquire(ticketlock_t* lock)
       PAUSE;
     }
 #  endif
-#endif	/* OPTERON_OPTIMIZE */
 }
 
 void
 ticket_release(ticketlock_t* lock) 
 {
-#ifdef __tile__
-  MEM_BARRIER;
-#endif
-#if defined(OPTERON_OPTIMIZE)
-  PREFETCHW(lock);
-#endif	/* OPTERON */
   COMPILER_BARRIER;
   lock->head++;
 }

@@ -50,11 +50,7 @@
 #define MAX_DELAY 1000
 
 typedef volatile uint32_t ttas_index_t;
-#ifdef __tile__
-typedef uint32_t ttas_lock_data_t;
-#else
 typedef uint8_t ttas_lock_data_t;
-#endif
 
 typedef struct ttas_lock_t {
     union {

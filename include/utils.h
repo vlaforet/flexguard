@@ -42,22 +42,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <limits.h>
-#ifdef __sparc__
-#  include <sys/types.h>
-#  include <sys/processor.h>
-#  include <sys/procset.h>
-#elif defined(__tile__)
-#include <arch/atomic.h>
-#include <arch/cycle.h>
-#include <tmc/cpus.h>
-#include <tmc/task.h>
-#include <tmc/spin.h>
-#include <sched.h>
-#else
-#  include <emmintrin.h>
-#  include <xmmintrin.h>
-#  include <numa.h>
-#endif
+#include <emmintrin.h>
+#include <xmmintrin.h>
+#include <numa.h>
 #include <pthread.h>
 
 #include "platform_defs.h"
@@ -68,15 +55,7 @@ extern "C" {
 
 #define ALIGNED(N) __attribute__ ((aligned (N)))
 
-#ifdef __sparc__
-#  define PAUSE    asm volatile("rd    %%ccr, %%g0\n\t" \
-        ::: "memory")
-
-#elif defined(__tile__)
-#define PAUSE cycle_relax()
-#else
 #define PAUSE _mm_pause()
-#endif
     static inline void
         pause_rep(uint32_t num_reps)
         {
@@ -126,17 +105,6 @@ extern "C" {
     static inline void set_cpu(int cpu) {
         // INT_MAX cpu id disables cpu pinning (Useful for some benchmarks)
         if (cpu >= INT_MAX) return;
-#ifdef __sparc__
-        processor_bind(P_LWPID,P_MYID, cpu, NULL);
-#elif defined(__tile__)
-        if (cpu>=tmc_cpus_grid_total()) {
-            perror("Thread id too high");
-        }
-        // cput_set_t cpus;
-        if (tmc_cpus_set_my_cpu(cpu)<0) {
-            tmc_task_die("tmc_cpus_set_my_cpu() failed."); 
-        }    
-#else
         cpu_set_t mask;
         CPU_ZERO(&mask);
         CPU_SET(cpu, &mask);
@@ -145,7 +113,6 @@ extern "C" {
         if (pthread_setaffinity_np(thread, sizeof(cpu_set_t), &mask) != 0) {
             fprintf(stderr, "Error setting thread affinity\n");
         }
-#endif
     }
 
 #if defined(__i386__)
@@ -162,16 +129,6 @@ extern "C" {
         __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
         return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
     }
-#elif defined(__sparc__)
-    static inline ticks getticks(){
-        ticks ret;
-        __asm__ __volatile__ ("rd %%tick, %0" : "=r" (ret) : "0" (ret)); 
-        return ret;
-    }
-#elif defined(__tile__)
-    static inline ticks getticks(){
-        return get_cycle_count();
-    }
 #endif
 
     static inline void cdelay(ticks cycles){
@@ -180,18 +137,10 @@ extern "C" {
     }
 
     static inline void cpause(ticks cycles){
-#if defined(XEON)
-        cycles >>= 3;
-        ticks i;
-        for (i=0;i<cycles;i++) {
-            _mm_pause();
-        }
-#else
         ticks i;
         for (i=0;i<cycles;i++) {
             __asm__ __volatile__("nop");
         }
-#endif
     }
 
     static inline void udelay(unsigned int micros)

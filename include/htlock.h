@@ -45,12 +45,8 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
-#ifndef __sparc__
-#  ifndef __tile__
-#    include <numa.h>
-#    include <emmintrin.h>
-#  endif
-#endif
+#include <numa.h>
+#include <emmintrin.h>
 #include <pthread.h>
 #include <assert.h>
 #include "utils.h"

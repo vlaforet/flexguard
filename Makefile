@@ -35,7 +35,6 @@ else
 endif
 
 ifndef PLATFORM
-# PLATFORM=-DXEON
 PLATFORM=-DDEFAULT
 endif
 

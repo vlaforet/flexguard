@@ -48,11 +48,7 @@
 #include "utils.h"
 
 typedef volatile uint32_t spinlock_index_t;
-#ifdef __tile__
-typedef uint32_t spinlock_lock_data_t;
-#else
 typedef uint8_t spinlock_lock_data_t;
-#endif
 
 typedef struct spinlock_lock_t 
 {

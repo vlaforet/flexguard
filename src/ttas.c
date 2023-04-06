@@ -42,25 +42,6 @@ int ttas_trylock(ttas_lock_t * the_lock, uint32_t * limits) {
 }
 
 void ttas_lock(ttas_lock_t * the_lock, uint32_t* limit) {
-#if defined(OPTERON_OPTIMIZE)
-    volatile ttas_lock_data_t* l = &(the_lock->lock);
-    uint32_t delay;
-    while (1){
-        PREFETCHW(l);
-        while ((*l)==1) {
-            PREFETCHW(l);
-        }
-        if (TAS_U8(&(the_lock->lock))==UNLOCKED) {
-            return;
-        } else {
-            //backoff
-            delay = my_random(&(ttas_seeds[0]),&(ttas_seeds[1]),&(ttas_seeds[2]))%(*limit);
-            *limit = MAX_DELAY > 2*(*limit) ? 2*(*limit) : MAX_DELAY;
-            cdelay(delay);
-        }
-    }
-
-#else  /* !OPTERON_OPTIMIZE */
     uint32_t delay;
     volatile ttas_lock_data_t* l = &(the_lock->lock);
     while (1){
@@ -74,7 +55,6 @@ void ttas_lock(ttas_lock_t * the_lock, uint32_t* limit) {
             cdelay(delay);
         }
     }
-#endif	/* OPTERON_OPTIMIZE */
 }
 
 
@@ -85,9 +65,6 @@ int is_free_ttas(ttas_lock_t * the_lock){
 
 void ttas_unlock(ttas_lock_t *the_lock) 
 {
-#ifdef __tile__
-    MEM_BARRIER;
-#endif
     COMPILER_BARRIER;
     the_lock->lock=0;
 }

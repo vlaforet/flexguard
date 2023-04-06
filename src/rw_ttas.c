@@ -45,25 +45,7 @@ void read_acquire(rw_ttas* lock, uint32_t* limit) {
     while (1) 
     {
         rw_data_t aux;
-#if defined(OPTERON_OPTIMIZE)
-        //      uint32_t t = 512;
-        PREFETCHW(lock);
-#endif  /* OPTERON_OPTIMIZE */
-        while ((aux=lock->lock_data)>MAX_RW) 
-        {
-#if defined(OPTERON_OPTIMIZE)
-            //	  uint32_t wt = (my_random(&(rw_seeds[0]),&(rw_seeds[1]),&(rw_seeds[2])) % t) + 1;
-            //	  pause_rep(wt);
-            PREFETCHW(lock);
-            /* t+=16; */
-            //	  t *= 4;
-            //	  if (t > 102400)
-            //	    {
-            //	      t = 102400;
-            //	    }
-            PREFETCHW(lock);
-#endif  /* OPTERON_OPTIMIZE */
-        }
+        while ((aux=lock->lock_data)>MAX_RW);
         //uint16_t aux = (uint16_t) lock->lock_data;
         if (CAS_U16(&lock->lock_data,aux,aux+1)==aux) {
             return;
@@ -85,24 +67,7 @@ void write_acquire(rw_ttas* lock, uint32_t* limit) {
     uint32_t delay;
     while (1) 
     {
-#if defined(OPTERON_OPTIMIZE)
-        //      uint32_t t = 512;
-        PREFETCHW(lock);
-#endif  /* OPTERON_OPTIMIZE */
-        while (lock->lock_data!=0) 
-        {
-#if defined(OPTERON_OPTIMIZE)
-            //	  uint32_t wt = (my_random(&(rw_seeds[0]),&(rw_seeds[1]),&(rw_seeds[2])) % t) + 1;
-            //	  pause_rep(wt);
-            PREFETCHW(lock);
-            //	  t *= 4;
-            //	  if (t > 102400)
-            //	    {
-            //	      t = 102400;
-            //	    }
-            //	  PREFETCHW(lock);
-#endif  /* OPTERON_OPTIMIZE */
-        }
+        while (lock->lock_data!=0);
         if (CAS_U16(&lock->lock_data,0,W_MASK)==0) {
             return;
         } 
@@ -117,10 +82,6 @@ void write_acquire(rw_ttas* lock, uint32_t* limit) {
 
 void write_release(rw_ttas* lock) {
     COMPILER_BARRIER;
-#ifdef __tile__
-    MEM_BARRIER;
-#endif
-
     lock->lock_data = 0;
 }
 

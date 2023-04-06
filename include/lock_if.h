@@ -129,7 +129,6 @@ static inline int acquire_trylock(lock_local_data* local_d, lock_global_data* gl
 
 //lock release operation
 //cluster_id is the cluster number of the core requesting the operation;
-//e.g. the socket in the case of the Opteron
 static inline void release_lock(lock_local_data* local_d, lock_global_data* global_d);
 
 static inline void release_trylock(lock_local_data* local_d, lock_global_data* global_d);

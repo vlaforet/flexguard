@@ -39,24 +39,12 @@ int clh_trylock(clh_lock * L, clh_qnode_ptr I) {
 volatile clh_qnode* clh_acquire(clh_lock *L, clh_qnode* I ) 
 {
     I->locked=1;
-#ifndef  __tile__
     clh_qnode_ptr pred = (clh_qnode*) SWAP_PTR((volatile void*) (L), (void*) I);
-#else
-    MEM_BARRIER;
-    clh_qnode_ptr pred = (clh_qnode*) SWAP_PTR( L, I);
-#endif
     if (pred == NULL) 		/* lock was free */
         return NULL;
-#if defined(OPTERON_OPTIMIZE)
-    PREFETCHW(pred);
-#endif	/* OPTERON_OPTIMIZE */
     while (pred->locked != 0) 
     {
         PAUSE;
-#if defined(OPTERON_OPTIMIZE)
-        pause_rep(23);
-        PREFETCHW(pred);
-#endif	/* OPTERON_OPTIMIZE */
     }
 
     return pred;
@@ -64,9 +52,6 @@ volatile clh_qnode* clh_acquire(clh_lock *L, clh_qnode* I )
 
 clh_qnode* clh_release(clh_qnode *my_qnode, clh_qnode * my_pred) {
     COMPILER_BARRIER;
-#ifdef __tile__
-    MEM_BARRIER;
-#endif
     my_qnode->locked=0;
     return my_pred;
 }

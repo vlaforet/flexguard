@@ -5,7 +5,6 @@
  * Description: 
  *      An implementation of a ticket lock with:
  *       - proportional back-off optimization
- *       - pretetchw for write optitization for the AMD Opteron
  *           Magny-Cours processors
  *
  * The MIT License (MIT)

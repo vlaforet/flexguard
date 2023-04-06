@@ -101,23 +101,8 @@ init_thread_htlocks(uint32_t phys_core)
 {
     set_cpu(phys_core);
 
-#if defined(XEON)
-    uint32_t real_core_num = 0;
-    uint32_t i;
-    for (i = 0; i < (NUMBER_OF_SOCKETS * CORES_PER_SOCKET); i++) 
-    {
-        if (the_cores[i]==phys_core) 
-        {
-            real_core_num = i;
-            break;
-        }
-    }
-    htlock_id_mine = real_core_num;
-    htlock_node_mine = get_cluster(phys_core);
-#else
     htlock_id_mine = phys_core;
     htlock_node_mine = get_cluster(phys_core);
-#endif
     /* printf("core %02d / node %3d\n", phys_core, htlock_node_mine); */
     MEM_BARRIER;
 }
@@ -126,9 +111,6 @@ init_thread_htlocks(uint32_t phys_core)
 is_free_hticket(htlock_t* htl)
 {
     htlock_global_t* glb = htl->global;
-#if defined(OPTERON_OPTIMIZE)
-    PREFETCHW(glb);
-#endif
     if (glb->cur == glb->nxt) 
     {
         return 1;
@@ -191,10 +173,6 @@ init_htlocks(uint32_t num_locks)
         assert(locals[n] != NULL);
     }
 
-#if defined(OPTERON) || defined(XEON)
-    numa_set_preferred(htlock_node_mine);
-#endif
-
     uint32_t i;
     for (i = 0; i < num_locks; i++)
     {
@@ -234,37 +212,6 @@ sub_abs(const uint32_t a, const uint32_t b)
     static inline void
 htlock_wait_ticket(htlock_local_t* lock, const uint32_t ticket)
 {
-
-#if defined(OPTERON_OPTIMIZE)
-    uint32_t wait = TICKET_BASE_WAIT;
-    uint32_t distance_prev = 1;
-
-    while (1)
-    {
-        PREFETCHW(lock);
-        int32_t lock_cur = lock->cur;
-        if (lock_cur == ticket)
-        {
-            break;
-        }
-        uint32_t distance = sub_abs(lock->cur, ticket);
-        if (distance > 1)
-        {
-            if (distance != distance_prev)
-            {
-                distance_prev = distance;
-                wait = TICKET_BASE_WAIT;
-            }
-
-            nop_rep(distance * wait);
-            wait = (wait + TICKET_BASE_WAIT) & TICKET_MAX_WAIT;
-        }
-        else
-        {
-            nop_rep(TICKET_WAIT_NEXT);
-        }
-    }  
-#else
     while (lock->cur != ticket)
     {
         uint32_t distance = sub_abs(lock->cur, ticket);
@@ -277,7 +224,6 @@ htlock_wait_ticket(htlock_local_t* lock, const uint32_t ticket)
             PAUSE;
         }
     }
-#endif	/* OPTERON_OPTIMIZE */
 }
 
     static inline void
@@ -319,12 +265,7 @@ again_local:
     }
     else				/* no local ticket available */
     {
-        do
-        {
-#if defined(OPTERON_OPTIMIZE)
-            PREFETCHW(localp);
-#endif
-        } while (localp->cur != NB_TICKETS_LOCAL);
+        while (localp->cur != NB_TICKETS_LOCAL);
         localp->nxt = NB_TICKETS_LOCAL; /* give tickets to the local neighbors */
 
         htlock_global_t* globalp = l->global;
@@ -338,25 +279,15 @@ again_local:
 htlock_release(htlock_t* l)
 {
     htlock_local_t* localp = l->local[htlock_node_mine];
-#if defined(OPTERON_OPTIMIZE)
-    PREFETCHW(localp);
-#endif
     int32_t local_cur = localp->cur;
     int32_t local_nxt = CAS_U32(&localp->nxt, local_cur, 0);
     if (local_cur == 0 || local_cur == local_nxt) /* global */
     {
-#if defined(OPTERON_OPTIMIZE)
-        PREFETCHW((l->global));
-        PREFETCHW(localp);
-#endif
         localp->cur = NB_TICKETS_LOCAL;
         l->global->cur++;
     }
     else				/* local */
     {
-#if defined(OPTERON_OPTIMIZE)
-        PREFETCHW(localp);
-#endif
         localp->cur = local_cur - 1;
     }
 }

@@ -30,69 +30,10 @@ entries=1
 
 num_max_common=36
 
-case "$1" in
-opteron) echo "running tests on opteron"
-    THE_LOCKS="HCLH TTAS ARRAY MCS TICKET HTICKET MUTEX SPINLOCK CLH"
-    num_cores=48
-#    optimize="-DOPTERON_OPTIMIZE"
-    platform_def="-DOPTERON"
-    make="make"
-    freq=2100000000
-    platform=opteron
-    remote_cores="0 1 6 12 18 24 30 36 42"
-    scal_cores="1 6 18 36"
-    prog_prefix="numactl --physcpubind=0 ../"
-;;
-opteron_optimize) echo "running tests on opteron"
-    THE_LOCKS="HCLH TTAS ARRAY MCS TICKET HTICKET MUTEX SPINLOCK CLH"
-    num_cores=48
-    optimize="-DOPTERON_OPTIMIZE"
-    platform_def="-DOPTERON"
-    make="make"
-    freq=2100000000
-    platform=opteron
-    remote_cores="0 1 6 12 18 24 30 36 42"
-    scal_cores="1 6 18 36"
-    prog_prefix="numactl --physcpubind=0 ../"
-;;
-xeon) echo "running tests on xeon"
-    THE_LOCKS="HCLH TTAS ARRAY MCS TICKET HTICKET MUTEX SPINLOCK CLH"
-    num_cores=80
-    platform_def="-DXEON"
-    freq=2130000000
-    remote_cores="1 2 11 21 31 0 50 60 70"
-    make="make"
-    scal_cores="1 10 18 36"
-    platform=xeon
-    prog_prefix="numactl --physcpubind=1 ../"
-;;
-niagara) echo "running tests on niagara"
-    THE_LOCKS="TTAS ARRAY MCS TICKET MUTEX SPINLOCK CLH"
-    ALTERNATE=-DALTERNATE_SOCKETS
-    num_cores=64
-    platform_def="-DSPARC"
-    freq=1200000000
-    remote_cores="0 1 8 16 24 32 40 48 56"
-    scal_cores="1 8 18 36"
-    make="make"
-    platform=niagara
-    prog_prefix="../"
-;;
-tilera) echo "running tests on tilera"
-    THE_LOCKS="TTAS ARRAY MCS TICKET MUTEX SPINLOCK CLH"
-    num_cores=36
-    platform_def="-DTILERA"
-    freq=1200000000
-    remote_cores="0 1 2 3 4 5 11 17 23 29 35"
-    scal_cores="1 8 18 36"
-    make="make"
-    platform=tilera
-    prog_prefix="../run ../"
-;;
-*) echo "Program format ./run_all platform, where plafrom in opteron, xeon, niagara, tilera"
-    exit;
-;;
-esac
+THE_LOCKS="HCLH TTAS ARRAY MCS TICKET HTICKET MUTEX SPINLOCK CLH"
+remote_cores="1 2 11 21 31 0 50 60 70"
+make="make"
+scal_cores="1 10 18 36"
 
 ATOMIC_PRIMS="CAS TAS FAI SWAP CTR"
 

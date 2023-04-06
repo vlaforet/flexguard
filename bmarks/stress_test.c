@@ -144,9 +144,6 @@ void *test(void *data)
         for (i = 0; i < cl_access; i++)
         {
             if (do_writes==1) {
-#if defined(OPTERON_OPTIMIZE)
-	      PREFETCHW(&protected_data[i + protected_offsets[lock_to_acq]]);
-#endif
                 protected_data[i + protected_offsets[lock_to_acq]].the_data[0]+=d->id;
             } else {
                 protected_data[i + protected_offsets[lock_to_acq]].the_data[0]= d->id;
@@ -155,9 +152,6 @@ void *test(void *data)
 #endif
         release_lock(&local_d[lock_to_acq],&the_locks[lock_to_acq]);
         if (acq_delay>0) {
-#ifdef __tile__
-            MEM_BARRIER;
-#endif
             COMPILER_BARRIER;
             cpause(acq_delay);
         }

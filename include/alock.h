@@ -49,16 +49,7 @@
 /*
  *  this lock needs to know the maximum number of processes it can handle
  */
-//TODO set this to a predefined value independent of the architecture?
-#ifdef __sparc__
-#define MAX_NUM_PROCESSES 64
-#elif defined(__tile__)
-#define MAX_NUM_PROCESSES 36
-#elif defined(OPTERON)
-#define MAX_NUM_PROCESSES 48
-#else
 #define MAX_NUM_PROCESSES 80
-#endif
 
 typedef struct flag_line {
     volatile uint16_t flag;

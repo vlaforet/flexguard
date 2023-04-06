@@ -34,56 +34,31 @@
 
 int mcs_trylock(mcs_lock *L, mcs_qnode_ptr I) {
     I->next=NULL;
-#ifndef  __tile__
     if (CAS_PTR(L, NULL, I)==NULL) return 0;
     return 1;
-#else
-    MEM_BARRIER;
-    if (CAS_PTR( L, NULL, I)==NULL) return 0;
-    return 1;
-#endif
-
 }
 
 void mcs_acquire(mcs_lock *L, mcs_qnode_ptr I) 
 {
     I->next = NULL;
-#ifndef  __tile__
     mcs_qnode_ptr pred = (mcs_qnode*) SWAP_PTR((volatile void*) L, (void*) I);
-#else
-    MEM_BARRIER;
-    mcs_qnode_ptr pred = (mcs_qnode*) SWAP_PTR( L, I);
-#endif
+
     if (pred == NULL) 		/* lock was free */
         return;
     I->waiting = 1; // word on which to spin
     MEM_BARRIER;
     pred->next = I; // make pred point to me
 
-#if defined(OPTERON_OPTIMIZE)
-    PREFETCHW(I);
-#endif	/* OPTERON_OPTIMIZE */
     while (I->waiting != 0) 
     {
         PAUSE;
-#if defined(OPTERON_OPTIMIZE)
-        pause_rep(23);
-        PREFETCHW(I);
-#endif	/* OPTERON_OPTIMIZE */
     }
 
 }
 
 void mcs_release(mcs_lock *L, mcs_qnode_ptr I) 
 {
-#ifdef __tile__
-    MEM_BARRIER;
-#endif
-
     mcs_qnode_ptr succ;
-#if defined(OPTERON_OPTIMIZE)
-    PREFETCHW(I);
-#endif	/* OPTERON_OPTIMIZE */
     if (!(succ = I->next)) /* I seem to have no succ. */
     { 
         /* try to fix global pointer */
