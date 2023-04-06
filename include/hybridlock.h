@@ -55,7 +55,10 @@
 #include <numa.h>
 #endif
 #include <pthread.h>
+
+#ifdef BPF
 #include <bpf/libbpf.h>
+#endif
 
 #include "atomic_ops.h"
 #include "utils.h"

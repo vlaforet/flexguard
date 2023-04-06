@@ -29,7 +29,10 @@
  */
 
 #include "hybridlock.h"
+
+#ifdef BPF
 #include "hybridlock.skel.h"
+#endif
 
 static void futex_wait(void *addr, int val)
 {
@@ -155,13 +158,11 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size)
     free(the_locks);
 }
 
+#ifdef BPF
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-#ifdef DEBUG
-    return vfprintf(stderr, format, args);
-#else
+    DPRINT(format, args);
     return 0;
-#endif
 }
 
 static int get_max_pid()
@@ -177,9 +178,17 @@ static int get_max_pid()
     fclose(f);
     return max_pid;
 }
+#endif
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
+    // Initialize all lock objects
+    the_lock->data.mcs_lock = (mcs_lock *)malloc(sizeof(mcs_lock));
+    *(the_lock->data.mcs_lock) = 0;
+
+    the_lock->data.spinning = 1;
+
+#ifdef BPF
     struct hybridlock_bpf *skel;
     int err;
 
@@ -200,12 +209,6 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         return 1;
     }
     bpf_map__set_max_entries(skel->maps.nodes_map, max_pid);
-
-    // Initialize all lock objects
-    the_lock->data.mcs_lock = (mcs_lock *)malloc(sizeof(mcs_lock));
-    *(the_lock->data.mcs_lock) = 0;
-
-    the_lock->data.spinning = 1;
 
     // Set pointer to spinning variable for BPF
     skel->bss->input_spinning = &the_lock->data.spinning;
@@ -230,6 +233,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         hybridlock_bpf__destroy(skel);
         return 1;
     }
+#endif
 
     MEM_BARRIER;
     return 0;
@@ -241,6 +245,7 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode
     my_qnode->locking = 0;
     my_qnode->waiting = 0;
 
+#ifdef BPF
     // Register thread in BPF map
     __u32 tid = gettid();
     int err = bpf_map__update_elem(the_lock->data.nodes_map, &tid, sizeof(tid), &my_qnode, sizeof(mcs_qnode *), BPF_ANY);
@@ -249,6 +254,7 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode
         fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
         return 1;
     }
+#endif
 
     MEM_BARRIER;
     return 0;

@@ -1,3 +1,14 @@
+PLATFORM_NUMA=1
+
+ifeq ($(DEBUG),1)
+  DEBUG_FLAGS=-Wall -ggdb -DDEBUG
+  COMPILE_FLAGS=-O0 -DADD_PADDING -fno-inline
+else
+  DEBUG_FLAGS=-Wall
+  COMPILE_FLAGS=-O3 -DADD_PADDING
+endif
+
+ifndef NOBPF
 OUTPUT := .output
 CLANG ?= clang
 LLVM_STRIP ?= llvm-strip
@@ -12,6 +23,7 @@ LIBBLAZESYM_HEADER := $(abspath $(OUTPUT)/blazesym.h)
 ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/' | sed 's/ppc64le/powerpc/' | sed 's/mips.*/mips/')
 VMLINUX := ./vmlinux/$(ARCH)/vmlinux.h
 BPFINCLUDES := -I$(OUTPUT) -I../libbpf/include/uapi -I$(dir $(VMLINUX))
+COMPILE_FLAGS += -DBPF
 
 # Get Clang's default includes on this system. We'll explicitly add these dirs
 # to the includes list when compiling with `-target bpf` because otherwise some
@@ -23,22 +35,8 @@ BPFINCLUDES := -I$(OUTPUT) -I../libbpf/include/uapi -I$(dir $(VMLINUX))
 # build would have failed anyways.
 CLANG_BPF_SYS_INCLUDES = $(shell $(CLANG) -v -E - </dev/null 2>&1 \
 	| sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
-
-PLATFORM_NUMA=1
-
-ifeq ($(DEBUG),1)
-  DEBUG_FLAGS=-Wall -ggdb -DDEBUG
-  COMPILE_FLAGS=-O0 -DADD_PADDING -fno-inline
-else
-  DEBUG_FLAGS=-Wall
-  COMPILE_FLAGS=-O3 -DADD_PADDING
 endif
 
-ifndef PLATFORM
-PLATFORM=-DDEFAULT
-endif
-
-ifeq ($(PLATFORM), -DDEFAULT)
 CORE_NUM := $(shell nproc)
 ifneq ($(CORE_NUM), )
 COMPILE_FLAGS += -DCORE_NUM=${CORE_NUM}
@@ -47,12 +45,8 @@ COMPILE_FLAGS += -DCORE_NUM=8
 endif
 $(info ********************************** Using as a default number of cores: $(CORE_NUM) on 1 socket)
 $(info ********************************** Is this correct? If not, fix it in platform_defs.h)
-endif
-
-COMPILE_FLAGS += $(PLATFORM)
 
 UNAME := $(shell uname)
-
 ifeq ($(UNAME), Linux)
 	GCC:=gcc
 	LIBS := -lrt -lpthread -lnuma
@@ -89,16 +83,20 @@ MAININCLUDE := $(TOP)/include
 INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
 OBJ_FILES :=  mcs.o clh.o ttas.o spinlock.o rw_ttas.o ticket.o alock.o hclh.o gl_lock.o htlock.o hybridlock.o
 
+ifndef NOBPF
 OBJ_FILES += $(LIBBPF_OBJ)
 LIBS += -lelf -lz
+endif
 
 ALL := bank scheduling bank_one bank_simple test_array_alloc test_trylock sample_generic sample_mcs test_correctness stress_one stress_test stress_latency atomic_bench individual_ops uncontended measure_contention libsync.a
 ifeq ($(LOCK_VERSION), -DUSE_HTICKET_LOCKS)
 ALL += htlock_test
 endif
 all: $(ALL)
-	@echo "############### Used: " $(LOCK_VERSION) " on " $(PLATFORM)
+	@echo "############### Used: " $(LOCK_VERSION)
 
+BPF_SKELETON :=
+ifndef NOBPF
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 	mkdir -p $@
 
@@ -134,6 +132,9 @@ $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 # Build user-space code
 $(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 
+BPF_SKELETON += $(OUTPUT)/hybridlock.skel.h
+endif
+
 libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o hybridlock.o include/atomic_ops.h include/utils.h include/lock_if.h
 	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o hybridlock.o include/atomic_ops.h include/utils.h
 
@@ -143,7 +144,7 @@ ttas.o: src/ttas.c
 spinlock.o: src/spinlock.c
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/spinlock.c $(LIBS)
 
-hybridlock.o: src/hybridlock.c $(OUTPUT)/hybridlock.skel.h
+hybridlock.o: src/hybridlock.c $(BPF_SKELETON)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/hybridlock.c $(LIBS)
 
 rw_ttas.o: src/rw_ttas.c
@@ -223,7 +224,7 @@ atomic_bench: bmarks/atomic_bench.c Makefile
 
 ifeq ($(LOCK_VERSION), -DUSE_HTICKET_LOCKS)
 htlock_test: htlock.o bmarks/htlock_test.c Makefile
-	$(GCC) -O0 -D_GNU_SOURCE $(COMPILE_FLAGS) $(PLATFORM) $(DEBUG_FLAGS) $(INCLUDES) bmarks/htlock_test.c -o htlock_test htlock.o $(LIBS)
+	$(GCC) -O0 -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) bmarks/htlock_test.c -o htlock_test htlock.o $(LIBS)
 endif
 
 
