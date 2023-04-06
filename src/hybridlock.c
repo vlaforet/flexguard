@@ -157,7 +157,11 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size)
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
+#ifdef DEBUG
     return vfprintf(stderr, format, args);
+#else
+    return 0;
+#endif
 }
 
 static int get_max_pid()
