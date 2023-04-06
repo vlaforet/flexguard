@@ -32,14 +32,10 @@ ifeq ($(DEBUG),1)
 else
   DEBUG_FLAGS=-Wall
   COMPILE_FLAGS=-O3 -DADD_PADDING
-#COMPILE_FLAGS=-O3 -DADD_PADDING -DALTERNATE_CORES
 endif
 
 ifndef PLATFORM
-# PLATFORM=-DSPARC
-# PLATFORM=-DTILERA
 # PLATFORM=-DXEON
-# PLATFORM=-DOPTERON
 PLATFORM=-DDEFAULT
 endif
 
@@ -54,25 +50,13 @@ $(info ********************************** Using as a default number of cores: $(
 $(info ********************************** Is this correct? If not, fix it in platform_defs.h)
 endif
 
-ifeq ($(PLATFORM), -DOPTERON)	#allow OPTERON_OPTIMIZE only for OPTERON platform
-OPTIMIZE=-DOPTERON_OPTIMIZE
-else
-OPTIMIZE=
-endif
-
 COMPILE_FLAGS += $(PLATFORM)
-COMPILE_FLAGS += $(OPTIMIZE)
 
 UNAME := $(shell uname)
 
-ifeq ($(PLATFORM),-DTILERA)
-	GCC:=tile-gcc
-	LIBS:=-lrt -lpthread -ltmc
-else
 ifeq ($(UNAME), Linux)
 	GCC:=gcc
 	LIBS := -lrt -lpthread -lnuma
-endif
 endif
 ifeq ($(UNAME), SunOS)
 	GCC:=/opt/csw/bin/gcc
@@ -97,7 +81,6 @@ endif
 ifndef PRIMITIVE
 PRIMITIVE=-DTEST_CAS
 endif
-#ACCOUNT_PADDING=-DPAD_ACCOUNTS
 
 TOP := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
 
@@ -111,13 +94,11 @@ OBJ_FILES += $(LIBBPF_OBJ)
 LIBS += -lelf -lz
 
 ALL := bank scheduling bank_one bank_simple test_array_alloc test_trylock sample_generic sample_mcs test_correctness stress_one stress_test stress_latency atomic_bench individual_ops uncontended measure_contention libsync.a
-
 ifeq ($(LOCK_VERSION), -DUSE_HTICKET_LOCKS)
 ALL += htlock_test
 endif
-
 all: $(ALL)
-	@echo "############### Used: " $(LOCK_VERSION) " on " $(PLATFORM) " with " $(OPTIMIZE)
+	@echo "############### Used: " $(LOCK_VERSION) " on " $(PLATFORM)
 
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 	mkdir -p $@
@@ -194,52 +175,52 @@ htlock.o: src/htlock.c include/htlock.h
 	 $(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/htlock.c $(LIBS) 
 
 bank: bmarks/bank_th.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(ACCOUNT_PADDING) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/bank_th.c -o bank $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/bank_th.c -o bank $(LIBS)
 
 scheduling: bmarks/scheduling.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/scheduling.c -o scheduling $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/scheduling.c -o scheduling $(LIBS)
 
 bank_one: bmarks/bank_one.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(ACCOUNT_PADDING) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/bank_one.c -o bank_one $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/bank_one.c -o bank_one $(LIBS)
 
 bank_simple: bmarks/bank_simple.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/bank_simple.c -o bank_simple $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/bank_simple.c -o bank_simple $(LIBS)
 
 stress_test: bmarks/stress_test.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/stress_test.c -o stress_test $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/stress_test.c -o stress_test $(LIBS)
 
 measure_contention: bmarks/measure_contention.c $(OBJ_FILES) ticket_contention.o Makefile
-	$(GCC) -DUSE_TICKET_LOCKS $(ALTERNATE_SOCKETS) $(NO_DELAYS) -DMEASURE_CONTENTION -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) ticket_contention.o bmarks/measure_contention.c -o measure_contention $(LIBS)
+	$(GCC) -DUSE_TICKET_LOCKS -DMEASURE_CONTENTION -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) ticket_contention.o bmarks/measure_contention.c -o measure_contention $(LIBS)
 
 stress_one: bmarks/stress_one.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/stress_one.c -o stress_one $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/stress_one.c -o stress_one $(LIBS)
 
 test_correctness: bmarks/test_correctness.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/test_correctness.c -o test_correctness $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/test_correctness.c -o test_correctness $(LIBS)
 
 sample_generic: samples/sample_generic.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) samples/sample_generic.c -o sample_generic $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) samples/sample_generic.c -o sample_generic $(LIBS)
 
 sample_mcs: samples/sample_mcs.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) samples/sample_mcs.c -o sample_mcs $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) samples/sample_mcs.c -o sample_mcs $(LIBS)
 
 test_trylock: bmarks/test_trylock.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/test_trylock.c -o test_trylock $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/test_trylock.c -o test_trylock $(LIBS)
 
 test_array_alloc: bmarks/test_array_alloc.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/test_array_alloc.c -o test_array_alloc $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/test_array_alloc.c -o test_array_alloc $(LIBS)
 
 stress_latency: bmarks/stress_latency.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/stress_latency.c -o stress_latency $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/stress_latency.c -o stress_latency $(LIBS)
 
 individual_ops: bmarks/individual_ops.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/individual_ops.c -o individual_ops $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/individual_ops.c -o individual_ops $(LIBS)
 
 uncontended: bmarks/uncontended.c $(OBJ_FILES) Makefile
-	$(GCC) $(LOCK_VERSION) $(ALTERNATE_SOCKETS) $(NO_DELAYS) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/uncontended.c -o uncontended $(LIBS)
+	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/uncontended.c -o uncontended $(LIBS)
 
 atomic_bench: bmarks/atomic_bench.c Makefile
-	$(GCC) $(ALTERNATE_SOCKETS) $(PRIMITIVE) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) bmarks/atomic_bench.c -o atomic_bench $(LIBS)
+	$(GCC) $(PRIMITIVE) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) bmarks/atomic_bench.c -o atomic_bench $(LIBS)
 
 ifeq ($(LOCK_VERSION), -DUSE_HTICKET_LOCKS)
 htlock_test: htlock.o bmarks/htlock_test.c Makefile
