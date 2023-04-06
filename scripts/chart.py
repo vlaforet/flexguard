@@ -1,5 +1,4 @@
 #! /usr/bin/python3
-
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -7,7 +6,7 @@ import sys
 
 def load(filename):
     thread_count, time, throughput = [], [], []
-    with open(f"tmp/{filename}") as f:
+    with open(f"../tmp/{filename}") as f:
         for line in f:
             cols = line.rstrip().split(",")
             if len(cols) >= 3:
@@ -45,4 +44,4 @@ ax2.set_yscale("log")
 ax2.set_ylabel("Critical Section time (ms)")
 
 fig.legend()
-plt.savefig("out.png", dpi=600)
+plt.savefig("../out.png", dpi=600)
