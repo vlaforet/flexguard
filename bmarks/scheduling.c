@@ -199,6 +199,7 @@ int main(int argc, char **argv)
             printf("        Core count after which the lock will be blocking (default=" XSTR(DEFAULT_SWITCH_THREAD_COUNT) ")\n");
             printf("        A value of -1 will disable the switch (always spin) and with a value of 0 the lock will never spin.\n");
 #endif
+            exit(0);
         case 'c':
             compute_cycles = atoi(optarg);
             break;
