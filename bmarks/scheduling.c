@@ -23,7 +23,10 @@
 #define DEFAULT_USE_LOCKS 1
 #define DEFAULT_LAUNCH_DELAY_MS 1000
 #define DEFAULT_COMPUTE_CYCLES 10000
+
+#ifdef USE_HYBRIDLOCK_LOCKS
 #define DEFAULT_SWITCH_THREAD_COUNT 48
+#endif
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -142,7 +145,10 @@ int main(int argc, char **argv)
     int i, c;
     int max_nb_threads = DEFAULT_NB_THREADS;
     int launch_delay = DEFAULT_LAUNCH_DELAY_MS;
+
+#ifdef USE_HYBRIDLOCK_LOCKS
     int switch_thread_count = DEFAULT_SWITCH_THREAD_COUNT;
+#endif
 
     struct option long_options[] = {
         {"help", no_argument, NULL, 'h'},
@@ -150,7 +156,9 @@ int main(int argc, char **argv)
         {"launch-delay", required_argument, NULL, 'd'},
         {"use-locks", required_argument, NULL, 'l'},
         {"num-threads", required_argument, NULL, 'n'},
+#ifdef USE_HYBRIDLOCK_LOCKS
         {"switch-thread-count", required_argument, NULL, 's'},
+#endif
         {NULL, 0, NULL, 0}};
 
     while (1)
@@ -186,9 +194,11 @@ int main(int argc, char **argv)
             printf("        Use locks or not (default=" XSTR(DEFAULT_USE_LOCKS) ")\n");
             printf("  -n, --num-threads <int>\n");
             printf("        Number of threads (default=" XSTR(DEFAULT_NB_THREADS) ")\n");
+#ifdef USE_HYBRIDLOCK_LOCKS
             printf("  -s, --switch-thread-count <int>\n");
             printf("        Core count after which the lock will be blocking (default=" XSTR(DEFAULT_SWITCH_THREAD_COUNT) ")\n");
             printf("        A value of -1 will disable the switch (always spin) and with a value of 0 the lock will never spin.\n");
+#endif
         case 'c':
             compute_cycles = atoi(optarg);
             break;
@@ -201,9 +211,11 @@ int main(int argc, char **argv)
         case 'n':
             max_nb_threads = atoi(optarg);
             break;
+#ifdef USE_HYBRIDLOCK_LOCKS
         case 's':
             switch_thread_count = atoi(optarg);
             break;
+#endif
         case '?':
             printf("Use -h or --help for help\n");
             exit(0);
