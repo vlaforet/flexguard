@@ -68,6 +68,7 @@ ifndef LOCK_VERSION
   # LOCK_VERSION=-DUSE_CLH_LOCKS
   # LOCK_VERSION=-DUSE_TICKET_LOCKS
   # LOCK_VERSION=-DUSE_MUTEX_LOCKS
+	# LOCK_VERSION=-DUSE_FUTEX_LOCKS
   # LOCK_VERSION=-DUSE_HTICKET_LOCKS
 endif
 
@@ -81,7 +82,7 @@ SRCPATH := $(TOP)/src
 MAININCLUDE := $(TOP)/include
 
 INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
-OBJ_FILES :=  mcs.o clh.o ttas.o spinlock.o rw_ttas.o ticket.o alock.o hclh.o gl_lock.o htlock.o hybridlock.o
+OBJ_FILES :=  mcs.o clh.o ttas.o spinlock.o rw_ttas.o ticket.o alock.o hclh.o gl_lock.o htlock.o hybridlock.o futex.o
 
 ifndef NOBPF
 OBJ_FILES += $(LIBBPF_OBJ)
@@ -135,14 +136,17 @@ $(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 BPF_SKELETON += $(OUTPUT)/hybridlock.skel.h
 endif
 
-libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o hybridlock.o include/atomic_ops.h include/utils.h include/lock_if.h
-	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o hybridlock.o include/atomic_ops.h include/utils.h
+libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o include/atomic_ops.h include/utils.h include/lock_if.h
+	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o include/atomic_ops.h include/utils.h
 
 ttas.o: src/ttas.c 
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/ttas.c $(LIBS)
 
 spinlock.o: src/spinlock.c
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/spinlock.c $(LIBS)
+
+futex.o: src/futex.c
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/futex.c $(LIBS)
 
 hybridlock.o: src/hybridlock.c $(BPF_SKELETON)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/hybridlock.c $(LIBS)

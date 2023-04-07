@@ -46,6 +46,14 @@ make LOCK_VERSION=-DUSE_MUTEX_LOCKS NOBPF=1 >/dev/null 2>/dev/null
 echo "Starting Mutex computation"
 ./scheduling -n ${MAX_THREAD_COUNT} -d ${DELAY} > tmp/mutex.csv
 
+###### Futex lock
+echo "Starting Futex compilation"
+make clean >/dev/null 2>/dev/null
+make LOCK_VERSION=-DUSE_FUTEX_LOCKS NOBPF=1 >/dev/null 2>/dev/null
+
+echo "Starting Futex computation"
+./scheduling -n ${MAX_THREAD_COUNT} -d ${DELAY} > tmp/futex.csv
+
 ###### Spin lock
 echo "Starting Spin Lock compilation"
 make clean >/dev/null 2>/dev/null

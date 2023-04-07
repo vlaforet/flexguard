@@ -50,6 +50,8 @@
 #include "ticket.h"
 #elif defined(USE_MUTEX_LOCKS)
 #include <pthread.h>
+#elif defined(USE_FUTEX_LOCKS)
+#include "futex.h"
 #elif defined(USE_HTICKET_LOCKS)
 #include "htlock.h"
 #else
@@ -77,6 +79,8 @@ typedef rw_ttas lock_global_data;
 typedef ticketlock_t lock_global_data;
 #elif defined(USE_MUTEX_LOCKS)
 typedef pthread_mutex_t lock_global_data;
+#elif defined(USE_FUTEX_LOCKS)
+typedef futex_lock_t lock_global_data;
 #elif defined(USE_HTICKET_LOCKS)
 typedef htlock_t lock_global_data;
 #endif
@@ -105,6 +109,8 @@ typedef unsigned int  lock_local_data;
 typedef void* lock_local_data;//no local data for ticket locks
 #elif defined(USE_MUTEX_LOCKS)
 typedef void* lock_local_data;//no local data for mutexes
+#elif defined(USE_FUTEX_LOCKS)
+typedef void* lock_local_data;//no local data for futexes
 #elif defined(USE_HTICKET_LOCKS)
 typedef void* lock_local_data;//no local data for hticket locks
 #endif
@@ -188,6 +194,8 @@ static inline void acquire_lock(lock_local_data* local_d, lock_global_data* glob
     ticket_acquire(global_d);
 #elif defined(USE_MUTEX_LOCKS)
     pthread_mutex_lock(global_d);
+#elif defined(USE_FUTEX_LOCKS)
+    futex_lock(global_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_lock(global_d);
 #endif
@@ -213,6 +221,8 @@ static inline void acquire_write(lock_local_data* local_d, lock_global_data* glo
     ticket_acquire(global_d);
 #elif defined(USE_MUTEX_LOCKS)
     pthread_mutex_lock(global_d);
+#elif defined(USE_FUTEX_LOCKS)
+    futex_lock(global_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_lock(global_d);
 #endif
@@ -239,6 +249,8 @@ static inline void acquire_read(lock_local_data* local_d, lock_global_data* glob
     ticket_acquire(global_d);
 #elif defined(USE_MUTEX_LOCKS)
     pthread_mutex_lock(global_d);
+#elif defined(USE_FUTEX_LOCKS)
+    futex_lock(global_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_lock(global_d);
 #endif
@@ -266,6 +278,8 @@ static inline void release_lock(lock_local_data *local_d, lock_global_data *glob
     ticket_release(global_d);
 #elif defined(USE_MUTEX_LOCKS)
     pthread_mutex_unlock(global_d);
+#elif defined(USE_FUTEX_LOCKS)
+    futex_unlock(global_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_release(global_d);
 #endif
@@ -293,6 +307,8 @@ static inline void release_write(lock_local_data *local_d, lock_global_data *glo
     ticket_release(global_d);
 #elif defined(USE_MUTEX_LOCKS)
     pthread_mutex_unlock(global_d);
+#elif defined(USE_FUTEX_LOCKS)
+    futex_unlock(global_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_release(global_d);
 #endif
@@ -320,6 +336,8 @@ static inline void release_read(lock_local_data *local_d, lock_global_data *glob
     ticket_release(global_d);
 #elif defined(USE_MUTEX_LOCKS)
     pthread_mutex_unlock(global_d);
+#elif defined(USE_FUTEX_LOCKS)
+    futex_unlock(global_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_release(global_d);
 #endif
@@ -353,6 +371,9 @@ static inline local_data init_lock_array_local(int core_to_pin, int num_locks, g
     //assign the thread to the correct core
     set_cpu(core_to_pin);
     return NULL;
+#elif defined(USE_FUTEX_LOCKS)
+    init_futex_array_local(core_to_pin);
+    return NULL;
 #elif defined(USE_HTICKET_LOCKS)
     init_thread_htlocks(core_to_pin);
     return NULL;
@@ -383,6 +404,8 @@ static inline int init_lock_local(int core_to_pin,  lock_global_data* the_lock, 
     //assign the thread to the correct core
     set_cpu(core_to_pin);
     return 0;
+#elif defined(USE_FUTEX_LOCKS)
+    return init_futex_local(core_to_pin);
 #elif defined(USE_HTICKET_LOCKS)
     init_thread_htlocks(core_to_pin);
     return 0;
@@ -410,6 +433,8 @@ static inline void free_lock_local(lock_local_data local_d){
     //nothing to be done
 #elif defined(USE_MUTEX_LOCKS)
     //nothing to be done
+#elif defined(USE_FUTEX_LOCKS)
+    //nothing to be done
 #elif defined(USE_HTICKET_LOCKS)
     //nothing to be done
 #endif
@@ -435,6 +460,8 @@ static inline void free_lock_array_local(local_data local_d, int num_locks){
 #elif defined(USE_TICKET_LOCKS)
     //nothing to be done
 #elif defined(USE_MUTEX_LOCKS)
+    //nothing to be done
+#elif defined(USE_FUTEX_LOCKS)
     //nothing to be done
 #elif defined(USE_HTICKET_LOCKS)
     //nothing to be done
@@ -468,6 +495,8 @@ static inline global_data init_lock_array_global(int num_locks, int num_threads)
         pthread_mutex_init(&the_locks[i], NULL);
     }
     return the_locks;
+#elif defined(USE_FUTEX_LOCKS)
+    return init_futex_array_global(num_locks);
 #elif defined(USE_HTICKET_LOCKS)
     return init_htlocks(num_locks);
 #endif
@@ -496,6 +525,8 @@ static inline int init_lock_global(lock_global_data* the_lock){
 #elif defined(USE_MUTEX_LOCKS)
     pthread_mutex_init(the_lock, NULL);
     return 0;
+#elif defined(USE_FUTEX_LOCKS)
+    return init_futex_global(the_lock);
 #elif defined(USE_HTICKET_LOCKS)
     return create_htlock(the_lock);
 #endif
@@ -533,6 +564,8 @@ static inline void free_lock_array_global(global_data the_locks, int num_locks) 
     for (i=0;i<num_locks;i++) {
         pthread_mutex_destroy(&the_locks[i]);
     }
+#elif defined(USE_FUTEX_LOCKS)
+    end_futex_array_global(the_locks);
 #elif defined(USE_HTICKET_LOCKS)
     free_htlocks(the_locks);
 #endif
@@ -559,6 +592,8 @@ static inline void free_lock_global(lock_global_data the_lock) {
     //free_ticketlocks(the_lock);
 #elif defined(USE_MUTEX_LOCKS)
     pthread_mutex_destroy(&the_lock);
+#elif defined(USE_FUTEX_LOCKS)
+    //nothing to be done
 #elif defined(USE_HTICKET_LOCKS)
     //
 #endif
@@ -597,6 +632,8 @@ static inline int acquire_trylock( lock_local_data* local_d, lock_global_data* g
     return 1;
 #elif defined(USE_MUTEX_LOCKS)
     return pthread_mutex_trylock(global_d);
+#elif defined(USE_FUTEX_LOCKS)
+    return futex_trylock(global_d);
 #elif defined(USE_HTICKET_LOCKS)
     if (htlock_trylock(global_d)) return 0;
     return 1;
@@ -624,6 +661,8 @@ static inline void release_trylock(lock_local_data* local_d, lock_global_data* g
     local_d->my_qnode=clh_release(local_d->my_qnode,local_d->my_pred);
 #elif defined(USE_MUTEX_LOCKS)
     pthread_mutex_unlock(global_d);
+#elif defined(USE_FUTEX_LOCKS)
+    futex_unlock(global_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_release_try(global_d);
 #endif
