@@ -229,4 +229,4 @@ endif
 
 
 clean:
-	rm -rf $(OUTPUT) *.o locks mcs_test hclh_test bank_one bank_simple bank* stress_latency* test_array_alloc test_trylock sample_* test_correctness stress_one stress_test* atomic_bench uncontended individual_ops trylock_test htlock_test measure_contention libsync.a
+	rm -rf $(OUTPUT) *.o locks mcs_test hclh_test bank_one bank_simple bank* stress_latency* test_array_alloc test_trylock sample_* test_correctness stress_one stress_test* atomic_bench uncontended individual_ops trylock_test htlock_test measure_contention libsync.a scheduling
