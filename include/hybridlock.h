@@ -66,12 +66,11 @@
 
 typedef volatile mcs_qnode *mcs_qnode_ptr;
 typedef mcs_qnode_ptr mcs_lock;
-typedef mcs_lock *hybridlock_lock_type_t;
-typedef mcs_qnode hybridlock_local_params;
+typedef mcs_qnode *hybridlock_local_params;
 
 typedef struct hybridlock_data_t
 {
-  hybridlock_lock_type_t mcs_lock;
+  mcs_lock *mcs_lock;
   int spinning;
   struct bpf_map *nodes_map;
 } hybridlock_data_t;
@@ -93,11 +92,11 @@ typedef struct hybridlock_lock_t
  *  Lock manipulation methods
  */
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *local_params);
+void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params local_params);
 
-int hybridlock_trylock(hybridlock_lock_t *the_locks, hybridlock_local_params *local_params);
+int hybridlock_trylock(hybridlock_lock_t *the_locks, hybridlock_local_params local_params);
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *local_params);
+void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params local_params);
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock);
 

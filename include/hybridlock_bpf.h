@@ -35,6 +35,13 @@ typedef struct mcs_qnode
   volatile uint32_t waiting; // 32 bits as requested by futex syscall
   volatile uint8_t locking;
   volatile struct mcs_qnode *volatile next;
+
+#ifdef ADD_PADDING
+#if CACHE_LINE_SIZE == 20
+#else
+  uint8_t padding[CACHE_LINE_SIZE - 20];
+#endif
+#endif
 } mcs_qnode;
 
 #endif

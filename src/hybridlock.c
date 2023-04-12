@@ -58,7 +58,7 @@ static void futex_wake(void *addr, int nb_threads)
         fprintf(stderr, "Failed to futex_wake, errno: %d\n", errno);
 }
 
-int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
+int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params my_qnode)
 {
     my_qnode->next = NULL;
     if (CAS_PTR(the_lock->data.mcs_lock, NULL, my_qnode) == NULL)
@@ -66,7 +66,7 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_
     return 1;
 }
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
+void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params my_qnode)
 {
     my_qnode->next = NULL;
     my_qnode->locking = 1;
@@ -89,7 +89,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qn
     }
 }
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params *my_qnode)
+void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params my_qnode)
 {
     mcs_qnode_ptr succ;
     if (!(succ = my_qnode->next)) /* I seem to have no succ. */
@@ -141,7 +141,7 @@ hybridlock_local_params *init_hybridlock_array_local(uint32_t thread_num, uint32
 {
     set_cpu(thread_num);
 
-    hybridlock_local_params *local_params = (hybridlock_local_params *)malloc(size * sizeof(hybridlock_local_params));
+    hybridlock_local_params *local_params = (hybridlock_local_params *)malloc(size * sizeof(mcs_qnode *));
     MEM_BARRIER;
     return local_params;
 }
@@ -242,13 +242,16 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode, hybridlock_lock_t *the_lock)
 {
     set_cpu(thread_num);
-    my_qnode->locking = 0;
-    my_qnode->waiting = 0;
+
+    (*my_qnode) = malloc(sizeof(mcs_qnode));
+
+    (*my_qnode)->locking = 0;
+    (*my_qnode)->waiting = 0;
 
 #ifdef BPF
     // Register thread in BPF map
     __u32 tid = gettid();
-    int err = bpf_map__update_elem(the_lock->data.nodes_map, &tid, sizeof(tid), &my_qnode, sizeof(mcs_qnode *), BPF_ANY);
+    int err = bpf_map__update_elem(the_lock->data.nodes_map, &tid, sizeof(tid), my_qnode, sizeof(mcs_qnode *), BPF_ANY);
     if (err)
     {
         fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
