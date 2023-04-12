@@ -37,9 +37,9 @@ typedef struct mcs_qnode
   volatile struct mcs_qnode *volatile next;
 
 #ifdef ADD_PADDING
-#if CACHE_LINE_SIZE == 20
+#if CACHE_LINE_SIZE == 16
 #else
-  uint8_t padding[CACHE_LINE_SIZE - 20];
+  uint8_t padding[CACHE_LINE_SIZE - 16];
 #endif
 #endif
 } mcs_qnode;

@@ -92,11 +92,11 @@ typedef struct hybridlock_lock_t
  *  Lock manipulation methods
  */
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params local_params);
+void hybridlock_lock(hybridlock_lock_t *the_lock, mcs_qnode_ptr local_params);
 
-int hybridlock_trylock(hybridlock_lock_t *the_locks, hybridlock_local_params local_params);
+int hybridlock_trylock(hybridlock_lock_t *the_locks, mcs_qnode_ptr local_params);
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params local_params);
+void hybridlock_unlock(hybridlock_lock_t *the_lock, mcs_qnode_ptr local_params);
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock);
 

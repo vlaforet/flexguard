@@ -58,7 +58,7 @@ static void futex_wake(void *addr, int nb_threads)
         fprintf(stderr, "Failed to futex_wake, errno: %d\n", errno);
 }
 
-int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params my_qnode)
+int hybridlock_trylock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
 {
     my_qnode->next = NULL;
     if (CAS_PTR(the_lock->data.mcs_lock, NULL, my_qnode) == NULL)
@@ -66,7 +66,7 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params my_q
     return 1;
 }
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params my_qnode)
+void hybridlock_lock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
 {
     my_qnode->next = NULL;
     my_qnode->locking = 1;
@@ -89,7 +89,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params my_qno
     }
 }
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params my_qnode)
+void hybridlock_unlock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
 {
     mcs_qnode_ptr succ;
     if (!(succ = my_qnode->next)) /* I seem to have no succ. */
