@@ -38,7 +38,7 @@ static void futex_wait(void *addr, int val)
 {
     int ret = 0;
     // Wait if *addr == val.
-    while ((ret = syscall(SYS_futex, addr, FUTEX_WAIT, val, NULL, 0, 0)) != 0)
+    while ((ret = syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, 0, 0)) != 0)
         if (ret == -1 && errno != EINTR)
         {
             if (errno != EAGAIN)
@@ -50,7 +50,7 @@ static void futex_wait(void *addr, int val)
 static void futex_wake(void *addr, int nb_threads)
 {
     int ret = 0;
-    while ((ret = syscall(SYS_futex, addr, FUTEX_WAKE, nb_threads, NULL, NULL, 0)) == -1 &&
+    while ((ret = syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0)) == -1 &&
            errno == EINTR)
         ;
 
