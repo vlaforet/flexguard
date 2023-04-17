@@ -38,7 +38,7 @@
  * ################################################################### */
 
 int use_locks = DEFAULT_USE_LOCKS;
-int compute_cycles;
+int compute_cycles = DEFAULT_COMPUTE_CYCLES;
 
 struct timeval start;
 _Atomic int thread_count = 0;
@@ -69,8 +69,7 @@ typedef struct thread_data
 void *test(void *data)
 {
     struct timeval t1, t2;
-    int stop = 0;
-    int cs_count = 0;
+    int stop = 0, cs_count = 0, last_cs_count = 0;
 
     thread_data_t *d = (thread_data_t *)data;
     init_lock_local(INT_MAX, &the_lock, &(local_th_data[d->id]));
@@ -78,7 +77,9 @@ void *test(void *data)
 
     while (!stop)
     {
-        gettimeofday(&t1, NULL);
+        if (cs_count % 100 == 0)
+            gettimeofday(&t1, NULL);
+
         if (use_locks)
             acquire_write(&(local_th_data[d->id]), &the_lock);
 
@@ -93,13 +94,18 @@ void *test(void *data)
 
         if (d->reset)
         {
-            cs_count = 0;
+            cs_count = 0, last_cs_count = 0;
             d->cs_time = 0;
             d->reset = 0;
         }
         cs_count++;
-        gettimeofday(&t2, NULL);
-        d->cs_time = (d->cs_time * (cs_count - 1) + DURATION(t1, t2)) / cs_count;
+
+        if (cs_count % 100 == 0 || stop)
+        {
+            gettimeofday(&t2, NULL);
+            d->cs_time = (d->cs_time * (last_cs_count) + DURATION(t1, t2)) / cs_count;
+            last_cs_count = cs_count;
+        }
 
         cpause(compute_cycles);
     }
@@ -143,9 +149,9 @@ void measurement(thread_data_t *data, int len)
 int main(int argc, char **argv)
 {
     int i, c;
+
     int max_nb_threads = DEFAULT_NB_THREADS;
     int launch_delay = DEFAULT_LAUNCH_DELAY_MS;
-
 #ifdef USE_HYBRIDLOCK_LOCKS
     int switch_thread_count = DEFAULT_SWITCH_THREAD_COUNT;
 #endif
@@ -226,7 +232,12 @@ int main(int argc, char **argv)
     }
 
     printf("Nb threads max : %d\n", max_nb_threads);
-    printf("Use locks  : %d\n", use_locks);
+    printf("Use locks : %d\n", use_locks);
+    printf("Launch delay : %d\n", launch_delay);
+    printf("Compute cycles : %d\n", compute_cycles);
+#ifdef USE_HYBRIDLOCK_LOCKS
+    printf("Switch thread count : %d\n", switch_thread_count);
+#endif
 
     thread_data_t *data;
     pthread_t *threads;
@@ -317,6 +328,8 @@ int main(int argc, char **argv)
             exit(1);
         }
     }
+
+    free_lock_global(the_lock);
 
     return EXIT_SUCCESS;
 }
