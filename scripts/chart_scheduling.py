@@ -46,4 +46,4 @@ ax2.set_yscale("log")
 ax2.set_ylabel("Critical Section time (ms)")
 
 fig.legend()
-plt.savefig("../out.png", dpi=600)
+plt.savefig("../out.png", dpi=600, bbox_inches="tight")

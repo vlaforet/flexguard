@@ -19,6 +19,7 @@
 #include "hybridlock.h"
 #endif
 
+#define DEFAULT_BASE_THREADS 0
 #define DEFAULT_NB_THREADS 10
 #define DEFAULT_USE_LOCKS 1
 #define DEFAULT_LAUNCH_DELAY_MS 1000
@@ -150,6 +151,7 @@ int main(int argc, char **argv)
 {
     int i, c;
 
+    int base_threads = DEFAULT_BASE_THREADS;
     int max_nb_threads = DEFAULT_NB_THREADS;
     int launch_delay = DEFAULT_LAUNCH_DELAY_MS;
 #ifdef USE_HYBRIDLOCK_LOCKS
@@ -158,6 +160,7 @@ int main(int argc, char **argv)
 
     struct option long_options[] = {
         {"help", no_argument, NULL, 'h'},
+        {"base-threads", required_argument, NULL, 'b'},
         {"cs-cycles", required_argument, NULL, 'c'},
         {"launch-delay", required_argument, NULL, 'd'},
         {"use-locks", required_argument, NULL, 'l'},
@@ -170,7 +173,7 @@ int main(int argc, char **argv)
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hc:d:l:n:s:", long_options, &i);
+        c = getopt_long(argc, argv, "hb:c:d:l:n:s:", long_options, &i);
 
         if (c == -1)
             break;
@@ -192,6 +195,8 @@ int main(int argc, char **argv)
             printf("Options:\n");
             printf("  -h, --help\n");
             printf("        Print this message\n");
+            printf("  -b, --base-threads <int>\n");
+            printf("        Base number of threads (default=" XSTR(DEFAULT_BASE_THREADS) ")\n");
             printf("  -c, --compute-cycles <int>\n");
             printf("        Compute delay between critical sections, in cycles (default=" XSTR(DEFAULT_COMPUTE_CYCLES) ")\n");
             printf("  -d, --launch-delay <int>\n");
@@ -206,6 +211,9 @@ int main(int argc, char **argv)
             printf("        A value of -1 will disable the switch (always spin) and with a value of 0 the lock will never spin.\n");
 #endif
             exit(0);
+        case 'b':
+            base_threads = atoi(optarg);
+            break;
         case 'c':
             compute_cycles = atoi(optarg);
             break;
@@ -231,12 +239,13 @@ int main(int argc, char **argv)
         }
     }
 
-    printf("Nb threads max : %d\n", max_nb_threads);
-    printf("Use locks : %d\n", use_locks);
-    printf("Launch delay : %d\n", launch_delay);
-    printf("Compute cycles : %d\n", compute_cycles);
+    printf("Base nb threads: %d\n", base_threads);
+    printf("Nb threads max: %d\n", max_nb_threads);
+    printf("Use locks: %d\n", use_locks);
+    printf("Launch delay: %d\n", launch_delay);
+    printf("Compute cycles: %d\n", compute_cycles);
 #ifdef USE_HYBRIDLOCK_LOCKS
-    printf("Switch thread count : %d\n", switch_thread_count);
+    printf("Switch thread count: %d\n", switch_thread_count);
 #endif
 
     thread_data_t *data;
@@ -294,10 +303,16 @@ int main(int argc, char **argv)
             exit(1);
         }
 
-        measurement(data, max_nb_threads);
-        nanosleep(&launch_timeout, NULL);
+        if (i >= base_threads)
+        {
+            measurement(data, max_nb_threads);
+            nanosleep(&launch_timeout, NULL);
+        }
     }
     pthread_attr_destroy(&attr);
+
+    if (base_threads == max_nb_threads)
+        nanosleep(&launch_timeout, NULL);
 
     for (i = 0; i < 10; i++)
     {
@@ -310,7 +325,7 @@ int main(int argc, char **argv)
         nanosleep(&launch_timeout, NULL);
     }
 
-    while (needed_threads > 0)
+    while (needed_threads > 0 && thread_count >= base_threads)
     {
         if (thread_count == needed_threads)
             needed_threads--;
@@ -318,6 +333,7 @@ int main(int argc, char **argv)
         measurement(data, max_nb_threads);
         nanosleep(&launch_timeout, NULL);
     }
+    needed_threads = 0;
 
     /* Wait for thread completion */
     for (i = 0; i < max_nb_threads; i++)
