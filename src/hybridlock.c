@@ -36,85 +36,132 @@
 
 static void futex_wait(void *addr, int val)
 {
-    int ret = 0;
-    // Wait if *addr == val.
-    while ((ret = syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, 0, 0)) != 0)
-        if (ret == -1 && errno != EINTR)
-        {
-            if (errno != EAGAIN)
-                fprintf(stderr, "Failed to futex_wait, errno: %d\n", errno);
-            break;
-        }
+    syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
 }
 
 static void futex_wake(void *addr, int nb_threads)
 {
-    int ret = 0;
-    while ((ret = syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0)) == -1 &&
-           errno == EINTR)
-        ;
+    syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
+}
 
-    if (ret == -1)
-        fprintf(stderr, "Failed to futex_wake, errno: %d\n", errno);
+int trylock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_t lock_type)
+{
+    switch (lock_type)
+    {
+    case MCS:
+        my_qnode->next = NULL;
+        if (CAS_PTR(the_lock->data.mcs_lock, NULL, my_qnode) != NULL)
+            return 1;
+        break;
+    case FUTEX:
+        if (__sync_val_compare_and_swap(&the_lock->data.futex_lock, 0, 1) == 0)
+            return 1;
+        break;
+    }
+    return 0;
+}
+
+void lock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_t lock_type)
+{
+    switch (lock_type)
+    {
+    case MCS:
+        my_qnode->next = NULL;
+        mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->data.mcs_lock, (void *)my_qnode);
+        if (pred == NULL) /* lock was free */
+            return;
+
+        my_qnode->waiting = 1; // word on which to spin
+        MEM_BARRIER;
+        pred->next = my_qnode; // make pred point to me
+
+        while (my_qnode->waiting != 0)
+            PAUSE;
+        break;
+    case FUTEX:;
+        int state;
+
+        if ((state = __sync_val_compare_and_swap(&the_lock->data.futex_lock, 0, 1)) != 0)
+        {
+            if (state != 2)
+                state = __sync_lock_test_and_set(&the_lock->data.futex_lock, 2);
+            while (state != 0)
+            {
+                futex_wait((void *)&the_lock->data.futex_lock, 2);
+                state = __sync_lock_test_and_set(&the_lock->data.futex_lock, 2);
+            }
+        }
+        break;
+    }
+}
+
+void unlock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_t lock_type)
+{
+    switch (lock_type)
+    {
+    case MCS:;
+        mcs_qnode_ptr succ;
+        if (!(succ = my_qnode->next)) /* I seem to have no succ. */
+        {
+            /* try to fix global pointer */
+            if (CAS_PTR(the_lock->data.mcs_lock, my_qnode, NULL) == my_qnode)
+                return;
+            do
+            {
+                succ = my_qnode->next;
+                PAUSE;
+            } while (!succ); // wait for successor
+        }
+        succ->waiting = 0;
+        break;
+    case FUTEX:
+        if (__sync_fetch_and_sub(&the_lock->data.futex_lock, 1) != 1)
+        {
+            the_lock->data.futex_lock = 0;
+            futex_wake((void *)&the_lock->data.futex_lock, 1);
+        }
+        break;
+    }
 }
 
 int hybridlock_trylock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
 {
-    my_qnode->next = NULL;
-    if (CAS_PTR(the_lock->data.mcs_lock, NULL, my_qnode) == NULL)
-        return 0;
+    // will see
     return 1;
 }
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
 {
-    my_qnode->next = NULL;
-    my_qnode->locking = 1;
-
-    mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->data.mcs_lock, (void *)my_qnode);
-
-    if (pred == NULL) /* lock was free */
-        return;
-
-    my_qnode->waiting = 1; // word on which to spin
-    MEM_BARRIER;
-    pred->next = my_qnode; // make pred point to me
-
-    while (my_qnode->waiting != 0)
+    lock_type_t curr_type, last_type;
+    do
     {
-        if (the_lock->data.spinning)
-            PAUSE;
-        else
-            futex_wait((void *)&my_qnode->waiting, 1);
+        curr_type = the_lock->data.lock_type;
+        lock_type(the_lock, my_qnode, curr_type);
+
+        if (the_lock->data.lock_type == curr_type)
+            break;
+
+        unlock_type(the_lock, my_qnode, curr_type);
+    } while (1);
+
+    last_type = the_lock->data.last_held_type;
+    the_lock->data.last_held_type = curr_type;
+
+    if (last_type != the_lock->data.lock_type)
+    { // Lock-Unlock to wait for the previous holder to exit its critical section
+        lock_type(the_lock, my_qnode, last_type);
+        unlock_type(the_lock, my_qnode, last_type);
     }
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
 {
-    mcs_qnode_ptr succ;
-    if (!(succ = my_qnode->next)) /* I seem to have no succ. */
-    {
-        /* try to fix global pointer */
-        if (CAS_PTR(the_lock->data.mcs_lock, my_qnode, NULL) == my_qnode)
-        {
-            my_qnode->locking = 0;
-            return;
-        }
-        do
-        {
-            succ = my_qnode->next;
-            PAUSE;
-        } while (!succ); // wait for successor
-    }
-    succ->waiting = 0;
-    futex_wake((void *)&succ->waiting, 1);
-    my_qnode->locking = 0;
+    unlock_type(the_lock, my_qnode, the_lock->data.last_held_type);
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
 {
-    if ((*the_lock->data.mcs_lock) == NULL)
-        return 1;
+    // will see
     return 0;
 }
 
@@ -127,10 +174,8 @@ hybridlock_lock_t *init_hybridlock_array_global(uint32_t size)
     hybridlock_lock_t *the_locks = (hybridlock_lock_t *)malloc(size * sizeof(hybridlock_lock_t));
     for (uint32_t i = 0; i < size; i++)
     {
-        the_locks[i].data.mcs_lock = (mcs_lock *)malloc(sizeof(mcs_lock));
+        the_locks[i].data.mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
         *(the_locks[i].data.mcs_lock) = 0;
-
-        the_locks[i].data.spinning = 1;
     }
 
     MEM_BARRIER;
@@ -183,10 +228,12 @@ static int get_max_pid()
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
     // Initialize all lock objects
-    the_lock->data.mcs_lock = (mcs_lock *)malloc(sizeof(mcs_lock));
+    the_lock->data.mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
     *(the_lock->data.mcs_lock) = 0;
 
-    the_lock->data.spinning = 1;
+    the_lock->data.futex_lock = 0;
+    the_lock->data.lock_type = MCS;
+    the_lock->data.last_held_type = MCS;
 
 #ifdef BPF
     struct hybridlock_bpf *skel;
@@ -244,8 +291,6 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode
     set_cpu(thread_num);
 
     (*my_qnode) = malloc(sizeof(mcs_qnode));
-
-    (*my_qnode)->locking = 0;
     (*my_qnode)->waiting = 0;
 
 #ifdef BPF

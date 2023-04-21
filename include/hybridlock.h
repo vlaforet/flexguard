@@ -65,13 +65,19 @@
 #include "hybridlock_bpf.h"
 
 typedef volatile mcs_qnode *mcs_qnode_ptr;
-typedef mcs_qnode_ptr mcs_lock;
+typedef mcs_qnode_ptr mcs_lock_t;
 typedef mcs_qnode *hybridlock_local_params;
+
+typedef volatile int futex_lock_t;
 
 typedef struct hybridlock_data_t
 {
-  mcs_lock *mcs_lock;
-  int spinning;
+  lock_type_t last_held_type;
+  lock_type_t lock_type;
+
+  futex_lock_t futex_lock;
+  mcs_lock_t *mcs_lock;
+
   struct bpf_map *nodes_map;
 } hybridlock_data_t;
 

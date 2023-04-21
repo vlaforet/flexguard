@@ -30,10 +30,15 @@
 #ifndef _HYBRIDLOCK_BPF_H_
 #define _HYBRIDLOCK_BPF_H_
 
+typedef enum lock_type_t
+{
+  MCS,
+  FUTEX
+} lock_type_t;
+
 typedef struct mcs_qnode
 {
-  volatile uint32_t waiting; // 32 bits as requested by futex syscall
-  volatile uint8_t locking;
+  volatile uint8_t waiting;
   volatile struct mcs_qnode *volatile next;
 
 #ifdef ADD_PADDING

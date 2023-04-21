@@ -284,7 +284,7 @@ int main(int argc, char **argv)
     {
 #ifdef USE_HYBRIDLOCK_LOCKS
         if (i == switch_thread_count)
-            the_lock.data.spinning = 0;
+            the_lock.data.lock_type = FUTEX;
 #endif
 
         DPRINT("Creating thread %d\n", i);
@@ -303,7 +303,7 @@ int main(int argc, char **argv)
     {
 #ifdef USE_HYBRIDLOCK_LOCKS
         if (switch_thread_count > 0 && i == 5)
-            the_lock.data.spinning = 1;
+            the_lock.data.lock_type = MCS;
 #endif
 
         measurement(data, max_nb_threads);
