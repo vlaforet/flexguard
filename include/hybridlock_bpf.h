@@ -38,15 +38,19 @@ typedef enum lock_type_t
 
 typedef struct mcs_qnode
 {
-  volatile uint8_t waiting;
-  volatile struct mcs_qnode *volatile next;
-
+  union
+  {
+    struct
+    {
+      volatile uint8_t waiting;
+      volatile struct mcs_qnode *volatile next;
+    };
 #ifdef ADD_PADDING
-#if CACHE_LINE_SIZE == 16
+    uint8_t padding[CACHE_LINE_SIZE];
 #else
-  uint8_t padding[CACHE_LINE_SIZE - 16];
+    uint8_t padding;
 #endif
-#endif
+  };
 } mcs_qnode;
 
 #endif
