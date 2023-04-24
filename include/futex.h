@@ -53,8 +53,6 @@ typedef struct futex_lock_t
     futex_lock_data_t data;
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
-#else
-    uint8_t padding;
 #endif
   };
 } futex_lock_t;

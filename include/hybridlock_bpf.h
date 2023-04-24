@@ -47,8 +47,6 @@ typedef struct mcs_qnode
     };
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
-#else
-    uint8_t padding;
 #endif
   };
 } mcs_qnode;

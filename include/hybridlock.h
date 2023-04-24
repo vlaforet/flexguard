@@ -75,7 +75,14 @@ typedef struct hybridlock_data_t
   lock_type_t last_held_type;
   lock_type_t lock_type;
 
-  futex_lock_t futex_lock;
+  union
+  {
+    futex_lock_t futex_lock;
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#endif
+  };
+
   mcs_lock_t *mcs_lock;
 
   struct bpf_map *nodes_map;
@@ -88,8 +95,6 @@ typedef struct hybridlock_lock_t
     hybridlock_data_t data;
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
-#else
-    uint8_t padding;
 #endif
   };
 } hybridlock_lock_t;
