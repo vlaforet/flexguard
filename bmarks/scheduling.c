@@ -45,6 +45,12 @@ struct timeval start;
 _Atomic int thread_count = 0;
 int needed_threads;
 
+#define DUMMY_ARRAYS_SIZE 10000
+
+int shared_counter = 0;
+uint8_t arr1[DUMMY_ARRAYS_SIZE];
+uint8_t arr2[DUMMY_ARRAYS_SIZE];
+
 __thread uint32_t phys_id;
 lock_global_data the_lock;
 __attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
@@ -84,6 +90,12 @@ void *test(void *data)
         if (use_locks)
             acquire_write(&(local_th_data[d->id]), &the_lock);
 
+        shared_counter++;
+        if (shared_counter % 2 == 0)
+            memcpy(arr1, arr2, DUMMY_ARRAYS_SIZE);
+        else
+            memcpy(arr2, arr1, DUMMY_ARRAYS_SIZE);
+
         if (thread_count > needed_threads)
         {
             thread_count--;
@@ -121,12 +133,12 @@ void measurement(thread_data_t *data, int len)
     static struct timeval last_measurement, current;
     static int tc;
     static double tmp;
-    static double sum = 0;
+    static double sum;
 
     sum = 0;
-    tc = thread_count;
+    tc = 0;
 
-    if (tc <= 0)
+    if (thread_count <= 0)
         return;
 
     if (last_measurement.tv_sec == 0 && last_measurement.tv_usec == 0)
@@ -139,6 +151,7 @@ void measurement(thread_data_t *data, int len)
         tmp = data[i].cs_time;
         if (tmp > 0)
         {
+            tc++;
             sum += tmp;
             data[i].reset = 1;
         }
@@ -267,6 +280,13 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    // Fill dummy arrays
+    for (i = 0; i < DUMMY_ARRAYS_SIZE; i++)
+    {
+        arr1[i] = (DUMMY_ARRAYS_SIZE - i) % 255;
+        arr2[i] = i % 255;
+    }
+
     /* Init locks */
     DPRINT("Initializing locks\n");
     init_lock_global_nt(max_nb_threads, &the_lock);
@@ -303,11 +323,11 @@ int main(int argc, char **argv)
             exit(1);
         }
 
-        if (i >= base_threads)
-        {
+        if (i > base_threads)
             measurement(data, max_nb_threads);
+
+        if (i >= base_threads)
             nanosleep(&launch_timeout, NULL);
-        }
     }
     pthread_attr_destroy(&attr);
 
@@ -344,6 +364,13 @@ int main(int argc, char **argv)
             exit(1);
         }
     }
+
+    printf("arr1 = ");
+    for (i = 0; i < DUMMY_ARRAYS_SIZE; i++)
+        printf("%d ", arr1[i]);
+    printf("\narr2 = ");
+    for (i = 0; i < DUMMY_ARRAYS_SIZE; i++)
+        printf("%d ", arr2[i]);
 
     free_lock_global(the_lock);
 
