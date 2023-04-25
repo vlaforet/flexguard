@@ -70,31 +70,31 @@ typedef mcs_qnode *hybridlock_local_params;
 
 typedef volatile int futex_lock_t;
 
-typedef struct hybridlock_data_t
+typedef struct hybridlock_lock_t
 {
-  lock_type_t last_held_type;
-  lock_type_t lock_type;
+  union
+  {
+    lock_type_t last_held_type;
+    lock_type_t lock_type;
+    struct bpf_map *nodes_map;
+#ifdef ADD_PADDING
+    uint8_t padding1[CACHE_LINE_SIZE];
+#endif
+  };
 
   union
   {
     futex_lock_t futex_lock;
 #ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE];
+    uint8_t padding2[CACHE_LINE_SIZE];
 #endif
   };
 
-  mcs_lock_t *mcs_lock;
-
-  struct bpf_map *nodes_map;
-} hybridlock_data_t;
-
-typedef struct hybridlock_lock_t
-{
   union
   {
-    hybridlock_data_t data;
+    mcs_lock_t *mcs_lock;
 #ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE];
+    uint8_t padding3[CACHE_LINE_SIZE];
 #endif
   };
 } hybridlock_lock_t;

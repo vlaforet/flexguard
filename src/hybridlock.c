@@ -50,11 +50,11 @@ int trylock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_
     {
     case MCS:
         my_qnode->next = NULL;
-        if (CAS_PTR(the_lock->data.mcs_lock, NULL, my_qnode) != NULL)
+        if (CAS_PTR(the_lock->mcs_lock, NULL, my_qnode) != NULL)
             return 1;
         break;
     case FUTEX:
-        if (__sync_val_compare_and_swap(&the_lock->data.futex_lock, 0, 1) == 0)
+        if (__sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1) == 0)
             return 1;
         break;
     }
@@ -67,7 +67,7 @@ void lock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_t 
     {
     case MCS:
         my_qnode->next = NULL;
-        mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->data.mcs_lock, (void *)my_qnode);
+        mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->mcs_lock, (void *)my_qnode);
         if (pred == NULL) /* lock was free */
             return;
 
@@ -81,14 +81,14 @@ void lock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_t 
     case FUTEX:;
         int state;
 
-        if ((state = __sync_val_compare_and_swap(&the_lock->data.futex_lock, 0, 1)) != 0)
+        if ((state = __sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1)) != 0)
         {
             if (state != 2)
-                state = __sync_lock_test_and_set(&the_lock->data.futex_lock, 2);
+                state = __sync_lock_test_and_set(&the_lock->futex_lock, 2);
             while (state != 0)
             {
-                futex_wait((void *)&the_lock->data.futex_lock, 2);
-                state = __sync_lock_test_and_set(&the_lock->data.futex_lock, 2);
+                futex_wait((void *)&the_lock->futex_lock, 2);
+                state = __sync_lock_test_and_set(&the_lock->futex_lock, 2);
             }
         }
         break;
@@ -104,7 +104,7 @@ void unlock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_
         if (!(succ = my_qnode->next)) /* I seem to have no succ. */
         {
             /* try to fix global pointer */
-            if (CAS_PTR(the_lock->data.mcs_lock, my_qnode, NULL) == my_qnode)
+            if (CAS_PTR(the_lock->mcs_lock, my_qnode, NULL) == my_qnode)
                 return;
             do
             {
@@ -115,10 +115,10 @@ void unlock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_
         succ->waiting = 0;
         break;
     case FUTEX:
-        if (__sync_fetch_and_sub(&the_lock->data.futex_lock, 1) != 1)
+        if (__sync_fetch_and_sub(&the_lock->futex_lock, 1) != 1)
         {
-            the_lock->data.futex_lock = 0;
-            futex_wake((void *)&the_lock->data.futex_lock, 1);
+            the_lock->futex_lock = 0;
+            futex_wake((void *)&the_lock->futex_lock, 1);
         }
         break;
     }
@@ -135,19 +135,19 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
     lock_type_t curr_type, last_type;
     do
     {
-        curr_type = the_lock->data.lock_type;
+        curr_type = the_lock->lock_type;
         lock_type(the_lock, my_qnode, curr_type);
 
-        if (the_lock->data.lock_type == curr_type)
+        if (the_lock->lock_type == curr_type)
             break;
 
         unlock_type(the_lock, my_qnode, curr_type);
     } while (1);
 
-    last_type = the_lock->data.last_held_type;
-    the_lock->data.last_held_type = curr_type;
+    last_type = the_lock->last_held_type;
+    the_lock->last_held_type = curr_type;
 
-    if (last_type != the_lock->data.lock_type)
+    if (last_type != the_lock->lock_type)
     { // Lock-Unlock to wait for the previous holder to exit its critical section
         lock_type(the_lock, my_qnode, last_type);
         unlock_type(the_lock, my_qnode, last_type);
@@ -156,7 +156,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
 {
-    unlock_type(the_lock, my_qnode, the_lock->data.last_held_type);
+    unlock_type(the_lock, my_qnode, the_lock->last_held_type);
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
@@ -174,8 +174,8 @@ hybridlock_lock_t *init_hybridlock_array_global(uint32_t size)
     hybridlock_lock_t *the_locks = (hybridlock_lock_t *)malloc(size * sizeof(hybridlock_lock_t));
     for (uint32_t i = 0; i < size; i++)
     {
-        the_locks[i].data.mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
-        *(the_locks[i].data.mcs_lock) = 0;
+        the_locks[i].mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
+        *(the_locks[i].mcs_lock) = 0;
     }
 
     MEM_BARRIER;
@@ -199,7 +199,7 @@ void end_hybridlock_array_local(hybridlock_local_params *local_params)
 void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size)
 {
     for (uint32_t i = 0; i < size; i++)
-        free(the_locks[i].data.mcs_lock);
+        free(the_locks[i].mcs_lock);
     free(the_locks);
 }
 
@@ -228,12 +228,12 @@ static int get_max_pid()
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
     // Initialize all lock objects
-    the_lock->data.mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
-    *(the_lock->data.mcs_lock) = 0;
+    the_lock->mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
+    *(the_lock->mcs_lock) = 0;
 
-    the_lock->data.futex_lock = 0;
-    the_lock->data.lock_type = MCS;
-    the_lock->data.last_held_type = MCS;
+    the_lock->futex_lock = 0;
+    the_lock->lock_type = MCS;
+    the_lock->last_held_type = MCS;
 
 #ifdef BPF
     struct hybridlock_bpf *skel;
@@ -258,7 +258,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     bpf_map__set_max_entries(skel->maps.nodes_map, max_pid);
 
     // Set pointer to spinning variable for BPF
-    skel->bss->input_spinning = &the_lock->data.spinning;
+    skel->bss->input_spinning = &the_lock->spinning;
 
     // Load BPF skeleton
     err = hybridlock_bpf__load(skel);
@@ -270,7 +270,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     }
 
     // Store map
-    the_lock->data.nodes_map = skel->maps.nodes_map;
+    the_lock->nodes_map = skel->maps.nodes_map;
 
     // Attach BPF skeleton
     err = hybridlock_bpf__attach(skel);
@@ -296,7 +296,7 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode
 #ifdef BPF
     // Register thread in BPF map
     __u32 tid = gettid();
-    int err = bpf_map__update_elem(the_lock->data.nodes_map, &tid, sizeof(tid), my_qnode, sizeof(mcs_qnode *), BPF_ANY);
+    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), my_qnode, sizeof(mcs_qnode *), BPF_ANY);
     if (err)
     {
         fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
