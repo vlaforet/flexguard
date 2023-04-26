@@ -149,7 +149,7 @@ void measurement(thread_data_t *data, int len)
     for (int i = 0; i < len; i++)
     {
         tmp = data[i].cs_time;
-        if (tmp > 0)
+        if (tmp > 0 && !data[i].reset)
         {
             tc++;
             sum += tmp;
@@ -157,7 +157,10 @@ void measurement(thread_data_t *data, int len)
         }
     }
 
-    printf("%d, %f, %f\n", tc, DURATION(start, current), sum / tc);
+    if (tc == 0)
+        printf("%d, %f, %f\n", tc, DURATION(start, current), .0);
+    else
+        printf("%d, %f, %f\n", tc, DURATION(start, current), sum / tc);
 }
 
 int main(int argc, char **argv)
@@ -371,6 +374,7 @@ int main(int argc, char **argv)
     printf("\narr2 = ");
     for (i = 0; i < DUMMY_ARRAYS_SIZE; i++)
         printf("%d ", arr2[i]);
+    printf("\n");
 
     free_lock_global(the_lock);
 
