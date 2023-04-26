@@ -36,19 +36,19 @@ typedef enum lock_type_t
   FUTEX
 } lock_type_t;
 
-typedef struct mcs_qnode
+typedef struct mcs_qnode_t
 {
   union
   {
     struct
     {
       volatile uint8_t waiting;
-      volatile struct mcs_qnode *volatile next;
+      volatile struct mcs_qnode_t *volatile next;
     };
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
 #endif
   };
-} mcs_qnode;
+} mcs_qnode_t;
 
 #endif

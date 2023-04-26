@@ -44,13 +44,13 @@ static void futex_wake(void *addr, int nb_threads)
     syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
 }
 
-int trylock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_t lock_type)
+int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
     case MCS:
-        my_qnode->next = NULL;
-        if (CAS_PTR(the_lock->mcs_lock, NULL, my_qnode) != NULL)
+        local_params->qnode->next = NULL;
+        if (CAS_PTR(the_lock->mcs_lock, NULL, local_params->qnode) != NULL)
             return 1;
         break;
     case FUTEX:
@@ -61,21 +61,21 @@ int trylock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_
     return 0;
 }
 
-void lock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_t lock_type)
+void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
     case MCS:
-        my_qnode->next = NULL;
-        mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR((volatile void *)the_lock->mcs_lock, (void *)my_qnode);
+        local_params->qnode->next = NULL;
+        mcs_qnode_ptr pred = (mcs_qnode_t *)SWAP_PTR((volatile void *)the_lock->mcs_lock, (void *)local_params->qnode);
         if (pred == NULL) /* lock was free */
             return;
 
-        my_qnode->waiting = 1; // word on which to spin
+        local_params->qnode->waiting = 1; // word on which to spin
         MEM_BARRIER;
-        pred->next = my_qnode; // make pred point to me
+        pred->next = local_params->qnode; // make pred point to me
 
-        while (my_qnode->waiting != 0)
+        while (local_params->qnode->waiting != 0)
             PAUSE;
         break;
     case FUTEX:;
@@ -95,20 +95,20 @@ void lock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_t 
     }
 }
 
-void unlock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_t lock_type)
+void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
     case MCS:;
         mcs_qnode_ptr succ;
-        if (!(succ = my_qnode->next)) /* I seem to have no succ. */
+        if (!(succ = local_params->qnode->next)) /* I seem to have no succ. */
         {
             /* try to fix global pointer */
-            if (CAS_PTR(the_lock->mcs_lock, my_qnode, NULL) == my_qnode)
+            if (CAS_PTR(the_lock->mcs_lock, local_params->qnode, NULL) == local_params->qnode)
                 return;
             do
             {
-                succ = my_qnode->next;
+                succ = local_params->qnode->next;
                 PAUSE;
             } while (!succ); // wait for successor
         }
@@ -124,39 +124,39 @@ void unlock_type(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode, lock_type_
     }
 }
 
-int hybridlock_trylock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
+int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
     // will see
     return 1;
 }
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
+void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
     lock_type_t curr_type, last_type;
     do
     {
         curr_type = the_lock->lock_type;
-        lock_type(the_lock, my_qnode, curr_type);
+        lock_type(the_lock, local_params, curr_type);
 
         if (the_lock->lock_type == curr_type)
             break;
 
-        unlock_type(the_lock, my_qnode, curr_type);
+        unlock_type(the_lock, local_params, curr_type);
     } while (1);
-
+    local_params->held_type = curr_type;
     last_type = the_lock->last_held_type;
     the_lock->last_held_type = curr_type;
 
-    if (last_type != the_lock->lock_type)
+    if (last_type != curr_type)
     { // Lock-Unlock to wait for the previous holder to exit its critical section
-        lock_type(the_lock, my_qnode, last_type);
-        unlock_type(the_lock, my_qnode, last_type);
+        lock_type(the_lock, local_params, last_type);
+        unlock_type(the_lock, local_params, last_type);
     }
 }
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock, mcs_qnode_ptr my_qnode)
+void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
-    unlock_type(the_lock, my_qnode, the_lock->last_held_type);
+    unlock_type(the_lock, local_params, local_params->held_type);
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
@@ -182,16 +182,16 @@ hybridlock_lock_t *init_hybridlock_array_global(uint32_t size)
     return the_locks;
 }
 
-hybridlock_local_params *init_hybridlock_array_local(uint32_t thread_num, uint32_t size)
+hybridlock_local_params_t *init_hybridlock_array_local(uint32_t thread_num, uint32_t size)
 {
     set_cpu(thread_num);
 
-    hybridlock_local_params *local_params = (hybridlock_local_params *)malloc(size * sizeof(mcs_qnode *));
+    hybridlock_local_params_t *local_params = (hybridlock_local_params_t *)malloc(size * sizeof(mcs_qnode_t *));
     MEM_BARRIER;
     return local_params;
 }
 
-void end_hybridlock_array_local(hybridlock_local_params *local_params)
+void end_hybridlock_array_local(hybridlock_local_params_t *local_params)
 {
     free(local_params);
 }
@@ -286,17 +286,17 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     return 0;
 }
 
-int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *my_qnode, hybridlock_lock_t *the_lock)
+int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
 {
     set_cpu(thread_num);
 
-    (*my_qnode) = malloc(sizeof(mcs_qnode));
-    (*my_qnode)->waiting = 0;
+    local_params->qnode = (mcs_qnode_t *)malloc(sizeof(mcs_qnode_t));
+    local_params->qnode->waiting = 0;
 
 #ifdef BPF
     // Register thread in BPF map
     __u32 tid = gettid();
-    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), my_qnode, sizeof(mcs_qnode *), BPF_ANY);
+    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), local_params->qnode, sizeof(mcs_qnode_t *), BPF_ANY);
     if (err)
     {
         fprintf(stderr, "Failed to register thread with BPF: %d\n", err);

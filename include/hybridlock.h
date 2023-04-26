@@ -64,9 +64,8 @@
 #include "utils.h"
 #include "hybridlock_bpf.h"
 
-typedef volatile mcs_qnode *mcs_qnode_ptr;
+typedef volatile mcs_qnode_t *mcs_qnode_ptr;
 typedef mcs_qnode_ptr mcs_lock_t;
-typedef mcs_qnode *hybridlock_local_params;
 
 typedef volatile int futex_lock_t;
 
@@ -99,15 +98,21 @@ typedef struct hybridlock_lock_t
   };
 } hybridlock_lock_t;
 
+typedef struct hybridlock_local_params_t
+{
+  mcs_qnode_t *qnode;
+  lock_type_t held_type;
+} hybridlock_local_params_t;
+
 /*
  *  Lock manipulation methods
  */
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, mcs_qnode_ptr local_params);
+void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
 
-int hybridlock_trylock(hybridlock_lock_t *the_locks, mcs_qnode_ptr local_params);
+int hybridlock_trylock(hybridlock_lock_t *the_locks, hybridlock_local_params_t *local_params);
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock, mcs_qnode_ptr local_params);
+void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock);
 
@@ -117,9 +122,9 @@ int is_free_hybridlock(hybridlock_lock_t *the_lock);
 
 hybridlock_lock_t *init_hybridlock_array_global(uint32_t num_locks);
 
-hybridlock_local_params *init_hybridlock_array_local(uint32_t thread_num, uint32_t size);
+hybridlock_local_params_t *init_hybridlock_array_local(uint32_t thread_num, uint32_t size);
 
-void end_hybridlock_array_local(hybridlock_local_params *local_params);
+void end_hybridlock_array_local(hybridlock_local_params_t *local_params);
 
 void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size);
 
@@ -129,7 +134,7 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size);
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock);
 
-int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params *local_params, hybridlock_lock_t *the_lock);
+int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock);
 
 void end_hybridlock_local();
 
