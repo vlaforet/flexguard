@@ -2,7 +2,7 @@
  * File: test_correct.c
  * Author: Tudor David <tudor.david@epfl.ch>
  *
- * Description: 
+ * Description:
  *      Test which exposes bugs in lock algorithms;
  *      By no means an exhaustive test, but generally exposes
  *      a buggy algorithm;
@@ -54,29 +54,30 @@ uint64_t c[2] = {0, 0};
 
 #define XSTR(s) #s
 
-//number of concurrent threads
+// number of concurrent threads
 #define DEFAULT_NUM_THREADS 1
-//total duration of the test, in milliseconds
+// total duration of the test, in milliseconds
 #define DEFAULT_DURATION 10000
 
 static volatile int stop;
 
-__thread unsigned long* seeds;
+__thread unsigned long *seeds;
 __thread uint32_t phys_id;
 __thread uint32_t cluster_id;
 lock_global_data the_lock;
-__attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data* local_th_data;
+__attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
 
-typedef struct shared_data{
+typedef struct shared_data
+{
     volatile uint64_t counter;
     char padding[56];
 } shared_data;
 
-__attribute__((aligned(CACHE_LINE_SIZE))) volatile shared_data* protected_data;
+__attribute__((aligned(CACHE_LINE_SIZE))) volatile shared_data *protected_data;
 int duration;
 int num_threads;
-
-typedef struct barrier {
+typedef struct barrier
+{
     pthread_cond_t complete;
     pthread_mutex_t mutex;
     int count;
@@ -97,9 +98,12 @@ void barrier_cross(barrier_t *b)
     /* One more thread through */
     b->crossing++;
     /* If not all here, wait */
-    if (b->crossing < b->count) {
+    if (b->crossing < b->count)
+    {
         pthread_cond_wait(&b->complete, &b->mutex);
-    } else {
+    }
+    else
+    {
         pthread_cond_broadcast(&b->complete);
         /* Reset for next time */
         b->crossing = 0;
@@ -107,7 +111,8 @@ void barrier_cross(barrier_t *b)
     pthread_mutex_unlock(&b->mutex);
 }
 
-typedef struct thread_data {
+typedef struct thread_data
+{
     union
     {
         struct
@@ -130,18 +135,18 @@ void *test_correctness(void *data)
 
     barrier_cross(d->barrier);
 
-    lock_local_data* local_d = &(local_th_data[d->id]);
-    while (stop == 0) {
-        acquire_lock(local_d,&the_lock);
+    lock_local_data *local_d = &(local_th_data[d->id]);
+    while (stop == 0)
+    {
+        acquire_lock(local_d, &the_lock);
         protected_data->counter++;
-        release_lock(local_d,&the_lock);
+        release_lock(local_d, &the_lock);
         d->num_acquires++;
     }
 
     free_lock_local(local_th_data[d->id]);
     return NULL;
 }
-
 
 void catcher(int sig)
 {
@@ -151,17 +156,15 @@ void catcher(int sig)
         exit(1);
 }
 
-
 int main(int argc, char **argv)
 {
     set_cpu(the_cores[0]);
     struct option long_options[] = {
         // These options don't set a flag
-        {"help",                      no_argument,       NULL, 'h'},
-        {"duration",                  required_argument, NULL, 'd'},
-        {"num-threads",               required_argument, NULL, 'n'},
-        {NULL, 0, NULL, 0}
-    };
+        {"help", no_argument, NULL, 'h'},
+        {"duration", required_argument, NULL, 'd'},
+        {"num-threads", required_argument, NULL, 'n'},
+        {NULL, 0, NULL, 0}};
 
     int i, c;
     thread_data_t *data;
@@ -174,90 +177,91 @@ int main(int argc, char **argv)
     num_threads = DEFAULT_NUM_THREADS;
     sigset_t block_set;
 
-    while(1) {
+    while (1)
+    {
         i = 0;
         c = getopt_long(argc, argv, "h:d:n:", long_options, &i);
 
-        if(c == -1)
+        if (c == -1)
             break;
 
-        if(c == 0 && long_options[i].flag == 0)
+        if (c == 0 && long_options[i].flag == 0)
             c = long_options[i].val;
 
-        switch(c) {
-            case 0:
-                /* Flag is automatically set */
-                break;
-            case 'h':
-                printf("lock stress test\n"
-                        "\n"
-                        "Usage:\n"
-                        "  stress_test [options...]\n"
-                        "\n"
-                        "Options:\n"
-                        "  -h, --help\n"
-                        "        Print this message\n"
-                        "  -d, --duration <int>\n"
-                        "        Test duration in milliseconds (0=infinite, default=" XSTR(DEFAULT_DURATION) ")\n"
-                        "  -n, --num-threads <int>\n"
-                        "        Number of threads (default=" XSTR(DEFAULT_NUM_THREADS) ")\n"
-                      );
-                exit(0);
-            case 'd':
-                duration = atoi(optarg);
-                break;
-            case 'n':
-                num_threads = atoi(optarg);
-                break;
-            case '?':
-                printf("Use -h or --help for help\n");
-                exit(0);
-            default:
-                exit(1);
+        switch (c)
+        {
+        case 0:
+            /* Flag is automatically set */
+            break;
+        case 'h':
+            printf("lock stress test\n"
+                   "\n"
+                   "Usage:\n"
+                   "  stress_test [options...]\n"
+                   "\n"
+                   "Options:\n"
+                   "  -h, --help\n"
+                   "        Print this message\n"
+                   "  -d, --duration <int>\n"
+                   "        Test duration in milliseconds (0=infinite, default=" XSTR(DEFAULT_DURATION) ")\n"
+                                                                                                        "  -n, --num-threads <int>\n"
+                                                                                                        "        Number of threads (default=" XSTR(DEFAULT_NUM_THREADS) ")\n");
+            exit(0);
+        case 'd':
+            duration = atoi(optarg);
+            break;
+        case 'n':
+            num_threads = atoi(optarg);
+            break;
+        case '?':
+            printf("Use -h or --help for help\n");
+            exit(0);
+        default:
+            exit(1);
         }
     }
     assert(duration >= 0);
     assert(num_threads > 0);
 
-    protected_data = (shared_data*) malloc(sizeof(shared_data));
-    protected_data->counter=0;
-#ifdef PRINT_OUTPUT
-    printf("Duration               : %d\n", duration);
-    printf("Number of threads      : %d\n", num_threads);
-#endif
+    protected_data = (shared_data *)malloc(sizeof(shared_data));
+    protected_data->counter = 0;
+
+    DPRINT("Duration               : %d\n", duration);
+    DPRINT("Number of threads      : %d\n", num_threads);
+
     timeout.tv_sec = duration / 1000;
     timeout.tv_nsec = (duration % 1000) * 1000000;
 
-    if ((data = (thread_data_t *)malloc(num_threads * sizeof(thread_data_t))) == NULL) {
+    if ((data = (thread_data_t *)malloc(num_threads * sizeof(thread_data_t))) == NULL)
+    {
         perror("malloc");
         exit(1);
     }
-    if ((threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t))) == NULL) {
+    if ((threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t))) == NULL)
+    {
         perror("malloc");
         exit(1);
     }
 
-    local_th_data = (lock_local_data *)malloc(num_threads*sizeof(lock_local_data));
+    local_th_data = (lock_local_data *)malloc(num_threads * sizeof(lock_local_data));
 
     stop = 0;
     /* Init locks */
-#ifdef PRINT_OUTPUT
-    printf("Initializing locks\n");
-#endif
-    init_lock_global_nt(num_threads,&the_lock);
+    DPRINT("Initializing locks\n");
+    init_lock_global_nt(num_threads, &the_lock);
 
     /* Access set from all threads */
     barrier_init(&barrier, num_threads + 1);
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-    for (i = 0; i < num_threads; i++) {
-#ifdef PRINT_OUTPUT
-        printf("Creating thread %d\n", i);
-#endif
+    for (i = 0; i < num_threads; i++)
+    {
+        DPRINT("Creating thread %d\n", i);
         data[i].id = i;
         data[i].num_acquires = 0;
         data[i].barrier = &barrier;
-        if (pthread_create(&threads[i], &attr, test_correctness, (void *)(&data[i])) != 0) {
+        if (pthread_create(&threads[i], &attr, test_correctness, (void *)(&data[i])) != 0)
+        {
             fprintf(stderr, "Error creating thread\n");
             exit(1);
         }
@@ -266,32 +270,34 @@ int main(int argc, char **argv)
 
     /* Catch some signals */
     if (signal(SIGHUP, catcher) == SIG_ERR ||
-            signal(SIGINT, catcher) == SIG_ERR ||
-            signal(SIGTERM, catcher) == SIG_ERR) {
+        signal(SIGINT, catcher) == SIG_ERR ||
+        signal(SIGTERM, catcher) == SIG_ERR)
+    {
         perror("signal");
         exit(1);
     }
 
     /* Start threads */
     barrier_cross(&barrier);
-#ifdef PRINT_OUTPUT
-    printf("STARTING...\n");
-#endif
+    DPRINT("STARTING...\n");
     gettimeofday(&start, NULL);
-    if (duration > 0) {
+    if (duration > 0)
+    {
         nanosleep(&timeout, NULL);
-    } else {
+    }
+    else
+    {
         sigemptyset(&block_set);
         sigsuspend(&block_set);
     }
     stop = 1;
     gettimeofday(&end, NULL);
-#ifdef PRINT_OUTPUT
-    printf("STOPPING...\n");
-#endif
+    DPRINT("STOPPING...\n");
     /* Wait for thread completion */
-    for (i = 0; i < num_threads; i++) {
-        if (pthread_join(threads[i], NULL) != 0) {
+    for (i = 0; i < num_threads; i++)
+    {
+        if (pthread_join(threads[i], NULL) != 0)
+        {
             fprintf(stderr, "Error waiting for thread completion\n");
             exit(1);
         }
@@ -300,20 +306,16 @@ int main(int argc, char **argv)
     duration = (end.tv_sec * 1000 + end.tv_usec / 1000) - (start.tv_sec * 1000 + start.tv_usec / 1000);
 
     uint64_t acquires = 0;
-    for (i = 0; i < num_threads; i++) {
-#ifdef PRINT_OUTPUT
-        printf("Thread %d\n", i);
-        printf("  #acquire   : %lu\n", data[i].num_acquires);
-#endif
+    for (i = 0; i < num_threads; i++)
+    {
+        DPRINT("Thread %d\n", i);
+        DPRINT("  #acquire   : %lu\n", data[i].num_acquires);
         acquires += data[i].num_acquires;
     }
-#ifdef PRINT_OUTPUT
-    printf("Duration      : %d (ms)\n", duration);
-#endif
-    printf("Counter total : %llu, Expected: %llu\n", (unsigned long long) protected_data->counter, (unsigned long long) acquires);
-    if (protected_data->counter != acquires) {
+    DPRINT("Duration      : %d (ms)\n", duration);
+    printf("Counter total : %llu, Expected: %llu\n", (unsigned long long)protected_data->counter, (unsigned long long)acquires);
+    if (protected_data->counter != acquires)
         printf("Incorrect lock behavior!\n");
-    }
 
     /* Cleanup locks */
     free_lock_global(the_lock);
