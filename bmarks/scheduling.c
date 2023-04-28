@@ -316,7 +316,10 @@ int main(int argc, char **argv)
     {
 #ifdef USE_HYBRIDLOCK_LOCKS
         if (i == switch_thread_count)
+        {
+            DPRINT("Switching to FUTEX hybrid lock\n");
             the_lock.lock_type = FUTEX;
+        }
 #endif
 
         DPRINT("Creating thread %d\n", i);
@@ -341,7 +344,10 @@ int main(int argc, char **argv)
     {
 #ifdef USE_HYBRIDLOCK_LOCKS
         if (switch_thread_count > 0 && i == 5)
+        {
+            DPRINT("Switching to MCS hybrid lock\n");
             the_lock.lock_type = MCS;
+        }
 #endif
 
         measurement(data, max_nb_threads);
