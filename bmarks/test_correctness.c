@@ -148,6 +148,23 @@ void *test_correctness(void *data)
     return NULL;
 }
 
+#ifdef USE_HYBRIDLOCK_LOCKS
+void *switch_lock_type(void *data)
+{
+    srand(time(NULL));
+    while (stop == 0)
+    {
+        if (rand() % 2 == 0)
+            the_lock.lock_type = MCS;
+        else
+            the_lock.lock_type = FUTEX;
+        cpause(rand() % 10000);
+    }
+
+    return NULL;
+}
+#endif
+
 void catcher(int sig)
 {
     static int nb = 0;
@@ -266,6 +283,17 @@ int main(int argc, char **argv)
             exit(1);
         }
     }
+
+#ifdef USE_HYBRIDLOCK_LOCKS
+    pthread_t switch_thread;
+
+    if (pthread_create(&switch_thread, &attr, switch_lock_type, NULL) != 0)
+    {
+        fprintf(stderr, "Error creating switch thread\n");
+        exit(1);
+    }
+#endif
+
     pthread_attr_destroy(&attr);
 
     /* Catch some signals */
@@ -302,6 +330,14 @@ int main(int argc, char **argv)
             exit(1);
         }
     }
+
+#ifdef USE_HYBRIDLOCK_LOCKS
+    if (pthread_join(switch_thread, NULL) != 0)
+    {
+        fprintf(stderr, "Error waiting for switch thread completion\n");
+        exit(1);
+    }
+#endif
 
     duration = (end.tv_sec * 1000 + end.tv_usec / 1000) - (start.tv_sec * 1000 + start.tv_usec / 1000);
 
