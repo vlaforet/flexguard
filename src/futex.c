@@ -41,9 +41,9 @@ static void futex_wake(void *addr, int nb_threads)
 
 int futex_trylock(futex_lock_t *lock)
 {
-  if (__sync_val_compare_and_swap(&lock->data, 0, 1) == 0)
-    return 1;
-  return 0;
+  if (__sync_val_compare_and_swap(&lock->data, 0, 1) != 0)
+    return 1; // Fail
+  return 0;   // Success
 }
 
 void futex_lock(futex_lock_t *lock)
