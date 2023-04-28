@@ -44,8 +44,25 @@ static void futex_wake(void *addr, int nb_threads)
     syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
 }
 
+int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
+{
+    switch (lock_type)
+    {
+    case MCS:
+        if ((*the_lock->mcs_lock) != NULL)
+            return 0; // Not free
+        break;
+    case FUTEX:
+        if (the_lock->futex_lock != 0)
+            return 0; // Not free
+        break;
+    }
+    return 1; // Free
+}
+
 int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
+    printf("[%d] Trying lock %d\n", gettid(), lock_type);
     switch (lock_type)
     {
     case MCS:
@@ -54,22 +71,24 @@ int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_p
             return 1;
         break;
     case FUTEX:
-        if (__sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1) == 0)
+        if (__sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1) != 0)
             return 1;
         break;
     }
-    return 0;
+    printf("[%d] Holding lock %d (trylock)\n", gettid(), lock_type);
+    return 0; // Success
 }
 
 void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
+    printf("[%d] Waiting for lock %d\n", gettid(), lock_type);
     switch (lock_type)
     {
     case MCS:
         local_params->qnode->next = NULL;
         mcs_qnode_ptr pred = (mcs_qnode_t *)SWAP_PTR((volatile void *)the_lock->mcs_lock, (void *)local_params->qnode);
         if (pred == NULL) /* lock was free */
-            return;
+            break;
 
         local_params->qnode->waiting = 1; // word on which to spin
         MEM_BARRIER;
@@ -93,6 +112,8 @@ void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_par
         }
         break;
     }
+
+    printf("[%d] Holding lock %d\n", gettid(), lock_type);
 }
 
 void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
@@ -105,7 +126,7 @@ void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_p
         {
             /* try to fix global pointer */
             if (CAS_PTR(the_lock->mcs_lock, local_params->qnode, NULL) == local_params->qnode)
-                return;
+                break;
             do
             {
                 succ = local_params->qnode->next;
@@ -122,6 +143,7 @@ void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_p
         }
         break;
     }
+    printf("[%d] Released lock %d\n", gettid(), lock_type);
 }
 
 int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
@@ -130,6 +152,7 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
     return 1;
 }
 
+_Atomic int counter = 0;
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
     lock_type_t curr_type, last_type;
@@ -138,24 +161,34 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
         curr_type = the_lock->lock_type;
         lock_type(the_lock, local_params, curr_type);
 
+        last_type = the_lock->last_held_type;
+        if (last_type != curr_type)
+        { // Wait for the previous holder to exit its critical section
+            printf("[%d] %d -> %d\n", gettid(), last_type, curr_type);
+            while (the_lock->lock_type == curr_type && !isfree_type(the_lock, last_type))
+                PAUSE;
+        }
+
         if (the_lock->lock_type == curr_type)
-            break;
+        {
+            the_lock->last_held_type = curr_type;
+            if (the_lock->lock_type == curr_type)
+                break;
+        }
 
         unlock_type(the_lock, local_params, curr_type);
     } while (1);
+    counter++;
+    printf("[%d] c %d (old %d)\n", gettid(), curr_type, last_type);
     local_params->held_type = curr_type;
-    last_type = the_lock->last_held_type;
-    the_lock->last_held_type = curr_type;
 
-    if (last_type != curr_type)
-    { // Lock-Unlock to wait for the previous holder to exit its critical section
-        lock_type(the_lock, local_params, last_type);
-        unlock_type(the_lock, local_params, last_type);
-    }
+    if (counter > 1)
+        printf("[%d] Err %d\n", gettid(), counter);
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
+    counter--;
     unlock_type(the_lock, local_params, local_params->held_type);
 }
 
@@ -289,6 +322,8 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
 {
     set_cpu(thread_num);
+
+    local_params->held_type = the_lock->lock_type;
 
     local_params->qnode = (mcs_qnode_t *)malloc(sizeof(mcs_qnode_t));
     local_params->qnode->waiting = 0;
