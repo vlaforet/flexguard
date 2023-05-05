@@ -1,14 +1,13 @@
 /*
- * File: hybridlock.c
- * Author: Tudor David <tudor.david@epfl.ch>mus
- *         Victor Laforet <victor.laforet@ip-paris.fr>
+ * File: hybridspin.c
+ * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Simple test-and-set spinlock
+ *      Implementation of a compare-and-swap/futex hybrid lock
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013 Tudor David
+ * Copyright (c) 2023 Victor Laforet
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -28,15 +27,13 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "hybridlock_spin.h"
+#include "hybridspin.h"
 
-#include <bpf/libbpf.h>
-#include <sys/resource.h>
-#include "hybridlock.skel.h"
+#ifdef BPF
+#include "hybridspin.skel.h"
+#endif
 
 #define UNLOCKED 0
-
-__thread unsigned long *hybridlock_seeds;
 
 #ifndef HYBRIDLOCK_PTHREAD_MUTEX
 static long futex(void *addr1, int op, int val1, struct timespec *timeout, void *addr2, int val3)
@@ -80,7 +77,7 @@ static void futex_unlock(futex_lock_t *lock)
 }
 #endif
 
-int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
+int hybridspin_trylock(hybridspin_lock_t *the_lock)
 {
     uint32_t pid = gettid();
     if (CAS_U32(&(the_lock->data.lock), UNLOCKED, pid) != 0)
@@ -96,10 +93,10 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, uint32_t *limits)
     return 0;
 }
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
+void hybridspin_lock(hybridspin_lock_t *the_lock)
 {
     uint32_t pid = gettid();
-    volatile hybridlock_lock_type_t *l = &(the_lock->data.lock);
+    volatile hybridspin_lock_type_t *l = &(the_lock->data.lock);
 
     while (CAS_U32(l, UNLOCKED, pid) && the_lock->data.spinning)
     {
@@ -114,7 +111,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits)
     SWAP_U32(l, pid);
 }
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock)
+void hybridspin_unlock(hybridspin_lock_t *the_lock)
 {
     COMPILER_BARRIER;
     the_lock->data.lock = UNLOCKED;
@@ -126,14 +123,14 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock)
 #endif
 }
 
-int is_free_hybridlock(hybridlock_lock_t *the_lock)
+int is_free_hybridspin(hybridspin_lock_t *the_lock)
 {
     if (the_lock->data.lock == UNLOCKED)
         return 1;
     return 0;
 }
 
-void set_blocking(hybridlock_lock_t *the_lock, int blocking)
+void set_blocking(hybridspin_lock_t *the_lock, int blocking)
 {
     if (blocking)
     {
@@ -151,10 +148,10 @@ void set_blocking(hybridlock_lock_t *the_lock, int blocking)
    Some methods for easy lock array manipulation
    */
 
-hybridlock_lock_t *init_hybridlock_array_global(uint32_t num_locks)
+hybridspin_lock_t *init_hybridspin_array_global(uint32_t num_locks)
 {
-    hybridlock_lock_t *the_locks;
-    the_locks = (hybridlock_lock_t *)malloc(num_locks * sizeof(hybridlock_lock_t));
+    hybridspin_lock_t *the_locks;
+    the_locks = (hybridspin_lock_t *)malloc(num_locks * sizeof(hybridspin_lock_t));
     uint32_t i;
     for (i = 0; i < num_locks; i++)
     {
@@ -169,98 +166,88 @@ hybridlock_lock_t *init_hybridlock_array_global(uint32_t num_locks)
     return the_locks;
 }
 
-uint32_t *init_hybridlock_array_local(uint32_t thread_num, uint32_t size)
+void init_hybridspin_array_local(uint32_t thread_num, uint32_t size)
 {
     // assign the thread to the correct core
     set_cpu(thread_num);
-    hybridlock_seeds = seed_rand();
-
-    uint32_t *limits;
-    limits = (uint32_t *)malloc(size * sizeof(uint32_t));
-    uint32_t i;
-    for (i = 0; i < size; i++)
-    {
-        limits[i] = 1;
-    }
-    MEM_BARRIER;
-    return limits;
 }
 
-void end_hybridlock_array_local(uint32_t *limits)
+void end_hybridspin_array_local()
 {
-    free(limits);
 }
 
-void end_hybridlock_array_global(hybridlock_lock_t *the_locks)
+void end_hybridspin_array_global(hybridspin_lock_t *the_locks)
 {
     free(the_locks);
 }
 
+#ifdef BPF
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
     return vfprintf(stderr, format, args);
 }
+#endif
 
-int init_hybridlock_global(hybridlock_lock_t *the_lock)
+int init_hybridspin_global(hybridspin_lock_t *the_lock)
 {
-    struct hybridlock_bpf *skel;
-    int err;
-
-    libbpf_set_print(libbpf_print_fn);
-
-    skel = hybridlock_bpf__open();
-    if (!skel)
-    {
-        fprintf(stderr, "Failed to open BPF skeleton\n");
-        return 1;
-    }
-
     the_lock->data.lock = UNLOCKED;
     the_lock->data.spinning = 1;
 #ifdef HYBRIDLOCK_PTHREAD_MUTEX
     pthread_mutex_init(&the_lock->data.mutex_lock, NULL);
 #endif
 
+#ifdef BPF
+    struct hybridspin_bpf *skel;
+    int err;
+
+    libbpf_set_print(libbpf_print_fn);
+
+    skel = hybridspin_bpf__open();
+    if (!skel)
+    {
+        fprintf(stderr, "Failed to open BPF skeleton\n");
+        return 1;
+    }
+
     skel->bss->tgid = getpid();
     skel->bss->input_pid = &the_lock->data.lock;
     skel->bss->input_spinning = &the_lock->data.spinning;
 
-    err = hybridlock_bpf__load(skel);
+    err = hybridspin_bpf__load(skel);
     if (err)
     {
         fprintf(stderr, "Failed to load and verify BPF skeleton\n");
-        hybridlock_bpf__destroy(skel);
+        hybridspin_bpf__destroy(skel);
         return 1;
     }
 
-    err = hybridlock_bpf__attach(skel);
+    err = hybridspin_bpf__attach(skel);
     if (err)
     {
         fprintf(stderr, "Failed to attach BPF skeleton\n");
-        hybridlock_bpf__destroy(skel);
+        hybridspin_bpf__destroy(skel);
         return 1;
     }
+#endif
 
     MEM_BARRIER;
     return 0;
 }
 
-int init_hybridlock_local(uint32_t thread_num, uint32_t *limit)
+int init_hybridspin_local(uint32_t thread_num)
 {
     // assign the thread to the correct core
     set_cpu(thread_num);
-    *limit = 1;
-    hybridlock_seeds = seed_rand();
     MEM_BARRIER;
     return 0;
 }
 
-void end_hybridlock_local()
+void end_hybridspin_local()
 {
     // function not needed
 }
 
-void end_hybridlock_global()
+void end_hybridspin_global()
 {
     // function not needed
 }

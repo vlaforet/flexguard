@@ -1,14 +1,13 @@
 /*
- * File: hybridlock.h
- * Author: Tudor David <tudor.david@epfl.ch>
- *         Victor Laforet <victor.laforet@ip-paris.fr>
+ * File: hybridspin.h
+ * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Implementation of a simple test-and-set spinlock
+ *      Implementation of a compare-and-swap/futex hybrid lock
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013 Tudor David
+ * Copyright (c) 2023 Victor Laforet
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -28,8 +27,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _HYBRIDLOCK_H_
-#define _HYBRIDLOCK_H_
+#ifndef _HYBRIDSPIN_H_
+#define _HYBRIDSPIN_H_
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -47,6 +46,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <sys/resource.h>
 #include <linux/futex.h>
 
 #include <fcntl.h>
@@ -57,7 +57,11 @@
 #include "atomic_ops.h"
 #include "utils.h"
 
-#ifndef HYBRIDLOCK_PTHREAD_MUTEX
+#ifdef BPF
+#include <bpf/libbpf.h>
+#endif
+
+#ifndef hybridspin_PTHREAD_MUTEX
 typedef struct
 {
   union
@@ -74,68 +78,68 @@ typedef struct
 
 #endif
 
-typedef uint32_t hybridlock_lock_type_t;
+typedef uint32_t hybridspin_lock_type_t;
 
-typedef struct hybridlock_data_t
+typedef struct hybridspin_data_t
 {
-  hybridlock_lock_type_t lock;
-#ifdef HYBRIDLOCK_PTHREAD_MUTEX
+  hybridspin_lock_type_t lock;
+#ifdef hybridspin_PTHREAD_MUTEX
   pthread_mutex_t mutex_lock;
 #else
   futex_lock_t futex_lock;
 #endif
   int spinning;
-} hybridlock_data_t;
+} hybridspin_data_t;
 
-typedef struct hybridlock_lock_t
+typedef struct hybridspin_lock_t
 {
   union
   {
-    hybridlock_data_t data;
+    hybridspin_data_t data;
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
 #else
     uint8_t padding;
 #endif
   };
-} hybridlock_lock_t;
+} hybridspin_lock_t;
 
 /*
  *  Lock manipulation methods
  */
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, uint32_t *limits);
+void hybridspin_lock(hybridspin_lock_t *the_lock);
 
-int hybridlock_trylock(hybridlock_lock_t *the_locks, uint32_t *limits);
+int hybridspin_trylock(hybridspin_lock_t *the_locks);
 
-void hybridlock_unlock(hybridlock_lock_t *the_locks);
+void hybridspin_unlock(hybridspin_lock_t *the_locks);
 
-int is_free_hybridlock(hybridlock_lock_t *the_lock);
+int is_free_hybridspin(hybridspin_lock_t *the_lock);
 
-void set_blocking(hybridlock_lock_t *the_lock, int blocking);
+void set_blocking(hybridspin_lock_t *the_lock, int blocking);
 
 /*
  *  Some methods for easy lock array manipluation
  */
 
-hybridlock_lock_t *init_hybridlock_array_global(uint32_t num_locks);
+hybridspin_lock_t *init_hybridspin_array_global(uint32_t num_locks);
 
-uint32_t *init_hybridlock_array_local(uint32_t thread_num, uint32_t size);
+void init_hybridspin_array_local(uint32_t thread_num, uint32_t size);
 
-void end_hybridlock_array_local(uint32_t *limits);
+void end_hybridspin_array_local();
 
-void end_hybridlock_array_global(hybridlock_lock_t *the_locks);
+void end_hybridspin_array_global(hybridspin_lock_t *the_locks);
 
 /*
  *  Methods for single lock manipulation
  */
 
-int init_hybridlock_global(hybridlock_lock_t *the_lock);
+int init_hybridspin_global(hybridspin_lock_t *the_lock);
 
-int init_hybridlock_local(uint32_t thread_num, uint32_t *limit);
+int init_hybridspin_local(uint32_t thread_num);
 
-void end_hybridlock_local();
+void end_hybridspin_local();
 
-void end_hybridlock_global();
+void end_hybridspin_global();
 
 #endif
