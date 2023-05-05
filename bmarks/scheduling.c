@@ -45,7 +45,7 @@ struct timeval start;
 _Atomic int thread_count = 0;
 int needed_threads;
 
-#define DUMMY_ARRAYS_SIZE 10000
+#define DUMMY_ARRAYS_SIZE CACHE_LINE_SIZE * 2
 
 int shared_counter = 0;
 uint8_t arr1[DUMMY_ARRAYS_SIZE];
