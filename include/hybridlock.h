@@ -73,7 +73,6 @@ typedef struct hybridlock_lock_t
 {
   union
   {
-    lock_type_t last_held_type;
     lock_type_t lock_type;
     struct bpf_map *nodes_map;
 #ifdef ADD_PADDING

@@ -155,9 +155,9 @@ void *switch_lock_type(void *data)
     while (stop == 0)
     {
         if (rand() % 2 == 0)
-            the_lock.lock_type = MCS;
+            __sync_val_compare_and_swap(&the_lock.lock_type, FUTEX, FUTEX_TO_MCS);
         else
-            the_lock.lock_type = FUTEX;
+            __sync_val_compare_and_swap(&the_lock.lock_type, MCS, MCS_TO_FUTEX);
         cpause(rand() % 10000);
     }
 

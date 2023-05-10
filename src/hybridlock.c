@@ -34,6 +34,32 @@
 #include "hybridlock.skel.h"
 #endif
 
+static lock_type_t get_current_lock_type(lock_type_t t)
+{
+    switch (t)
+    {
+    case FUTEX_TO_MCS:
+        return MCS;
+    case MCS_TO_FUTEX:
+        return FUTEX;
+    default:
+        return t;
+    }
+}
+
+static lock_type_t get_last_lock_type(lock_type_t t)
+{
+    switch (t)
+    {
+    case FUTEX_TO_MCS:
+        return FUTEX;
+    case MCS_TO_FUTEX:
+        return MCS;
+    default:
+        return t;
+    }
+}
+
 static void futex_wait(void *addr, int val)
 {
     syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
@@ -56,13 +82,15 @@ int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
         if (the_lock->futex_lock != 0)
             return 0; // Not free
         break;
+    default:
+        printf("Transition types cannot be free.\n");
+        exit(1);
     }
     return 1; // Free
 }
 
 int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
-    printf("[%d] Trying lock %d\n", gettid(), lock_type);
     switch (lock_type)
     {
     case MCS:
@@ -74,14 +102,15 @@ int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_p
         if (__sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1) != 0)
             return 1;
         break;
+    default:
+        printf("Transition types cannot be locked.\n");
+        exit(1);
     }
-    printf("[%d] Holding lock %d (trylock)\n", gettid(), lock_type);
     return 0; // Success
 }
 
 void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
-    printf("[%d] Waiting for lock %d\n", gettid(), lock_type);
     switch (lock_type)
     {
     case MCS:
@@ -111,9 +140,10 @@ void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_par
             }
         }
         break;
+    default:
+        printf("Transition types cannot be locked.\n");
+        exit(1);
     }
-
-    printf("[%d] Holding lock %d\n", gettid(), lock_type);
 }
 
 void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
@@ -142,8 +172,10 @@ void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_p
             futex_wake((void *)&the_lock->futex_lock, 1);
         }
         break;
+    default:
+        printf("Transition types cannot be unlocked.\n");
+        exit(1);
     }
-    printf("[%d] Released lock %d\n", gettid(), lock_type);
 }
 
 int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
@@ -155,31 +187,30 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
 _Atomic int counter = 0;
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
-    lock_type_t curr_type, last_type;
+    lock_type_t tmp, curr_type, last_type;
     do
     {
-        curr_type = the_lock->lock_type;
+        tmp = the_lock->lock_type;
+        curr_type = get_current_lock_type(tmp);
+        last_type = get_last_lock_type(tmp);
+
         lock_type(the_lock, local_params, curr_type);
-
-        last_type = the_lock->last_held_type;
-        if (last_type != curr_type)
-        { // Wait for the previous holder to exit its critical section
-            printf("[%d] %d -> %d\n", gettid(), last_type, curr_type);
-            while (the_lock->lock_type == curr_type && !isfree_type(the_lock, last_type))
-                PAUSE;
-        }
-
-        if (the_lock->lock_type == curr_type)
+        if (the_lock->lock_type == tmp)
         {
-            the_lock->last_held_type = curr_type;
-            if (the_lock->lock_type == curr_type)
-                break;
+            if (curr_type != last_type)
+            { // Wait for the previous holder to exit its critical section
+                while (!isfree_type(the_lock, last_type))
+                    PAUSE;
+
+                the_lock->lock_type = curr_type;
+            }
+
+            break;
         }
 
         unlock_type(the_lock, local_params, curr_type);
     } while (1);
     counter++;
-    printf("[%d] c %d (old %d)\n", gettid(), curr_type, last_type);
     local_params->held_type = curr_type;
 
     if (counter > 1)
@@ -266,7 +297,6 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 
     the_lock->futex_lock = 0;
     the_lock->lock_type = MCS;
-    the_lock->last_held_type = MCS;
 
 #ifdef BPF
     struct hybridlock_bpf *skel;

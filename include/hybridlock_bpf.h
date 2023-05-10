@@ -33,7 +33,9 @@
 typedef enum lock_type_t
 {
   MCS,
-  FUTEX
+  FUTEX,
+  MCS_TO_FUTEX,
+  FUTEX_TO_MCS
 } lock_type_t;
 
 typedef struct mcs_qnode_t
