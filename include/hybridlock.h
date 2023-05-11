@@ -73,8 +73,11 @@ typedef struct hybridlock_lock_t
 {
   union
   {
-    lock_type_t lock_type;
-    struct bpf_map *nodes_map;
+    struct
+    {
+      lock_type_t lock_type;
+      struct bpf_map *nodes_map;
+    };
 #ifdef ADD_PADDING
     uint8_t padding1[CACHE_LINE_SIZE];
 #endif
@@ -99,8 +102,13 @@ typedef struct hybridlock_lock_t
 
 typedef struct hybridlock_local_params_t
 {
-  mcs_qnode_t *qnode;
-  lock_type_t held_type;
+  union
+  {
+    mcs_qnode_t *qnode;
+#ifdef ADD_PADDING
+    uint8_t padding2[CACHE_LINE_SIZE * 2];
+#endif
+  };
 } hybridlock_local_params_t;
 
 /*

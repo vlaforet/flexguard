@@ -70,7 +70,7 @@ static void futex_wake(void *addr, int nb_threads)
     syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
 }
 
-int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
+inline static int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -89,7 +89,7 @@ int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
     return 1; // Free
 }
 
-int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+inline static int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -109,7 +109,7 @@ int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_p
     return 0; // Success
 }
 
-void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+inline static void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -146,7 +146,7 @@ void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_par
     }
 }
 
-void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+inline static void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -184,7 +184,6 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
     return 1;
 }
 
-_Atomic int counter = 0;
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
     lock_type_t tmp, curr_type, last_type;
@@ -210,17 +209,11 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
 
         unlock_type(the_lock, local_params, curr_type);
     } while (1);
-    counter++;
-    local_params->held_type = curr_type;
-
-    if (counter > 1)
-        printf("[%d] Err %d\n", gettid(), counter);
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
-    counter--;
-    unlock_type(the_lock, local_params, local_params->held_type);
+    unlock_type(the_lock, local_params, get_last_lock_type(the_lock->lock_type));
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
@@ -352,8 +345,6 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
 {
     set_cpu(thread_num);
-
-    local_params->held_type = the_lock->lock_type;
 
     local_params->qnode = (mcs_qnode_t *)malloc(sizeof(mcs_qnode_t));
     local_params->qnode->waiting = 0;
