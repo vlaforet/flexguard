@@ -34,7 +34,7 @@
 #include "hybridlock.skel.h"
 #endif
 
-static lock_type_t get_current_lock_type(lock_type_t t)
+static inline lock_type_t get_current_lock_type(lock_type_t t)
 {
     switch (t)
     {
@@ -47,7 +47,7 @@ static lock_type_t get_current_lock_type(lock_type_t t)
     }
 }
 
-static lock_type_t get_last_lock_type(lock_type_t t)
+static inline lock_type_t get_last_lock_type(lock_type_t t)
 {
     switch (t)
     {
@@ -70,7 +70,7 @@ static void futex_wake(void *addr, int nb_threads)
     syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
 }
 
-inline static int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
+static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -89,7 +89,7 @@ inline static int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
     return 1; // Free
 }
 
-inline static int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+static inline int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -109,7 +109,7 @@ inline static int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
     return 0; // Success
 }
 
-inline static void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+static inline void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -146,7 +146,7 @@ inline static void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_param
     }
 }
 
-inline static void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {

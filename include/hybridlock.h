@@ -79,7 +79,7 @@ typedef struct hybridlock_lock_t
       struct bpf_map *nodes_map;
     };
 #ifdef ADD_PADDING
-    uint8_t padding1[CACHE_LINE_SIZE];
+    uint8_t padding1[CACHE_LINE_SIZE * 2];
 #endif
   };
 
