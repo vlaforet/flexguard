@@ -34,32 +34,6 @@
 #include "hybridlock.skel.h"
 #endif
 
-static inline lock_type_t get_current_lock_type(lock_type_t t)
-{
-    switch (t)
-    {
-    case FUTEX_TO_MCS:
-        return MCS;
-    case MCS_TO_FUTEX:
-        return FUTEX;
-    default:
-        return t;
-    }
-}
-
-static inline lock_type_t get_last_lock_type(lock_type_t t)
-{
-    switch (t)
-    {
-    case FUTEX_TO_MCS:
-        return FUTEX;
-    case MCS_TO_FUTEX:
-        return MCS;
-    default:
-        return t;
-    }
-}
-
 static void futex_wait(void *addr, int val)
 {
     syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
@@ -74,11 +48,11 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
 {
     switch (lock_type)
     {
-    case MCS:
+    case LOCK_TYPE_MCS:
         if ((*the_lock->mcs_lock) != NULL)
             return 0; // Not free
         break;
-    case FUTEX:
+    case LOCK_TYPE_FUTEX:
         if (the_lock->futex_lock != 0)
             return 0; // Not free
         break;
@@ -93,12 +67,12 @@ static inline int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 {
     switch (lock_type)
     {
-    case MCS:
+    case LOCK_TYPE_MCS:
         local_params->qnode->next = NULL;
         if (CAS_PTR(the_lock->mcs_lock, NULL, local_params->qnode) != NULL)
             return 1;
         break;
-    case FUTEX:
+    case LOCK_TYPE_FUTEX:
         if (__sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1) != 0)
             return 1;
         break;
@@ -113,7 +87,7 @@ static inline void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_param
 {
     switch (lock_type)
     {
-    case MCS:
+    case LOCK_TYPE_MCS:
         local_params->qnode->next = NULL;
         mcs_qnode_ptr pred = (mcs_qnode_t *)SWAP_PTR((volatile void *)the_lock->mcs_lock, (void *)local_params->qnode);
         if (pred == NULL) /* lock was free */
@@ -126,7 +100,7 @@ static inline void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_param
         while (local_params->qnode->waiting != 0)
             PAUSE;
         break;
-    case FUTEX:;
+    case LOCK_TYPE_FUTEX:;
         int state;
 
         if ((state = __sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1)) != 0)
@@ -150,7 +124,7 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 {
     switch (lock_type)
     {
-    case MCS:;
+    case LOCK_TYPE_MCS:;
         mcs_qnode_ptr succ;
         if (!(succ = local_params->qnode->next)) /* I seem to have no succ. */
         {
@@ -165,7 +139,7 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
         }
         succ->waiting = 0;
         break;
-    case FUTEX:
+    case LOCK_TYPE_FUTEX:
         if (__sync_fetch_and_sub(&the_lock->futex_lock, 1) != 1)
         {
             the_lock->futex_lock = 0;
@@ -186,34 +160,32 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
-    lock_type_t tmp, curr_type, last_type;
+    lock_type_history_t history;
     do
     {
-        tmp = the_lock->lock_type;
-        curr_type = get_current_lock_type(tmp);
-        last_type = get_last_lock_type(tmp);
+        history = the_lock->lock_history;
 
-        lock_type(the_lock, local_params, curr_type);
-        if (the_lock->lock_type == tmp)
+        lock_type(the_lock, local_params, LOCK_CURR_TYPE(history));
+        if (the_lock->lock_history == history)
         {
-            if (curr_type != last_type)
+            if (LOCK_CURR_TYPE(history) != LOCK_LAST_TYPE(history))
             { // Wait for the previous holder to exit its critical section
-                while (!isfree_type(the_lock, last_type))
+                while (!isfree_type(the_lock, LOCK_LAST_TYPE(history)))
                     PAUSE;
 
-                the_lock->lock_type = curr_type;
+                the_lock->lock_history = LOCK_HISTORY(LOCK_CURR_TYPE(history));
             }
 
             break;
         }
 
-        unlock_type(the_lock, local_params, curr_type);
+        unlock_type(the_lock, local_params, LOCK_CURR_TYPE(history));
     } while (1);
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
-    unlock_type(the_lock, local_params, get_last_lock_type(the_lock->lock_type));
+    unlock_type(the_lock, local_params, LOCK_LAST_TYPE(the_lock->lock_history));
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
@@ -289,7 +261,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     *(the_lock->mcs_lock) = 0;
 
     the_lock->futex_lock = 0;
-    the_lock->lock_type = MCS;
+    the_lock->lock_history = LOCK_HISTORY(LOCK_TYPE_MCS);
 
 #ifdef BPF
     struct hybridlock_bpf *skel;

@@ -30,13 +30,17 @@
 #ifndef _HYBRIDLOCK_BPF_H_
 #define _HYBRIDLOCK_BPF_H_
 
-typedef enum lock_type_t
-{
-  MCS,
-  FUTEX,
-  MCS_TO_FUTEX,
-  FUTEX_TO_MCS
-} lock_type_t;
+#define LOCK_TYPE_MCS (uint32_t)0
+#define LOCK_TYPE_FUTEX (uint32_t)1
+
+#define LOCK_LAST_TYPE(history) (uint32_t)(history >> 32)
+#define LOCK_CURR_TYPE(history) (uint32_t) history
+
+#define LOCK_TRANSITION(last, curr) (curr | (uint64_t)(last) << 32)
+#define LOCK_HISTORY(type) LOCK_TRANSITION(type, type)
+
+typedef uint32_t lock_type_t;
+typedef uint64_t lock_type_history_t;
 
 typedef struct mcs_qnode_t
 {

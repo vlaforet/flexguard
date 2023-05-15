@@ -318,7 +318,9 @@ int main(int argc, char **argv)
         if (i == switch_thread_count)
         {
             DPRINT("Switching to FUTEX hybrid lock\n");
-            __sync_val_compare_and_swap(&the_lock.lock_type, MCS, MCS_TO_FUTEX);
+            __sync_val_compare_and_swap(&the_lock.lock_history,
+                                        LOCK_HISTORY(LOCK_TYPE_MCS),
+                                        LOCK_TRANSITION(LOCK_TYPE_MCS, LOCK_TYPE_FUTEX));
         }
 #endif
 
@@ -346,7 +348,9 @@ int main(int argc, char **argv)
         if (switch_thread_count > 0 && i == 5)
         {
             DPRINT("Switching to MCS hybrid lock\n");
-            __sync_val_compare_and_swap(&the_lock.lock_type, FUTEX, FUTEX_TO_MCS);
+            __sync_val_compare_and_swap(&the_lock.lock_history,
+                                        LOCK_HISTORY(LOCK_TYPE_FUTEX),
+                                        LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_MCS));
         }
 #endif
 
