@@ -24,6 +24,7 @@
 #define DEFAULT_USE_LOCKS 1
 #define DEFAULT_LAUNCH_DELAY_MS 1000
 #define DEFAULT_COMPUTE_CYCLES 100
+#define DEFAULT_DUMMY_ARRAY_SIZE 5
 
 #ifdef USE_HYBRIDLOCK_LOCKS
 #define DEFAULT_SWITCH_THREAD_COUNT 48
@@ -40,20 +41,28 @@
 
 int use_locks = DEFAULT_USE_LOCKS;
 int compute_cycles = DEFAULT_COMPUTE_CYCLES;
+int dummy_array_size = DEFAULT_DUMMY_ARRAY_SIZE;
 
 struct timeval start;
 _Atomic int thread_count = 0;
 int needed_threads;
 
-#define DUMMY_ARRAYS_SIZE CACHE_LINE_SIZE * 2
-
-int shared_counter = 0;
-uint8_t arr1[DUMMY_ARRAYS_SIZE];
-uint8_t arr2[DUMMY_ARRAYS_SIZE];
-
-__thread uint32_t phys_id;
 lock_global_data the_lock;
 __attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
+
+typedef struct dummy_array_t
+{
+    union
+    {
+        struct
+        {
+            int counter;
+            struct dummy_array_t *next;
+        };
+        uint8_t padding[CACHE_LINE_SIZE];
+    };
+} dummy_array_t;
+dummy_array_t *dummy_array;
 
 /* ################################################################### *
  * STRESS TEST
@@ -76,7 +85,8 @@ typedef struct thread_data
 void *test(void *data)
 {
     struct timeval t1, t2;
-    int stop = 0, cs_count = 0, last_cs_count = 0;
+    int stop = 0, cs_count = 0, last_cs_count = 0, i = 0;
+    dummy_array_t *arr;
 
     thread_data_t *d = (thread_data_t *)data;
     init_lock_local(INT_MAX, &the_lock, &(local_th_data[d->id]));
@@ -90,11 +100,12 @@ void *test(void *data)
         if (use_locks)
             acquire_write(&(local_th_data[d->id]), &the_lock);
 
-        shared_counter++;
-        if (shared_counter % 2 == 0)
-            memcpy(arr1, arr2, DUMMY_ARRAYS_SIZE);
-        else
-            memcpy(arr2, arr1, DUMMY_ARRAYS_SIZE);
+        arr = dummy_array;
+        for (i = 0; i < dummy_array_size; i++)
+        {
+            arr->counter++;
+            arr = arr->next;
+        }
 
         if (thread_count > needed_threads)
         {
@@ -127,6 +138,10 @@ void *test(void *data)
     free_lock_local(local_th_data[d->id]);
     return NULL;
 }
+
+/* ################################################################### *
+ * MEASUREMENT
+ * ################################################################### */
 
 void measurement(thread_data_t *data, int len)
 {
@@ -163,6 +178,10 @@ void measurement(thread_data_t *data, int len)
         printf("%d, %f, %f\n", tc, DURATION(start, current), sum / tc);
 }
 
+/* ################################################################### *
+ * SETUP
+ * ################################################################### */
+
 int main(int argc, char **argv)
 {
     int i, c;
@@ -181,6 +200,7 @@ int main(int argc, char **argv)
         {"launch-delay", required_argument, NULL, 'd'},
         {"use-locks", required_argument, NULL, 'l'},
         {"num-threads", required_argument, NULL, 'n'},
+        {"cache-lines", required_argument, NULL, 't'},
 #ifdef USE_HYBRIDLOCK_LOCKS
         {"switch-thread-count", required_argument, NULL, 's'},
 #endif
@@ -189,7 +209,7 @@ int main(int argc, char **argv)
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hb:c:d:l:n:s:", long_options, &i);
+        c = getopt_long(argc, argv, "hb:c:d:l:n:t:s:", long_options, &i);
 
         if (c == -1)
             break;
@@ -221,6 +241,8 @@ int main(int argc, char **argv)
             printf("        Use locks or not (default=" XSTR(DEFAULT_USE_LOCKS) ")\n");
             printf("  -n, --num-threads <int>\n");
             printf("        Number of threads (default=" XSTR(DEFAULT_NB_THREADS) ")\n");
+            printf("  -t, --cache-lines <int>\n");
+            printf("        Number of cache lines touched in each CS (default=" XSTR(DEFAULT_DUMMY_ARRAY_SIZE) ")\n");
 #ifdef USE_HYBRIDLOCK_LOCKS
             printf("  -s, --switch-thread-count <int>\n");
             printf("        Core count after which the lock will be blocking (default=" XSTR(DEFAULT_SWITCH_THREAD_COUNT) ")\n");
@@ -242,6 +264,9 @@ int main(int argc, char **argv)
         case 'n':
             max_nb_threads = atoi(optarg);
             break;
+        case 't':
+            dummy_array_size = atoi(optarg);
+            break;
 #ifdef USE_HYBRIDLOCK_LOCKS
         case 's':
             switch_thread_count = atoi(optarg);
@@ -260,6 +285,7 @@ int main(int argc, char **argv)
     printf("Use locks: %d\n", use_locks);
     printf("Launch delay: %d\n", launch_delay);
     printf("Compute cycles: %d\n", compute_cycles);
+    printf("Cache lines: %d\n", dummy_array_size);
 #ifdef USE_HYBRIDLOCK_LOCKS
     printf("Switch thread count: %d\n", switch_thread_count);
 #endif
@@ -282,12 +308,25 @@ int main(int argc, char **argv)
         perror("malloc local_th_data");
         exit(1);
     }
+    if ((dummy_array = (dummy_array_t *)malloc(dummy_array_size * sizeof(dummy_array_t))) == NULL)
+    {
+        perror("malloc dummy_array");
+        exit(1);
+    }
 
     // Fill dummy arrays
-    for (i = 0; i < DUMMY_ARRAYS_SIZE; i++)
+    srand(time(NULL));
+    i = 0;
+    dummy_array_t *arr = dummy_array;
+    while (i < dummy_array_size - 1)
     {
-        arr1[i] = (DUMMY_ARRAYS_SIZE - i) % 255;
-        arr2[i] = i % 255;
+        c = rand() % dummy_array_size;
+        if (&dummy_array[c] != arr && dummy_array[c].next == NULL)
+        {
+            arr->counter = 0;
+            arr = arr->next = &dummy_array[c];
+            i++;
+        }
     }
 
     /* Init locks */
@@ -378,15 +417,6 @@ int main(int argc, char **argv)
         }
     }
 
-    printf("arr1 = ");
-    for (i = 0; i < DUMMY_ARRAYS_SIZE; i++)
-        printf("%d ", arr1[i]);
-    printf("\narr2 = ");
-    for (i = 0; i < DUMMY_ARRAYS_SIZE; i++)
-        printf("%d ", arr2[i]);
-    printf("\n");
-
     free_lock_global(the_lock);
-
     return EXIT_SUCCESS;
 }
