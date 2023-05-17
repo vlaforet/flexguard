@@ -24,7 +24,7 @@
 #define DEFAULT_USE_LOCKS 1
 #define DEFAULT_LAUNCH_DELAY_MS 1000
 #define DEFAULT_COMPUTE_CYCLES 100
-#define DEFAULT_DUMMY_ARRAY_SIZE 5
+#define DEFAULT_DUMMY_ARRAY_SIZE 1
 
 #ifdef USE_HYBRIDLOCK_LOCKS
 #define DEFAULT_SWITCH_THREAD_COUNT 48
@@ -62,7 +62,7 @@ typedef struct dummy_array_t
         uint8_t padding[CACHE_LINE_SIZE];
     };
 } dummy_array_t;
-dummy_array_t *dummy_array;
+__attribute__((aligned(CACHE_LINE_SIZE))) dummy_array_t *dummy_array;
 
 /* ################################################################### *
  * STRESS TEST
