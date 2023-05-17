@@ -1,12 +1,11 @@
 #! /usr/bin/python3
 import matplotlib.pyplot as plt
-import numpy as np
-import sys
+import argparse
 
 
 def load(filename):
     thread_count, time, throughput = [], [], []
-    with open(f"../tmp/{filename}") as f:
+    with open(f"./{filename}") as f:
         for line in f:
             cols = line.rstrip().split(",")
             if len(cols) >= 3:
@@ -16,34 +15,77 @@ def load(filename):
     return (thread_count, time, throughput)
 
 
-thread_count, time, hybrid = load("hybrid.csv")
-_, time_hybrid_emulated, hybrid_emulated = load("hybrid_emulated.csv")
-_, time_hybrid_spin, hybrid_spin = load("hybrid_spin.csv")
-_, time_hybrid_blocking, hybrid_blocking = load("hybrid_blocking.csv")
-_, time_mcs, mcs = load("mcs.csv")
-_, time_mutex, mutex = load("mutex.csv")
-_, time_futex, futex = load("futex.csv")
-_, time_spin, spin = load("spin.csv")
+def set_ticks(filename, ax):
+    thread_count, time, _ = load(f"{filename}.csv")
 
-if len(time) == 0:
-    sys.exit(1)
+    ticks, labels = [], []
+    for i in range(len(time)):
+        if thread_count[i] % 5 == 0 and i % 5 == 4:
+            ticks.append(time[i])
+            labels.append(thread_count[i])
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels)
+
+
+def plot(filename, label, ax):
+    _, time, values = load(f"{filename}.csv")
+    ax.plot(time, values, label=label)
+
+
+parser = argparse.ArgumentParser(description="Chart data from scheduling benchmark")
+parser.add_argument(
+    "-c",
+    dest="contention",
+    type=int,
+    nargs="+",
+    default=[1000],
+    help="Contention delays to show (default=[1000])",
+)
+parser.add_argument(
+    "-t",
+    dest="cache_line",
+    type=int,
+    nargs="+",
+    default=[1],
+    help="Cache lines to show (default=[1])",
+)
+parser.add_argument(
+    "-l",
+    dest="lock",
+    type=str,
+    nargs="+",
+    default=["hybrid_emulated", "futex", "mcs"],
+    help='Locks to show (default=["hybrid_emulated", "futex", "mcs"])',
+)
+parser.add_argument(
+    "-o",
+    dest="output_file",
+    type=str,
+    default="out.png",
+    help='Locks to show (default="out.png")',
+)
+args = parser.parse_args()
 
 fig, ax = plt.subplots()
-ax.step(time, thread_count, label="Thread Count", color="red")
-ax.set_ylabel("Thread Count")
-ax.set_xlabel("Elapsed time")
+ax.set_xlabel("Thread Count (40 cores machine)")
+ax.set_ylabel("Critical Section time (ms)")
+ax.set_yscale("log")
 
-ax2 = ax.twinx()
-ax2.plot(time_hybrid_spin, hybrid_spin, label="Hybrid spin", color="orange")
-ax2.plot(time_hybrid_blocking, hybrid_blocking, label="Hybrid blocking", color="grey")
-ax2.plot(time_spin, spin, label="Spin", color="cyan")
-ax2.plot(time_mutex, mutex, label="Mutex", color="magenta")
-ax2.plot(time_futex, futex, label="Futex", color="brown")
-ax2.plot(time_mcs, mcs, label="MCS", color="purple")
-ax2.plot(time_hybrid_emulated, hybrid_emulated, label="Hybrid Emulated", color="green")
-ax2.plot(time, hybrid, label="Hybrid", color="blue")
-ax2.set_yscale("log")
-ax2.set_ylabel("Critical Section time (ms)")
+set_ticks(f"{args.lock[0]}_c{args.contention[0]}_t{args.cache_line[0]}", ax)
+
+for contention in args.contention:
+    sc = "s" if contention > 1 else ""
+
+    for cl in args.cache_line:
+        scl = "s" if cl > 1 else ""
+
+        for lock in args.lock:
+            lock_name = lock.replace("_", " ").capitalize()
+            plot(
+                f"{lock}_c{contention}_t{cl}",
+                f"{lock_name}, {cl} line{scl}, {contention} cycle{sc}",
+                ax,
+            )
 
 fig.legend()
-plt.savefig("../out.png", dpi=600, bbox_inches="tight")
+plt.savefig(args.output_file, dpi=600, bbox_inches="tight")
