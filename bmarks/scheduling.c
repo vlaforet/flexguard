@@ -50,7 +50,6 @@
 
 #define DEFAULT_BASE_THREADS 0
 #define DEFAULT_NB_THREADS 10
-#define DEFAULT_USE_LOCKS 1
 #define DEFAULT_LAUNCH_DELAY_MS 1000
 #define DEFAULT_COMPUTE_CYCLES 100
 #define DEFAULT_DUMMY_ARRAY_SIZE 1
@@ -68,7 +67,6 @@
  * GLOBALS
  * ################################################################### */
 
-int use_locks = DEFAULT_USE_LOCKS;
 int compute_cycles = DEFAULT_COMPUTE_CYCLES;
 int dummy_array_size = DEFAULT_DUMMY_ARRAY_SIZE;
 
@@ -126,8 +124,7 @@ void *test(void *data)
     {
         t1 = __builtin_ia32_rdtsc();
 
-        if (use_locks)
-            acquire_write(&(local_th_data[d->id]), &the_lock);
+        acquire_write(&(local_th_data[d->id]), &the_lock);
 
         arr = dummy_array;
         for (i = 0; i < dummy_array_size; i++)
@@ -142,8 +139,7 @@ void *test(void *data)
             stop = 1;
         }
 
-        if (use_locks)
-            release_write(&(local_th_data[d->id]), &the_lock);
+        release_write(&(local_th_data[d->id]), &the_lock);
 
         if (d->reset)
         {
@@ -219,7 +215,6 @@ int main(int argc, char **argv)
         {"base-threads", required_argument, NULL, 'b'},
         {"cs-cycles", required_argument, NULL, 'c'},
         {"launch-delay", required_argument, NULL, 'd'},
-        {"use-locks", required_argument, NULL, 'l'},
         {"num-threads", required_argument, NULL, 'n'},
         {"cache-lines", required_argument, NULL, 't'},
 #ifdef USE_HYBRIDLOCK_LOCKS
@@ -230,7 +225,7 @@ int main(int argc, char **argv)
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hb:c:d:l:n:t:s:", long_options, &i);
+        c = getopt_long(argc, argv, "hb:c:d:n:t:s:", long_options, &i);
 
         if (c == -1)
             break;
@@ -258,8 +253,6 @@ int main(int argc, char **argv)
             printf("        Compute delay between critical sections, in cycles (default=" XSTR(DEFAULT_COMPUTE_CYCLES) ")\n");
             printf("  -d, --launch-delay <int>\n");
             printf("        Delay between thread creations in milliseconds (default=" XSTR(DEFAULT_LAUNCH_DELAY_MS) ")\n");
-            printf("  -l, --use-locks <int>\n");
-            printf("        Use locks or not (default=" XSTR(DEFAULT_USE_LOCKS) ")\n");
             printf("  -n, --num-threads <int>\n");
             printf("        Number of threads (default=" XSTR(DEFAULT_NB_THREADS) ")\n");
             printf("  -t, --cache-lines <int>\n");
@@ -278,9 +271,6 @@ int main(int argc, char **argv)
             break;
         case 'd':
             launch_delay = atoi(optarg);
-            break;
-        case 'l':
-            use_locks = atoi(optarg);
             break;
         case 'n':
             max_nb_threads = atoi(optarg);
@@ -303,7 +293,6 @@ int main(int argc, char **argv)
 
     printf("Base nb threads: %d\n", base_threads);
     printf("Nb threads max: %d\n", max_nb_threads);
-    printf("Use locks: %d\n", use_locks);
     printf("Launch delay: %d\n", launch_delay);
     printf("Compute cycles: %d\n", compute_cycles);
     printf("Cache lines: %d\n", dummy_array_size);
