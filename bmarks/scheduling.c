@@ -62,7 +62,7 @@
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
-#define DURATION(t1, t2) (t2.tv_sec * 1000 + t2.tv_usec / (double)1000) - (t1.tv_sec * 1000 + t1.tv_usec / (double)1000)
+#define FREQUENCY_CMD "sudo bpftrace -e 'BEGIN { printf(\"%u\", *kaddr(\"tsc_khz\")); exit(); }' | sed -n 2p"
 
 /* ################################################################### *
  * GLOBALS
@@ -72,9 +72,10 @@ int use_locks = DEFAULT_USE_LOCKS;
 int compute_cycles = DEFAULT_COMPUTE_CYCLES;
 int dummy_array_size = DEFAULT_DUMMY_ARRAY_SIZE;
 
-struct timeval start;
+long long unsigned int start;
 _Atomic int thread_count = 0;
 int needed_threads;
+long unsigned int frequency;
 
 lock_global_data the_lock;
 __attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
@@ -113,8 +114,8 @@ typedef struct thread_data
 
 void *test(void *data)
 {
-    struct timeval t1, t2;
-    int stop = 0, cs_count = 0, last_cs_count = 0, i = 0;
+    long long unsigned int t1, t2;
+    int stop = 0, cs_count = 0, i = 0;
     dummy_array_t *arr;
 
     thread_data_t *d = (thread_data_t *)data;
@@ -123,8 +124,7 @@ void *test(void *data)
 
     while (!stop)
     {
-        if (cs_count % 100 == 0)
-            gettimeofday(&t1, NULL);
+        t1 = __builtin_ia32_rdtsc();
 
         if (use_locks)
             acquire_write(&(local_th_data[d->id]), &the_lock);
@@ -147,20 +147,17 @@ void *test(void *data)
 
         if (d->reset)
         {
-            cs_count = 0, last_cs_count = 0;
+            cs_count = 0;
             d->cs_time = 0;
             d->reset = 0;
         }
         cs_count++;
 
-        if (cs_count % 100 == 0 || stop)
-        {
-            gettimeofday(&t2, NULL);
-            d->cs_time = (d->cs_time * (last_cs_count) + DURATION(t1, t2)) / cs_count;
-            last_cs_count = cs_count;
-        }
+        t2 = __builtin_ia32_rdtsc();
+        d->cs_time = (d->cs_time * (cs_count - 1) + (t2 - t1)) / cs_count;
 
-        cpause(compute_cycles);
+        if (!stop)
+            cpause(compute_cycles);
     }
 
     d->cs_time = 0;
@@ -174,7 +171,7 @@ void *test(void *data)
 
 void measurement(thread_data_t *data, int len)
 {
-    static struct timeval last_measurement, current;
+    static long long unsigned int current;
     static int tc;
     static double tmp;
     static double sum;
@@ -185,9 +182,7 @@ void measurement(thread_data_t *data, int len)
     if (thread_count <= 0)
         return;
 
-    if (last_measurement.tv_sec == 0 && last_measurement.tv_usec == 0)
-        last_measurement = start;
-    gettimeofday(&current, NULL);
+    current = __builtin_ia32_rdtsc();
 
     // Always go through all threads as they won't stop in any particular order.
     for (int i = 0; i < len; i++)
@@ -201,10 +196,7 @@ void measurement(thread_data_t *data, int len)
         }
     }
 
-    if (tc == 0)
-        printf("%d, %f, %f\n", tc, DURATION(start, current), .0);
-    else
-        printf("%d, %f, %f\n", tc, DURATION(start, current), sum / tc);
+    printf("%d, %f, %f\n", tc, (current - start) / frequency, tc == 0 ? .0 : sum / tc / frequency);
 }
 
 /* ################################################################### *
@@ -358,6 +350,24 @@ int main(int argc, char **argv)
         }
     }
 
+    // Retrieve current frequency
+    FILE *file;
+    char text[32];
+    file = popen(FREQUENCY_CMD, "r");
+    if (file == NULL)
+    {
+        fprintf(stderr, "popen frequency");
+        exit(1);
+    }
+
+    fgets(text, 32, file);
+    if (!(frequency = atoi(text)))
+    {
+        fprintf(stderr, "unable to retrieve TSC frequency, check that bpftrace is properly installed");
+        exit(1);
+    }
+    printf("Frequency: %d\n", frequency);
+
     /* Init locks */
     DPRINT("Initializing locks\n");
     init_lock_global_nt(max_nb_threads, &the_lock);
@@ -378,7 +388,7 @@ int main(int argc, char **argv)
     launch_timeout.tv_nsec = (launch_delay % 1000) * 1000000;
 
     needed_threads = max_nb_threads;
-    gettimeofday(&start, NULL);
+    start = __builtin_ia32_rdtsc();
 
     for (i = 0; i < max_nb_threads; i++)
     {

@@ -13,7 +13,7 @@ git submodule update --init --recursive
 Install required dependencies (mostly used to compile bpf programs).
 On Ubuntu/Debian:
 ```
-sudo apt install -y llvm clang libelf1 libelf-dev zlib1g-dev
+sudo apt install -y llvm clang libelf1 libelf-dev zlib1g-dev bpftrace
 ```
 
 ## Building
