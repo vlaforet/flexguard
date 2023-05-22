@@ -54,8 +54,8 @@ parser.add_argument(
     dest="lock",
     type=str,
     nargs="+",
-    default=["hybrid_emulated", "futex", "mcs"],
-    help='Locks to show (default=["hybrid_emulated", "futex", "mcs"])',
+    default=["futex", "mcs", "hybrid_emulated"],
+    help='Locks to show (default=["futex", "mcs", "hybrid_emulated"])',
 )
 parser.add_argument(
     "-o",

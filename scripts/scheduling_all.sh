@@ -11,14 +11,18 @@ CACHELINES="1 5"
 for lock in $LOCKS;
 do
   echo "Starting ${lock} compilation"
-  make LOCK_VERSION=-DUSE_HYBRIDLOCK_LOCKS NOBPF=1 clean all >/dev/null
+  make LOCK_VERSION=-DUSE_${lock}_LOCKS NOBPF=1 clean all >/dev/null
+
+  if [ "$lock" == "HYBRIDLOCK" ]; then
+    switch="-s ${CORE_COUNT}"
+  fi
 
   for contention in $CONTENTIONS;
   do
     for cacheline in $CACHELINES;
     do
       echo "Starting ${lock}_c${contention}_t${cacheline}"
-      stdbuf -oL ./scheduling -n ${MAX_THREAD_COUNT} -s ${CORE_COUNT} -d ${DELAY} -c $contention -t $cacheline > "results/${lock}_c${contention}_t${cacheline}.csv"
+      stdbuf -oL ./scheduling -n ${MAX_THREAD_COUNT} $switch -d ${DELAY} -c $contention -t $cacheline > "results/${lock,,}_c${contention}_t${cacheline}.csv"
     done;
   done;
 done;
