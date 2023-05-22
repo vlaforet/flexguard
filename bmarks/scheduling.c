@@ -114,7 +114,7 @@ void *test(void *data)
 {
     long long unsigned int t1, t2;
     int stop = 0, cs_count = 0, i = 0;
-    dummy_array_t *arr;
+    dummy_array_t *arr = dummy_array[rand() % dummy_array_size];
 
     thread_data_t *d = (thread_data_t *)data;
     init_lock_local(INT_MAX, &the_lock, &(local_th_data[d->id]));
@@ -126,7 +126,6 @@ void *test(void *data)
 
         acquire_write(&(local_th_data[d->id]), &the_lock);
 
-        arr = dummy_array;
         for (i = 0; i < dummy_array_size; i++)
         {
             arr->counter++;
@@ -338,6 +337,7 @@ int main(int argc, char **argv)
             i++;
         }
     }
+    arr->next = dummy_array;
 
     // Retrieve current frequency
     FILE *file;
