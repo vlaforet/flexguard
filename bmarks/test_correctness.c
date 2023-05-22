@@ -1,6 +1,6 @@
 /*
  * File: test_correct.c
- * Author: Tudor David <tudor.david@epfl.ch>
+ * Author: Tudor David <tudor.david@epfl.ch>, Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
  *      Test which exposes bugs in lock algorithms;

@@ -1,9 +1,9 @@
 /*
- * File: hybridlock.h
+ * File: hybridlock_bpf.h
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Shared header between the BPF and userspace code for the hybrid lock.
+ *      Shared header between the BPF and userspace code for the MCS/Futex hybrid lock.
  *
  * The MIT License (MIT)
  *

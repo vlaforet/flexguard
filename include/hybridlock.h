@@ -1,14 +1,13 @@
 /*
  * File: hybridlock.h
- * Author: Tudor David <tudor.david@epfl.ch>
- *         Victor Laforet <victor.laforet@ip-paris.fr>
+ * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Implementation of a simple test-and-set spinlock
+ *      Implementation of a MCS/futex hybrid lock
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013 Tudor David
+ * Copyright (c) 2023 Victor Laforet
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in

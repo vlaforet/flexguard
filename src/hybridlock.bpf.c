@@ -1,13 +1,13 @@
 /*
- * File: hybridlock.c
- * Author: Victor Laforet <victor.laforet@ip-paris.fr>
+ * File: hybridlock.bpf.c
+ * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      BPF preemption detection
+ *      Implementation of a MCS/futex hybrid lock - BPF preemptions detection
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2022 Victor Laforet
+ * Copyright (c) 2023 Victor Laforet
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
