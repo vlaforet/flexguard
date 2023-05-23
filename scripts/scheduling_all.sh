@@ -15,6 +15,8 @@ do
 
   if [ "$lock" == "HYBRIDLOCK" ]; then
     switch="-s ${CORE_COUNT}"
+  else
+    switch=""
   fi
 
   for contention in $CONTENTIONS;
