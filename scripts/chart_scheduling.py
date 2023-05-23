@@ -5,7 +5,7 @@ import argparse
 
 def load(filename):
     thread_count, ids, throughput = [], [], []
-    with open(f"./{filename}") as f:
+    with open(f"./{filename}", "r") as f:
         for line in f:
             cols = line.rstrip().split(",")
             if len(cols) >= 3:
