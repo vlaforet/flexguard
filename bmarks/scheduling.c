@@ -48,7 +48,7 @@
 #include "hybridlock.h"
 #endif
 
-#define DEFAULT_BASE_THREADS 0
+#define DEFAULT_BASE_THREADS 1
 #define DEFAULT_NB_THREADS 10
 #define DEFAULT_LAUNCH_DELAY_MS 1000
 #define DEFAULT_COMPUTE_CYCLES 100
@@ -70,9 +70,6 @@
 int compute_cycles = DEFAULT_COMPUTE_CYCLES;
 int dummy_array_size = DEFAULT_DUMMY_ARRAY_SIZE;
 
-long long unsigned int start;
-_Atomic int thread_count = 0;
-int needed_threads;
 long unsigned int frequency;
 
 lock_global_data the_lock;
@@ -105,6 +102,7 @@ typedef struct thread_data
             int id;
             double cs_time;
             int reset;
+            int stop;
         };
         uint8_t padding[CACHE_LINE_SIZE];
     };
@@ -113,17 +111,15 @@ typedef struct thread_data
 void *test(void *data)
 {
     long long unsigned int t1, t2;
-    int stop = 0, cs_count = 0, i = 0;
-    dummy_array_t *arr = dummy_array[rand() % dummy_array_size];
+    int cs_count = 0, i = 0;
+    dummy_array_t *arr = &dummy_array[rand() % dummy_array_size];
 
     thread_data_t *d = (thread_data_t *)data;
     init_lock_local(INT_MAX, &the_lock, &(local_th_data[d->id]));
-    thread_count++;
 
-    while (!stop)
+    while (!d->stop)
     {
         t1 = __builtin_ia32_rdtsc();
-
         acquire_write(&(local_th_data[d->id]), &the_lock);
 
         for (i = 0; i < dummy_array_size; i++)
@@ -132,13 +128,8 @@ void *test(void *data)
             arr = arr->next;
         }
 
-        if (thread_count > needed_threads)
-        {
-            thread_count--;
-            stop = 1;
-        }
-
         release_write(&(local_th_data[d->id]), &the_lock);
+        t2 = __builtin_ia32_rdtsc();
 
         if (d->reset)
         {
@@ -148,14 +139,12 @@ void *test(void *data)
         }
         cs_count++;
 
-        t2 = __builtin_ia32_rdtsc();
         d->cs_time = (d->cs_time * (cs_count - 1) + (t2 - t1)) / cs_count;
 
-        if (!stop)
+        if (!d->stop)
             cpause(compute_cycles);
     }
 
-    d->cs_time = 0;
     free_lock_local(local_th_data[d->id]);
     return NULL;
 }
@@ -166,32 +155,27 @@ void *test(void *data)
 
 void measurement(thread_data_t *data, int len)
 {
-    static long long unsigned int current;
-    static int tc;
+    static int thread_count;
     static double tmp;
     static double sum;
+    static int id = 0;
 
     sum = 0;
-    tc = 0;
-
-    if (thread_count <= 0)
-        return;
-
-    current = __builtin_ia32_rdtsc();
+    thread_count = 0;
 
     // Always go through all threads as they won't stop in any particular order.
     for (int i = 0; i < len; i++)
     {
         tmp = data[i].cs_time;
-        if (tmp > 0 && !data[i].reset)
+        if (tmp > 0 && !data[i].reset && !data[i].stop)
         {
-            tc++;
+            thread_count++;
             sum += tmp;
             data[i].reset = 1;
         }
     }
 
-    printf("%d, %f, %f\n", tc, (current - start) / frequency, tc == 0 ? .0 : sum / tc / frequency);
+    printf("%d, %d, %f\n", id++, thread_count, thread_count == 0 ? .0 : sum / thread_count / frequency);
 }
 
 /* ################################################################### *
@@ -355,7 +339,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "unable to retrieve TSC frequency, check that bpftrace is properly installed");
         exit(1);
     }
-    printf("Frequency: %d\n", frequency);
+    printf("Frequency: %ld\n", frequency);
 
     /* Init locks */
     DPRINT("Initializing locks\n");
@@ -365,7 +349,8 @@ int main(int argc, char **argv)
     {
         data[i].id = i;
         data[i].cs_time = 0;
-        data[i].reset = 0;
+        data[i].reset = 1;
+        data[i].stop = 0;
     }
 
     pthread_attr_t attr;
@@ -376,10 +361,7 @@ int main(int argc, char **argv)
     launch_timeout.tv_sec = launch_delay / 1000;
     launch_timeout.tv_nsec = (launch_delay % 1000) * 1000000;
 
-    needed_threads = max_nb_threads;
-    start = __builtin_ia32_rdtsc();
-
-    for (i = 0; i < max_nb_threads; i++)
+    for (i = 0; i < 2 * max_nb_threads + 10; i++)
     {
 #ifdef USE_HYBRIDLOCK_LOCKS
         if (i == switch_thread_count)
@@ -389,30 +371,7 @@ int main(int argc, char **argv)
                                         LOCK_HISTORY(LOCK_TYPE_MCS),
                                         LOCK_TRANSITION(LOCK_TYPE_MCS, LOCK_TYPE_FUTEX));
         }
-#endif
-
-        DPRINT("Creating thread %d\n", i);
-        if (pthread_create(&threads[i], &attr, test, (void *)(&data[i])) != 0)
-        {
-            fprintf(stderr, "Error creating thread\n");
-            exit(1);
-        }
-
-        if (i > base_threads)
-            measurement(data, max_nb_threads);
-
-        if (i >= base_threads)
-            nanosleep(&launch_timeout, NULL);
-    }
-    pthread_attr_destroy(&attr);
-
-    if (base_threads == max_nb_threads)
-        nanosleep(&launch_timeout, NULL);
-
-    for (i = 0; i < 10; i++)
-    {
-#ifdef USE_HYBRIDLOCK_LOCKS
-        if (switch_thread_count > 0 && i == 5)
+        else if (switch_thread_count > 0 && i == max_nb_threads + 5)
         {
             DPRINT("Switching to MCS hybrid lock\n");
             __sync_val_compare_and_swap(&the_lock.lock_history,
@@ -421,20 +380,34 @@ int main(int argc, char **argv)
         }
 #endif
 
-        measurement(data, max_nb_threads);
-        nanosleep(&launch_timeout, NULL);
+        if (i < max_nb_threads)
+        {
+            DPRINT("Creating thread %d\n", i);
+            if (pthread_create(&threads[i], &attr, test, (void *)(&data[i])) != 0)
+            {
+                fprintf(stderr, "Error creating thread\n");
+                exit(1);
+            }
+        }
+        else if (i >= max_nb_threads + 10)
+        {
+            do
+            {
+                c = rand() % max_nb_threads;
+            } while (data[c].stop == 1);
+            DPRINT("Stopping thread %d\n", c);
+            data[c].stop = 1;
+        }
+
+        if (i >= base_threads - 1 && i < 2 * max_nb_threads + 10 - base_threads)
+        {
+            nanosleep(&launch_timeout, NULL);
+            measurement(data, max_nb_threads);
+        }
     }
+    pthread_attr_destroy(&attr);
 
-    while (needed_threads > 0 && thread_count >= base_threads)
-    {
-        if (thread_count == needed_threads)
-            needed_threads--;
-
-        measurement(data, max_nb_threads);
-        nanosleep(&launch_timeout, NULL);
-    }
-    needed_threads = 0;
-
+    DPRINT("Joining threads\n");
     /* Wait for thread completion */
     for (i = 0; i < max_nb_threads; i++)
     {

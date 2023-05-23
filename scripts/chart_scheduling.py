@@ -4,32 +4,32 @@ import argparse
 
 
 def load(filename):
-    thread_count, time, throughput = [], [], []
+    thread_count, ids, throughput = [], [], []
     with open(f"./{filename}") as f:
         for line in f:
             cols = line.rstrip().split(",")
             if len(cols) >= 3:
-                thread_count.append(int(cols[0]))
-                time.append(float(cols[1]))
+                ids.append(int(cols[0]))
+                thread_count.append(int(cols[1]))
                 throughput.append(float(cols[2]))
-    return (thread_count, time, throughput)
+    return (thread_count, ids, throughput)
 
 
 def set_ticks(filename, ax):
-    thread_count, time, _ = load(f"{filename}.csv")
+    thread_count, ids, _ = load(f"{filename}.csv")
 
     ticks, labels = [], []
-    for i in range(len(time)):
+    for i in range(len(ids)):
         if thread_count[i] % 5 == 0 and i % 5 == 4:
-            ticks.append(time[i])
+            ticks.append(ids[i])
             labels.append(thread_count[i])
     ax.set_xticks(ticks)
     ax.set_xticklabels(labels)
 
 
 def plot(filename, label, ax):
-    _, time, values = load(f"{filename}.csv")
-    ax.plot(time, values, label=label)
+    _, ids, values = load(f"{filename}.csv")
+    ax.plot(ids, values, label=label)
 
 
 parser = argparse.ArgumentParser(description="Chart data from scheduling benchmark")
