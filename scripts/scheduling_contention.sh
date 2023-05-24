@@ -1,6 +1,7 @@
 #! /bin/bash
 
-DELAY=100
+DELAY=2000
+CORE_COUNT=40
 
 LOCKS="FUTEX MCS HYBRIDLOCK"
 CACHELINES="1 5"
@@ -15,6 +16,12 @@ do
 
   for threadcount in $THREADCOUNTS;
   do
+    if [ "$lock" == "HYBRIDLOCK" ] && [ "$threadcount" -gt "$CORE_COUNT" ]; then
+      switch="-s 0"
+    else
+      switch=""
+    fi
+
     for cacheline in $CACHELINES;
     do
       filename="results/contention_${lock,,}_t${cacheline}_n${threadcount}.csv"
@@ -23,7 +30,7 @@ do
 
       for contention in $CONTENTIONS;
       do
-        avg=$(./scheduling -b $thread_count -n $threadcount -d ${DELAY} -c $contention -t $cacheline | grep "," | awk '{sum+=$3} END {print sum/NR}')
+        avg=$(./scheduling -b $threadcount -n $threadcount -d ${DELAY} $switch -c $contention -t $cacheline | grep "," | awk '{sum+=$3} END {print sum/NR}')
         echo "${contention}, ${avg}" >> $filename
       done;
     done;
