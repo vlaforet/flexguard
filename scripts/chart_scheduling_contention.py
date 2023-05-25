@@ -1,26 +1,17 @@
 #! /usr/bin/python3
 import matplotlib.pyplot as plt
 import argparse
-
-
-def load(filename):
-    contention, throughput = [], []
-    with open(f"./{filename}", "r") as f:
-        for line in f:
-            cols = line.rstrip().split(",")
-            if len(cols) >= 2:
-                contention.append(int(cols[0]))
-                throughput.append(float(cols[1]))
-    return (contention, throughput)
-
-
-def plot(filename, label, ax):
-    contention, values = load(f"contention_{filename}.csv")
-    ax.plot(contention, values, label=label)
-
+import os
 
 parser = argparse.ArgumentParser(
     description="Chart data from contention scheduling benchmark"
+)
+parser.add_argument(
+    "-i",
+    dest="input_folder",
+    type=str,
+    default="",
+    help='Input folder for CSVs (default="")',
 )
 parser.add_argument(
     "-t",
@@ -43,8 +34,8 @@ parser.add_argument(
     dest="lock",
     type=str,
     nargs="+",
-    default=["futex", "mcs", "hybrid_emulated"],
-    help='Locks to show (default=["futex", "mcs", "hybrid_emulated"])',
+    default=["Futex", "MCS", "Hybridlock"],
+    help='Locks to show, case will be displayed as is (default=["Futex", "MCS", "Hybridlock"])',
 )
 parser.add_argument(
     "-o",
@@ -54,6 +45,25 @@ parser.add_argument(
     help='Locks to show (default="out.png")',
 )
 args = parser.parse_args()
+
+
+def load(filename):
+    contention, throughput = [], []
+    with open(f"{filename}", "r") as f:
+        for line in f:
+            cols = line.rstrip().split(",")
+            if len(cols) >= 2:
+                contention.append(int(cols[0]))
+                throughput.append(float(cols[1]))
+    return (contention, throughput)
+
+
+def plot(filename, label, ax):
+    contention, values = load(
+        os.path.join(args.input_folder, f"contention_{filename}.csv")
+    )
+    ax.plot(contention, values, label=label)
+
 
 fig, ax = plt.subplots()
 ax.set_xlabel("Contention (Cycles between critical sections)")
@@ -66,9 +76,9 @@ for thread_count in args.thread_count:
         scl = "s" if cl > 1 else ""
 
         for lock in args.lock:
-            lock_name = lock.replace("_", " ").capitalize()
+            lock_name = lock.replace("_", " ")
             plot(
-                f"{lock}_t{cl}_n{thread_count}",
+                f"{lock.lower()}_t{cl}_n{thread_count}",
                 f"{lock_name}, {cl} line{scl} {thread_count} threads",
                 ax,
             )

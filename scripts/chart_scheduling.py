@@ -1,38 +1,16 @@
 #! /usr/bin/python3
 import matplotlib.pyplot as plt
 import argparse
-
-
-def load(filename):
-    thread_count, ids, throughput = [], [], []
-    with open(f"./{filename}", "r") as f:
-        for line in f:
-            cols = line.rstrip().split(",")
-            if len(cols) >= 3:
-                ids.append(int(cols[0]))
-                thread_count.append(int(cols[1]))
-                throughput.append(float(cols[2]))
-    return (thread_count, ids, throughput)
-
-
-def set_ticks(filename, ax):
-    thread_count, ids, _ = load(f"{filename}.csv")
-
-    ticks, labels = [], []
-    for i in range(len(ids)):
-        if thread_count[i] % 5 == 0 and i % 5 == 4:
-            ticks.append(ids[i])
-            labels.append(thread_count[i])
-    ax.set_xticks(ticks)
-    ax.set_xticklabels(labels)
-
-
-def plot(filename, label, ax):
-    _, ids, values = load(f"{filename}.csv")
-    ax.plot(ids, values, label=label)
-
+import os
 
 parser = argparse.ArgumentParser(description="Chart data from scheduling benchmark")
+parser.add_argument(
+    "-i",
+    dest="input_folder",
+    type=str,
+    default="",
+    help='Input folder for CSVs (default="")',
+)
 parser.add_argument(
     "-c",
     dest="contention",
@@ -54,8 +32,8 @@ parser.add_argument(
     dest="lock",
     type=str,
     nargs="+",
-    default=["futex", "mcs", "hybrid_emulated"],
-    help='Locks to show (default=["futex", "mcs", "hybrid_emulated"])',
+    default=["Futex", "MCS", "Hybridlock"],
+    help='Locks to show (default=["Futex", "MCS", "Hybridlock"])',
 )
 parser.add_argument(
     "-o",
@@ -66,12 +44,42 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+
+def load(filename):
+    thread_count, ids, throughput = [], [], []
+    with open(f"{filename}", "r") as f:
+        for line in f:
+            cols = line.rstrip().split(",")
+            if len(cols) >= 3:
+                ids.append(int(cols[0]))
+                thread_count.append(int(cols[1]))
+                throughput.append(float(cols[2]))
+    return (thread_count, ids, throughput)
+
+
+def set_ticks(filename, ax):
+    thread_count, ids, _ = load(os.path.join(args.input_folder, f"{filename}.csv"))
+
+    ticks, labels = [], []
+    for i in range(len(ids)):
+        if thread_count[i] % 5 == 0 and i % 5 == 4:
+            ticks.append(ids[i])
+            labels.append(thread_count[i])
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels)
+
+
+def plot(filename, label, ax):
+    _, ids, values = load(os.path.join(args.input_folder, f"{filename}.csv"))
+    ax.plot(ids, values, label=label)
+
+
 fig, ax = plt.subplots()
 ax.set_xlabel("Thread Count (40 cores machine)")
 ax.set_ylabel("Critical Section time (ms)")
 ax.set_yscale("log")
 
-set_ticks(f"{args.lock[0]}_c{args.contention[0]}_t{args.cache_line[0]}", ax)
+set_ticks(f"{args.lock[0].lower()}_c{args.contention[0]}_t{args.cache_line[0]}", ax)
 
 for contention in args.contention:
     sc = "s" if contention > 1 else ""
@@ -80,9 +88,9 @@ for contention in args.contention:
         scl = "s" if cl > 1 else ""
 
         for lock in args.lock:
-            lock_name = lock.replace("_", " ").capitalize()
+            lock_name = lock.replace("_", " ")
             plot(
-                f"{lock}_c{contention}_t{cl}",
+                f"{lock.lower()}_c{contention}_t{cl}",
                 f"{lock_name}, {cl} line{scl}, {contention} cycle{sc}",
                 ax,
             )
