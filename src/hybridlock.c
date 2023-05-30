@@ -82,7 +82,7 @@ static inline int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
     return 0; // Success
 }
 
-static inline void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -90,15 +90,20 @@ static inline void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_param
         local_params->qnode->next = NULL;
         mcs_qnode_ptr pred = (mcs_qnode_t *)SWAP_PTR((volatile void *)the_lock->mcs_lock, (void *)local_params->qnode);
         if (pred == NULL) /* lock was free */
-            break;
+            return 1;     // Success
 
         local_params->qnode->waiting = 1; // word on which to spin
         MEM_BARRIER;
         pred->next = local_params->qnode; // make pred point to me
 
-        while (local_params->qnode->waiting != 0)
+        while (local_params->qnode->waiting != 0 && LOCK_CURR_TYPE(the_lock->lock_history) == lock_type)
             PAUSE;
-        break;
+
+        if (local_params->qnode->waiting != 0)
+            if (__sync_val_compare_and_swap(&local_params->qnode->waiting, 1, 0) == 1)
+                return 0; // Failed to acquire
+
+        return 1; // Success
     case LOCK_TYPE_FUTEX:;
         int state;
 
@@ -112,11 +117,12 @@ static inline void lock_type(hybridlock_lock_t *the_lock, hybridlock_local_param
                 state = __sync_lock_test_and_set(&the_lock->futex_lock, 2);
             }
         }
-        break;
+        return 1;
     default:
         printf("Transition types cannot be locked.\n");
         exit(1);
     }
+    return 0;
 }
 
 static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
@@ -124,19 +130,25 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
     switch (lock_type)
     {
     case LOCK_TYPE_MCS:;
-        mcs_qnode_ptr succ;
-        if (!(succ = local_params->qnode->next)) /* I seem to have no succ. */
+        mcs_qnode_ptr curr = local_params->qnode, succ;
+        do
         {
-            /* try to fix global pointer */
-            if (CAS_PTR(the_lock->mcs_lock, local_params->qnode, NULL) == local_params->qnode)
-                break;
-            do
+            succ = curr->next;
+            if (!succ) /* I seem to have no succ. */
             {
-                succ = local_params->qnode->next;
-                PAUSE;
-            } while (!succ); // wait for successor
-        }
-        succ->waiting = 0;
+                /* try to fix global pointer */
+                if (CAS_PTR(the_lock->mcs_lock, curr, NULL) == curr)
+                    break;
+                do
+                {
+                    succ = curr->next;
+                    PAUSE;
+                } while (!succ); // wait for successor
+            }
+
+            curr = succ;
+        } while (__sync_val_compare_and_swap(&succ->waiting, 1, 0) != 1); // Spin over aborted nodes
+
         break;
     case LOCK_TYPE_FUTEX:
         if (__sync_fetch_and_sub(&the_lock->futex_lock, 1) != 1)
@@ -164,7 +176,9 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
     {
         history = the_lock->lock_history;
 
-        lock_type(the_lock, local_params, LOCK_CURR_TYPE(history));
+        if (!lock_type(the_lock, local_params, LOCK_CURR_TYPE(history)))
+            continue;
+
         if (the_lock->lock_history == history)
         {
             if (LOCK_CURR_TYPE(history) != LOCK_LAST_TYPE(history))
