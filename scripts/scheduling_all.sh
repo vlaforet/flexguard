@@ -23,7 +23,7 @@ do
   do
     for cacheline in $CACHELINES;
     do
-      echo "Starting ${lock}_c${contention}_t${cacheline}"
+      echo "Starting results/${lock,,}_c${contention}_t${cacheline}.csv"
       stdbuf -oL ./scheduling -n ${MAX_THREAD_COUNT} $switch -d ${DELAY} -c $contention -t $cacheline > "results/${lock,,}_c${contention}_t${cacheline}.csv"
     done;
   done;
