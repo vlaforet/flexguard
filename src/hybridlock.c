@@ -99,9 +99,8 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         while (local_params->qnode->waiting != 0 && LOCK_CURR_TYPE(the_lock->lock_history) == lock_type)
             PAUSE;
 
-        if (local_params->qnode->waiting != 0)
-            if (__sync_val_compare_and_swap(&local_params->qnode->waiting, 1, 0) == 1)
-                return 0; // Failed to acquire
+        if (local_params->qnode->waiting != 0 && __sync_val_compare_and_swap(&local_params->qnode->waiting, 1, 0) == 1)
+            return 0; // Failed to acquire
 
         return 1; // Success
     case LOCK_TYPE_FUTEX:;
@@ -298,8 +297,8 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     }
     bpf_map__set_max_entries(skel->maps.nodes_map, max_pid);
 
-    // Set pointer to spinning variable for BPF
-    skel->bss->input_spinning = &the_lock->spinning;
+    // Set pointer to lock history
+    skel->bss->lock_history = &the_lock->lock_history;
 
     // Load BPF skeleton
     err = hybridlock_bpf__load(skel);
