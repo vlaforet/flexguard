@@ -27,6 +27,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#ifdef USE_HYBRIDSPIN_LOCKS
 #include "hybridspin.h"
 
 #ifdef BPF
@@ -251,3 +252,4 @@ void end_hybridspin_global()
 {
     // function not needed
 }
+#endif
