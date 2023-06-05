@@ -42,15 +42,26 @@ parser.add_argument(
     default="out.png",
     help='Locks to show (default="out.png")',
 )
+parser.add_argument(
+    "--increasing-only",
+    dest="increasing_only",
+    action="store_true",
+    help="Only show the increasing thread count part (default=False)",
+)
 args = parser.parse_args()
 
 
 def load(filename):
     thread_count, ids, throughput = [], [], []
+    last_thread_count = 0
     with open(f"{filename}", "r") as f:
         for line in f:
             cols = line.rstrip().split(",")
             if len(cols) >= 3:
+                if args.increasing_only and last_thread_count >= int(cols[1]):
+                    break
+                last_thread_count = int(cols[1])
+
                 ids.append(int(cols[0]))
                 thread_count.append(int(cols[1]))
                 throughput.append(float(cols[2]))
@@ -70,8 +81,12 @@ def set_ticks(filename, ax):
 
 
 def plot(filename, label, ax):
-    _, ids, values = load(os.path.join(args.input_folder, f"{filename}.csv"))
-    ax.plot(ids, values, label=label)
+    thread_count, ids, values = load(os.path.join(args.input_folder, f"{filename}.csv"))
+
+    if args.increasing_only:
+        ax.plot(thread_count, values, label=label)
+    else:
+        ax.plot(ids, values, label=label)
 
 
 fig, ax = plt.subplots()
@@ -79,7 +94,8 @@ ax.set_xlabel("Thread Count (40 cores machine)")
 ax.set_ylabel("Critical Section time (ms)")
 ax.set_yscale("log")
 
-set_ticks(f"{args.lock[0].lower()}_c{args.contention[0]}_t{args.cache_line[0]}", ax)
+if not args.increasing_only:
+    set_ticks(f"{args.lock[0].lower()}_c{args.contention[0]}_t{args.cache_line[0]}", ax)
 
 for contention in args.contention:
     sc = "s" if contention > 1 else ""
