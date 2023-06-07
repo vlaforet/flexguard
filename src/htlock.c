@@ -34,6 +34,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#ifdef USE_HTICKET_LOCKS
 #include "htlock.h"
 
 __thread uint32_t htlock_node_mine, htlock_id_mine;
@@ -329,3 +330,4 @@ htlock_release_try(htlock_t* l)	/* trylock rls */
     l->global->cur++;
 }
 
+#endif
