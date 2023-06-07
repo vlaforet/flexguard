@@ -155,12 +155,12 @@ void *switch_lock_type(void *data)
     while (stop == 0)
     {
         if (rand() % 2 == 0)
-            __sync_val_compare_and_swap(&the_lock.lock_history,
-                                        LOCK_HISTORY(LOCK_TYPE_FUTEX),
+            __sync_val_compare_and_swap(&the_lock.lock_state,
+                                        LOCK_STABLE(LOCK_TYPE_FUTEX),
                                         LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_MCS));
         else
-            __sync_val_compare_and_swap(&the_lock.lock_history,
-                                        LOCK_HISTORY(LOCK_TYPE_MCS),
+            __sync_val_compare_and_swap(&the_lock.lock_state,
+                                        LOCK_STABLE(LOCK_TYPE_MCS),
                                         LOCK_TRANSITION(LOCK_TYPE_MCS, LOCK_TYPE_FUTEX));
         cpause(rand() % 10000);
     }

@@ -96,7 +96,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         MEM_BARRIER;
         pred->next = local_params->qnode; // make pred point to me
 
-        while (local_params->qnode->waiting != 0 && LOCK_CURR_TYPE(the_lock->lock_history) == lock_type)
+        while (local_params->qnode->waiting != 0 && LOCK_CURR_TYPE(the_lock->lock_state) == lock_type)
             PAUSE;
 
         if (local_params->qnode->waiting != 0 && __sync_val_compare_and_swap(&local_params->qnode->waiting, 1, 0) == 1)
@@ -170,34 +170,34 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
-    lock_type_history_t history;
+    lock_state_t state;
     do
     {
-        history = the_lock->lock_history;
+        state = the_lock->lock_state;
 
-        if (!lock_type(the_lock, local_params, LOCK_CURR_TYPE(history)))
+        if (!lock_type(the_lock, local_params, LOCK_CURR_TYPE(state)))
             continue;
 
-        if (the_lock->lock_history == history)
+        if (the_lock->lock_state == state)
         {
-            if (LOCK_CURR_TYPE(history) != LOCK_LAST_TYPE(history))
+            if (LOCK_CURR_TYPE(state) != LOCK_LAST_TYPE(state))
             { // Wait for the previous holder to exit its critical section
-                while (!isfree_type(the_lock, LOCK_LAST_TYPE(history)))
+                while (!isfree_type(the_lock, LOCK_LAST_TYPE(state)))
                     PAUSE;
 
-                the_lock->lock_history = LOCK_HISTORY(LOCK_CURR_TYPE(history));
+                the_lock->lock_state = LOCK_STABLE(LOCK_CURR_TYPE(state));
             }
 
             break;
         }
 
-        unlock_type(the_lock, local_params, LOCK_CURR_TYPE(history));
+        unlock_type(the_lock, local_params, LOCK_CURR_TYPE(state));
     } while (1);
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
-    unlock_type(the_lock, local_params, LOCK_LAST_TYPE(the_lock->lock_history));
+    unlock_type(the_lock, local_params, LOCK_LAST_TYPE(the_lock->lock_state));
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
@@ -247,8 +247,11 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size)
 #ifdef BPF
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-    DPRINT(format, args);
+#if DEBUG==1
+    return vfprintf(stderr, format, args);
+#else
     return 0;
+#endif
 }
 
 static int get_max_pid()
@@ -273,7 +276,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     *(the_lock->mcs_lock) = 0;
 
     the_lock->futex_lock = 0;
-    the_lock->lock_history = LOCK_HISTORY(LOCK_TYPE_MCS);
+    the_lock->lock_state = LOCK_STABLE(LOCK_TYPE_MCS);
 
 #ifdef BPF
     struct hybridlock_bpf *skel;
@@ -297,8 +300,8 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     }
     bpf_map__set_max_entries(skel->maps.nodes_map, max_pid);
 
-    // Set pointer to lock history
-    skel->bss->lock_history = &the_lock->lock_history;
+    // Set pointer to lock state
+    skel->bss->lock_state = &the_lock->lock_state;
 
     // Load BPF skeleton
     err = hybridlock_bpf__load(skel);

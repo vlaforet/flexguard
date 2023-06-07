@@ -33,14 +33,14 @@
 #define LOCK_TYPE_MCS (uint32_t)0
 #define LOCK_TYPE_FUTEX (uint32_t)1
 
-#define LOCK_LAST_TYPE(history) (uint32_t)(history >> 32)
-#define LOCK_CURR_TYPE(history) (uint32_t) history
+#define LOCK_LAST_TYPE(state) (uint32_t)(state >> 32)
+#define LOCK_CURR_TYPE(state) (uint32_t) state
 
-#define LOCK_TRANSITION(last, curr) (curr | (uint64_t)(last) << 32)
-#define LOCK_HISTORY(type) LOCK_TRANSITION(type, type)
+#define LOCK_TRANSITION(last, curr) ((lock_state_t)curr | (lock_state_t)(last) << 32)
+#define LOCK_STABLE(type) LOCK_TRANSITION(type, type)
 
 typedef uint32_t lock_type_t;
-typedef uint64_t lock_type_history_t;
+typedef uint64_t lock_state_t;
 
 typedef struct mcs_qnode_t
 {
