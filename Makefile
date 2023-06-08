@@ -10,7 +10,7 @@ endif
 
 ifndef NOBPF
 OUTPUT := .output
-CLANG ?= clang
+CLANG ?= clang-16
 LLVM_STRIP ?= llvm-strip
 LIBBPF_SRC := $(abspath ./libbpf/src)
 BPFTOOL_SRC := $(abspath ./bpftool/src)
