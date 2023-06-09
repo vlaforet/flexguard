@@ -33,11 +33,11 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 
-int *input_spinning;
+lock_state_t *lock_state;
 
 char _license[4] SEC("license") = "GPL";
 
-typedef mcs_qnode *map_value;
+typedef mcs_qnode_t *map_value;
 
 struct
 {
@@ -49,28 +49,23 @@ struct
 SEC("tp_btf/sched_switch")
 int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
 {
-	int err, spinning;
-
 	if (!preempt)
 		return 0;
 
 	// Lookup thread qnode
 	u32 k = prev->pid;
-	mcs_qnode **qnode = bpf_map_lookup_elem(&nodes_map, &k);
+	mcs_qnode_t **qnode = bpf_map_lookup_elem(&nodes_map, &k);
 	if (qnode == NULL)
 		return 0;
 
-	// Ignore if thread not lock holder
-	if (!BPF_PROBE_READ_USER(*qnode, locking) || BPF_PROBE_READ_USER(*qnode, waiting))
-		return 0;
+	// Missing: Check mcs_lock==qnode when qnode->next == NULL to exclude cases where qnode already exited its CS
+	if (BPF_PROBE_READ_USER(*qnode, waiting) == 0 && (BPF_PROBE_READ_USER(*qnode, next) == NULL || BPF_PROBE_READ_USER(*qnode, next, waiting) == 1))
+	{
+		lock_state_t curr = LOCK_CURR_TYPE(*lock_state);
 
-	bpf_printk("Spinning = 0");
-
-	// Changing lock state to blocking
-	spinning = 0;
-	err = bpf_probe_write_user((void *)input_spinning, &spinning, sizeof(spinning));
-	if (err && err != -1) // EPERM -1: raised when another thread is writing at the same time.
-		bpf_printk("Error on bpf_probe_write_user(spinning) -> %d", err);
+		// Changing lock type to futex
+		__sync_val_compare_and_swap(lock_state, LOCK_STABLE(curr), LOCK_TRANSITION(curr, LOCK_TYPE_FUTEX));
+	}
 
 	return 0;
 }
