@@ -74,7 +74,7 @@ typedef struct hybridlock_lock_t
   {
     struct
     {
-      lock_state_t lock_state;
+      lock_state_t *lock_state;
       struct bpf_map *nodes_map;
     };
 #ifdef ADD_PADDING

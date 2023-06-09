@@ -33,7 +33,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 
-lock_state_t *lock_state;
+lock_state_t lock_state = LOCK_STABLE(LOCK_TYPE_MCS);
 
 char _license[4] SEC("license") = "GPL";
 
@@ -61,10 +61,10 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	// Missing: Check mcs_lock==qnode when qnode->next == NULL to exclude cases where qnode already exited its CS
 	if (BPF_PROBE_READ_USER(*qnode, waiting) == 0 && (BPF_PROBE_READ_USER(*qnode, next) == NULL || BPF_PROBE_READ_USER(*qnode, next, waiting) == 1))
 	{
-		lock_state_t curr = LOCK_CURR_TYPE(*lock_state);
+		lock_state_t curr = LOCK_CURR_TYPE(lock_state);
 
 		// Changing lock type to futex
-		__sync_val_compare_and_swap(lock_state, LOCK_STABLE(curr), LOCK_TRANSITION(curr, LOCK_TYPE_FUTEX));
+		__sync_val_compare_and_swap(&lock_state, LOCK_STABLE(curr), LOCK_TRANSITION(curr, LOCK_TYPE_FUTEX));
 	}
 
 	return 0;
