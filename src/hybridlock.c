@@ -185,6 +185,8 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
                 while (!isfree_type(the_lock, LOCK_LAST_TYPE(state)))
                     PAUSE;
 
+                DPRINT("[%d] Switched lock to %d\n", gettid(), LOCK_CURR_TYPE(state));
+
                 the_lock->lock_state = LOCK_STABLE(LOCK_CURR_TYPE(state));
             }
 
@@ -247,7 +249,7 @@ void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size)
 #ifdef BPF
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-#if DEBUG==1
+#if DEBUG == 1
     return vfprintf(stderr, format, args);
 #else
     return 0;
