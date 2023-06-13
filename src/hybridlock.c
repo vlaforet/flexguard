@@ -273,10 +273,6 @@ static int get_max_pid()
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
-    // Initialize all lock objects
-    the_lock->mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
-    *(the_lock->mcs_lock) = 0;
-
     the_lock->futex_lock = 0;
 
 #ifdef BPF
@@ -303,6 +299,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 
     // Set pointer to lock state
     the_lock->lock_state = &skel->bss->lock_state;
+    the_lock->mcs_lock = &skel->bss->mcs_lock;
 
     // Load BPF skeleton
     err = hybridlock_bpf__load(skel);
@@ -325,6 +322,9 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         return 1;
     }
 #else
+    the_lock->mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
+    *(the_lock->mcs_lock) = NULL;
+
     the_lock->lock_state = malloc(sizeof(lock_state_t));
     (*the_lock->lock_state) = LOCK_STABLE(LOCK_TYPE_MCS);
 #endif
@@ -343,7 +343,7 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_
 #ifdef BPF
     // Register thread in BPF map
     __u32 tid = gettid();
-    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), local_params->qnode, sizeof(mcs_qnode_t *), BPF_ANY);
+    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), &local_params->qnode, sizeof(mcs_qnode_t *), BPF_ANY);
     if (err)
     {
         fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
