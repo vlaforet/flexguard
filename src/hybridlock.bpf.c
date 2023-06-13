@@ -69,8 +69,6 @@ struct
 SEC("tp_btf/sched_switch")
 int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
 {
-	bpf_printk("%s (%d) -> %s (%d)", prev->comm, prev->pid, next->comm, next->pid);
-
 	u32 tid = prev->pid;
 	int cpu = prev->wake_cpu;
 
@@ -91,7 +89,9 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 			return 0;
 	}
 
+#ifdef DEBUG
 	bpf_printk("[tid: %d] %s (%d) -> %s (%d)", tid, prev->comm, prev->pid, next->comm, next->pid);
+#endif
 
 	if (__builtin_memcmp(next->parent->comm, "kthreadd", sizeof(next->parent->comm)) == 0)
 	{
