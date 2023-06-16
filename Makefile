@@ -51,11 +51,6 @@ ifeq ($(UNAME), Linux)
 	GCC:=gcc
 	LIBS := -lrt -lpthread -lnuma
 endif
-ifeq ($(UNAME), SunOS)
-	GCC:=/opt/csw/bin/gcc
-	LIBS := -lrt -lpthread
-	COMPILE_FLAGS+= -m64 -mcpu=v9 -mtune=v9
-endif
 
 ifndef LOCK_VERSION
   # LOCK_VERSION=-DUSE_HCLH_LOCKS
@@ -71,10 +66,6 @@ ifndef LOCK_VERSION
   # LOCK_VERSION=-DUSE_MUTEX_LOCKS
   # LOCK_VERSION=-DUSE_FUTEX_LOCKS
   # LOCK_VERSION=-DUSE_HTICKET_LOCKS
-endif
-
-ifndef PRIMITIVE
-PRIMITIVE=-DTEST_CAS
 endif
 
 TOP := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
@@ -94,6 +85,7 @@ ALL := bank scheduling bank_one bank_simple test_array_alloc test_trylock sample
 ifeq ($(LOCK_VERSION), -DUSE_HTICKET_LOCKS)
 ALL += htlock_test
 endif
+
 all: $(ALL)
 	@echo "############### Used: " $(LOCK_VERSION)
 
