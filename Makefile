@@ -2,10 +2,10 @@ PLATFORM_NUMA=1
 
 ifeq ($(DEBUG),1)
   DEBUG_FLAGS=-Wall -ggdb -DDEBUG
-  COMPILE_FLAGS=-O0 -DADD_PADDING -fno-inline
+  COMPILE_FLAGS=-O0 -DADD_PADDING -fno-inline -fPIC
 else
   DEBUG_FLAGS=-Wall
-  COMPILE_FLAGS=-O3 -DADD_PADDING
+  COMPILE_FLAGS=-O3 -DADD_PADDING -fPIC
 endif
 
 ifndef NOBPF
@@ -39,10 +39,11 @@ endif
 
 CORE_NUM := $(shell nproc)
 ifneq ($(CORE_NUM), )
-COMPILE_FLAGS += -DCORE_NUM=${CORE_NUM}
+CORE_NUM_FLAGS += -DCORE_NUM=${CORE_NUM}
 else
-COMPILE_FLAGS += -DCORE_NUM=8
+CORE_NUM_FLAGS += -DCORE_NUM=8
 endif
+COMPILE_FLAGS += $(CORE_NUM_FLAGS)
 $(info ********************************** Using as a default number of cores: $(CORE_NUM) on 1 socket)
 $(info ********************************** Is this correct? If not, fix it in platform_defs.h)
 
@@ -129,8 +130,11 @@ $(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 BPF_SKELETON += $(OUTPUT)/hybridlock.skel.h
 endif
 
+litl: include/lock_if.h libsync.a litl/*
+	$(MAKE) -C litl/ LOCK_VERSION=$(LOCK_VERSION) CORE_NUM_FLAGS=$(CORE_NUM_FLAGS)
+
 libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o include/atomic_ops.h include/utils.h include/lock_if.h
-	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o include/atomic_ops.h include/utils.h
+	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o
 
 ttas.o: src/ttas.c 
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) -c src/ttas.c $(LIBS)
@@ -230,3 +234,4 @@ endif
 
 clean:
 	rm -rf $(OUTPUT) *.o locks mcs_test hclh_test bank_one bank_simple bank* stress_latency* test_array_alloc test_trylock sample_* test_correctness stress_one stress_test* atomic_bench uncontended individual_ops trylock_test htlock_test measure_contention libsync.a scheduling
+	$(MAKE) -C litl/ clean

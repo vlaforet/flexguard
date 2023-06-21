@@ -1,7 +1,7 @@
 include ../Makefile.config
 
-LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -lpapi -m64 -pthread
-CFLAGS=-I../include/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -fPIC -Wall -Werror -O3 -g
+LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -L../../ -Wl,--whole-archive -Wl,--version-script=interpose.map -lsync -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -lpapi -m64 -pthread
+CFLAGS=-I../include/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/include/ -I../../include/ -fPIC -Wall -Werror -O3 -g -D_GNU_SOURCE $(LOCK_VERSION) $(CORE_NUM_FLAGS)
 
 # Keep objects files
 .PRECIOUS: %.o

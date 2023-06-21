@@ -25,13 +25,13 @@
 #define _GNU_SOURCE
 #endif
 
-#include <stdio.h>
-#include <signal.h>
-#include <pthread.h>
-#include <dlfcn.h>
 #include <assert.h>
 #include <atomic_ops.h>
 #include <clht.h>
+#include <dlfcn.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdio.h>
 
 #ifdef MCS
 #include <mcs.h>
@@ -87,13 +87,15 @@
 #include <partitioned.h>
 #elif defined(MUTEXEE)
 #include <mutexee.h>
+#elif defined(LIBSLOCK)
+#include <libslock.h>
 #else
 #error "No lock algorithm known"
 #endif
 
-#include "waiting_policy.h"
-#include "utils.h"
 #include "interpose.h"
+#include "utils.h"
+#include "waiting_policy.h"
 
 // The NO_INDIRECTION flag allows disabling the pthread-to-lock hash table
 // and directly calling the specific lock function
@@ -173,66 +175,67 @@ int (*REAL(pthread_mutex_init))(pthread_mutex_t *mutex,
 int (*REAL(pthread_mutex_destroy))(pthread_mutex_t *mutex)
     __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_lock))(pthread_mutex_t *mutex)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_timedlock))(pthread_mutex_t *mutex,
-									 const struct timespec *abstime)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+                                     const struct timespec *abstime)
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_trylock))(pthread_mutex_t *mutex)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_unlock))(pthread_mutex_t *mutex)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_create))(pthread_t *thread, const pthread_attr_t *attr,
-							void *(*start_routine)(void *), void *arg)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+                            void *(*start_routine)(void *), void *arg)
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_init))(pthread_cond_t *cond,
-							   const pthread_condattr_t *attr)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+                               const pthread_condattr_t *attr)
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_destroy))(pthread_cond_t *cond)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_timedwait))(pthread_cond_t *cond,
-									pthread_mutex_t *mutex,
-									const struct timespec *abstime)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+                                    pthread_mutex_t *mutex,
+                                    const struct timespec *abstime)
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_wait))(pthread_cond_t *cond, pthread_mutex_t *mutex)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_signal))(pthread_cond_t *cond)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_broadcast))(pthread_cond_t *cond)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 
 // spin locks
 int (*REAL(pthread_spin_init))(pthread_spinlock_t *lock, int pshared)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_spin_destroy))(pthread_spinlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_spin_lock))(pthread_spinlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_spin_trylock))(pthread_spinlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_spin_unlock))(pthread_spinlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 
 // rw locks
-int (*REAL(pthread_rwlock_init))(pthread_rwlock_t *lock, const pthread_rwlockattr_t *attr)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+int (*REAL(pthread_rwlock_init))(pthread_rwlock_t *lock,
+                                 const pthread_rwlockattr_t *attr)
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_destroy))(pthread_rwlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_rdlock))(pthread_rwlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_wrlock))(pthread_rwlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_timedrdlock))(pthread_rwlock_t *lock,
-									 const struct timespec *abstime)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+                                        const struct timespec *abstime)
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_timedwrlock))(pthread_rwlock_t *lock,
-									 const struct timespec *abstime)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+                                        const struct timespec *abstime)
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_tryrdlock))(pthread_rwlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_trywrlock))(pthread_rwlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_unlock))(pthread_rwlock_t *lock)
-	__attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(L_CACHE_LINE_SIZE)));
 
 #if CLEANUP_ON_SIGNAL
 static void signal_exit(int signo);
@@ -381,16 +384,17 @@ static void signal_exit(int UNUSED(signo)) {
 #endif
 
 static void *lp_start_routine(void *_arg) {
-    struct routine *r = _arg;
+    struct routine *r    = _arg;
     void *(*fct)(void *) = r->fct;
-    void *arg = r->arg;
+    void *arg            = r->arg;
     void *res;
     free(r);
 
     cur_thread_id = __sync_fetch_and_add(&last_thread_id, 1);
     if (cur_thread_id >= MAX_THREADS) {
-        fprintf(stderr, "Maximum number of threads reached. Consider raising "
-                        "MAX_THREADS in interpose.c (current = %u)\n",
+        fprintf(stderr,
+                "Maximum number of threads reached. Consider raising "
+                "MAX_THREADS in interpose.c (current = %u)\n",
                 MAX_THREADS);
         exit(-1);
     }
@@ -529,25 +533,15 @@ int __pthread_cond_broadcast(pthread_cond_t *cond) {
 __asm__(
     ".symver __pthread_cond_broadcast,pthread_cond_broadcast@@" GLIBC_2_3_2);
 
-
-
-
-
-
-
-
-
-
 // Spinlocks
-int pthread_spin_init(pthread_spinlock_t *spin,
-                      int pshared) {
+int pthread_spin_init(pthread_spinlock_t *spin, int pshared) {
     DEBUG_PTHREAD("[p] pthread_spin_init\n");
     if (init_spinlock != 2) {
         REAL(interpose_init)();
     }
 
 #if !NO_INDIRECTION
-    ht_lock_create((void*)spin, NULL);
+    ht_lock_create((void *)spin, NULL);
     return 0;
 #else
     return REAL(pthread_spin_init)(spin, pshared);
@@ -573,7 +567,7 @@ int pthread_spin_destroy(pthread_spinlock_t *spin) {
 int pthread_spin_lock(pthread_spinlock_t *spin) {
     DEBUG_PTHREAD("[p] pthread_spin_lock\n");
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)spin);
+    lock_transparent_mutex_t *impl = ht_lock_get((void *)spin);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
 #else
     assert(0 && "spinlock not supported without indirection");
@@ -583,7 +577,7 @@ int pthread_spin_lock(pthread_spinlock_t *spin) {
 int pthread_spin_trylock(pthread_spinlock_t *spin) {
     DEBUG_PTHREAD("[p] pthread_spin_trylock\n");
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)spin);
+    lock_transparent_mutex_t *impl = ht_lock_get((void *)spin);
     return lock_mutex_trylock(impl->lock_lock, get_node(impl));
 #else
     assert(0 && "spinlock not supported without indirection");
@@ -593,17 +587,13 @@ int pthread_spin_trylock(pthread_spinlock_t *spin) {
 int pthread_spin_unlock(pthread_spinlock_t *spin) {
     DEBUG_PTHREAD("[p] pthread_spin_unlock\n");
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)spin);
+    lock_transparent_mutex_t *impl = ht_lock_get((void *)spin);
     lock_mutex_unlock(impl->lock_lock, get_node(impl));
     return 0;
 #else
     assert(0 && "spinlock not supported without indirection");
 #endif
 }
-
-
-
-
 
 // Rw locks
 int pthread_rwlock_init(pthread_rwlock_t *rwlock,
@@ -614,7 +604,7 @@ int pthread_rwlock_init(pthread_rwlock_t *rwlock,
     }
 
 #if !NO_INDIRECTION
-    ht_lock_create((void*)rwlock, NULL);
+    ht_lock_create((void *)rwlock, NULL);
     return 0;
 #else
     return REAL(pthread_rwlock_init)(rwlock, attr);
@@ -640,7 +630,7 @@ int pthread_rwlock_destroy(pthread_rwlock_t *rwlock) {
 int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock) {
     DEBUG_PTHREAD("[p] pthread_rwlock_rdlock\n");
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+    lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
 #else
     assert(0 && "rwlock not supported without indirection");
@@ -650,7 +640,7 @@ int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock) {
 int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
     DEBUG_PTHREAD("[p] pthread_rwlock_wrlock\n");
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+    lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
 #else
     assert(0 && "rwlock not supported without indirection");
@@ -658,20 +648,19 @@ int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
 }
 
 int pthread_rwlock_timedrdlock(pthread_rwlock_t *lcok,
-                            const struct timespec *abstime) {
+                               const struct timespec *abstime) {
     assert(0 && "Timed locks not supported");
 }
 
 int pthread_rwlock_timedwrlock(pthread_rwlock_t *lock,
-                            const struct timespec *abstime) {
+                               const struct timespec *abstime) {
     assert(0 && "Timed locks not supported");
 }
-
 
 int pthread_rwlock_rdtrylock(pthread_rwlock_t *rwlock) {
     DEBUG_PTHREAD("[p] pthread_rwlock_trylock\n");
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+    lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     return lock_mutex_trylock(impl->lock_lock, get_node(impl));
 #else
     assert(0 && "rwlock not supported without indirection");
@@ -681,7 +670,7 @@ int pthread_rwlock_rdtrylock(pthread_rwlock_t *rwlock) {
 int pthread_rwlock_wrtrylock(pthread_rwlock_t *rwlock) {
     DEBUG_PTHREAD("[p] pthread_rwlock_trylock\n");
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+    lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     return lock_mutex_trylock(impl->lock_lock, get_node(impl));
 #else
     assert(0 && "rwlock not supported without indirection");
@@ -691,7 +680,7 @@ int pthread_rwlock_wrtrylock(pthread_rwlock_t *rwlock) {
 int pthread_rwlock_unlock(pthread_rwlock_t *rwlock) {
     DEBUG_PTHREAD("[p] pthread_rwlock_unlock\n");
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+    lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     lock_mutex_unlock(impl->lock_lock, get_node(impl));
     return 0;
 #else
