@@ -60,8 +60,6 @@ static uint8_t  __attribute__ ((unused)) the_cores[] = {
     40, 41, 42, 43, 44, 45, 46, 47  
 };
 
-#define PREFETCHW(x)		
-
     static inline int get_cluster(int thread_id) {
 #ifdef __solaris__
         if (thread_id>64){

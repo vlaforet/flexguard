@@ -297,7 +297,6 @@ htlock_release(htlock_t* l)
 htlock_trylock(htlock_t* l)
 {
     htlock_global_t* globalp = l->global;
-    PREFETCHW(globalp);  
     uint32_t global_nxt = globalp->nxt;
 
     htlock_global_t tmp = 
@@ -326,7 +325,6 @@ htlock_trylock(htlock_t* l)
     inline void
 htlock_release_try(htlock_t* l)	/* trylock rls */
 {
-    PREFETCHW((l->global));
     l->global->cur++;
 }
 
