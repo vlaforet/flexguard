@@ -36,7 +36,6 @@
 
 #define MAX_THREADS 2048
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
-#define COMPILER_BARRIER() asm volatile("" : : : "memory")
 #define MEMORY_BARRIER() __sync_synchronize()
 #define REP_VAL 23
 
@@ -113,57 +112,6 @@ static inline uint64_t rdtsc(void) {
 #define my_random xorshf96
 #define getticks rdtsc
 typedef uint64_t ticks;
-
-static inline unsigned long xorshf96(unsigned long *x, unsigned long *y,
-                                     unsigned long *z) { // period 2^96-1
-    unsigned long t;
-    (*x) ^= (*x) << 16;
-    (*x) ^= (*x) >> 5;
-    (*x) ^= (*x) << 1;
-
-    t = *x;
-    (*x) = *y;
-    (*y) = *z;
-    (*z) = t ^ (*x) ^ (*y);
-
-    return *z;
-}
-
-static inline void cdelay(ticks cycles) {
-    ticks __ts_end = getticks() + (ticks)cycles;
-    while (getticks() < __ts_end)
-        ;
-}
-
-static inline unsigned long *seed_rand() {
-    unsigned long *seeds;
-    int num_seeds = L_CACHE_LINE_SIZE / sizeof(unsigned long);
-    if (num_seeds < 3)
-        num_seeds = 3;
-
-    seeds = (unsigned long *)memalign(L_CACHE_LINE_SIZE,
-                                      num_seeds * sizeof(unsigned long));
-    seeds[0] = getticks() % 123456789;
-    seeds[1] = getticks() % 362436069;
-    seeds[2] = getticks() % 521288629;
-    return seeds;
-}
-
-static inline void nop_rep(uint32_t num_reps) {
-    uint32_t i;
-    for (i = 0; i < num_reps; i++) {
-        asm volatile("NOP");
-    }
-}
-
-static inline void pause_rep(uint32_t num_reps) {
-    uint32_t i;
-    for (i = 0; i < num_reps; i++) {
-        CPU_PAUSE();
-        /* PAUSE; */
-        /* asm volatile ("NOP"); */
-    }
-}
 
 static inline void wait_cycles(uint64_t cycles) {
     if (cycles < 256) {
