@@ -52,6 +52,7 @@
 #include "ticket.h"
 #elif defined(USE_MUTEX_LOCKS)
 #include <pthread.h>
+#include "utils.h"
 #elif defined(USE_FUTEX_LOCKS)
 #include "futex.h"
 #elif defined(USE_HTICKET_LOCKS)
