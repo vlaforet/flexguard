@@ -130,7 +130,7 @@ $(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 BPF_SKELETON += $(OUTPUT)/hybridlock.skel.h
 endif
 
-litl: include/lock_if.h libsync.a litl/*
+litl: include/lock_if.h libsync.a
 	$(MAKE) -C litl/ LOCK_VERSION=$(LOCK_VERSION) CORE_NUM_FLAGS=$(CORE_NUM_FLAGS)
 
 libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o include/atomic_ops.h include/utils.h include/lock_if.h
