@@ -203,8 +203,7 @@ void libslock_application_exit(void) {
 }
 
 void libslock_init_context(lock_mutex_t *impl, lock_context_t *context,
-                           int UNUSED(number)) {
-    init_lock_local(INT_MAX, &impl->lock, context);
-    printf("[%d] Init context me:%p impl:%p\n", cur_thread_id, (void *)context,
-           (void *)impl);
+                           int number) {
+    for (int i = 0; i < number; i++)
+        init_lock_local(INT_MAX, &impl->lock, &context[i]);
 }
