@@ -28,6 +28,7 @@
  */
 
 #include "hybridlock.h"
+#include <assert.h>
 
 #ifdef BPF
 #include "hybridlock.skel.h"
@@ -48,6 +49,7 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
     switch (lock_type)
     {
     case LOCK_TYPE_MCS:
+        assert(the_lock->mcs_lock != NULL);
         if ((*the_lock->mcs_lock) != NULL)
             return 0; // Not free
         break;
@@ -87,8 +89,12 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
     switch (lock_type)
     {
     case LOCK_TYPE_MCS:
+        assert(local_params->qnode != NULL);
+        assert(the_lock->mcs_lock != NULL);
+        assert(*the_lock->mcs_lock != local_params->qnode);
+
         local_params->qnode->next = NULL;
-        mcs_qnode_ptr pred = (mcs_qnode_t *)SWAP_PTR((volatile void *)the_lock->mcs_lock, (void *)local_params->qnode);
+        mcs_qnode_ptr pred = (mcs_qnode_t *)atomic_exchange(the_lock->mcs_lock, local_params->qnode);
         if (pred == NULL) /* lock was free */
             return 1;     // Success
 
@@ -129,6 +135,8 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
     switch (lock_type)
     {
     case LOCK_TYPE_MCS:;
+        assert(local_params->qnode != NULL);
+        assert(the_lock->mcs_lock != NULL);
         mcs_qnode_ptr curr = local_params->qnode, succ;
         do
         {
@@ -170,6 +178,7 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
+    assert(the_lock->lock_state != NULL);
     lock_state_t state;
     do
     {
@@ -199,6 +208,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
+    assert(the_lock->lock_state != NULL);
     unlock_type(the_lock, local_params, LOCK_LAST_TYPE(*the_lock->lock_state));
 }
 
@@ -339,6 +349,7 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_
 
     local_params->qnode = (mcs_qnode_t *)malloc(sizeof(mcs_qnode_t));
     local_params->qnode->waiting = 0;
+    local_params->qnode->next = NULL;
 
 #ifdef BPF
     // Register thread in BPF map
