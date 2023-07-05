@@ -42,7 +42,7 @@ typedef union __ticket_lock {
         volatile uint32_t grant;
         volatile uint32_t request;
     } s;
-} ticket_lock_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ticket_lock_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct local_ticket_lock {
     ticket_lock_t u;
@@ -51,12 +51,12 @@ typedef struct local_ticket_lock {
     char __pad[pad_to_cache_line(sizeof(ticket_lock_t) + sizeof(uint32_t) +
                                  sizeof(int32_t))];
 
-} local_tkt_lock_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} local_tkt_lock_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct global_ticket_lock {
     ticket_lock_t u;
     char __pad[pad_to_cache_line(sizeof(ticket_lock_t))];
-} global_tkt_lock_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} global_tkt_lock_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct c_ptl_tkt {
     global_tkt_lock_t top_lock;
@@ -65,7 +65,7 @@ typedef struct c_ptl_tkt {
     pthread_mutex_t posix_lock;
 #endif
     local_tkt_lock_t *volatile top_home;
-} ctkt_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ctkt_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t ctkt_cond_t;
 typedef void *ctkt_node_t;

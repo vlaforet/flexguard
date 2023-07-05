@@ -36,7 +36,7 @@
 struct grant_slot {
     volatile uint32_t grant;
     char __pad[pad_to_cache_line(sizeof(uint32_t))];
-} __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} __attribute__((aligned(CACHE_LINE_SIZE)));
 
 struct partitioned_ticket_lock {
     volatile uint32_t request;
@@ -45,16 +45,16 @@ struct partitioned_ticket_lock {
     // Each slot is cache align, the purpose of PLT is avoid cache line
     // transfers
     struct grant_slot grants[PTL_SLOTS];
-} __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct ticket_mutex {
     struct partitioned_ticket_lock u
-        __attribute__((aligned(L_CACHE_LINE_SIZE)));
+        __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(struct partitioned_ticket_lock))];
 #if COND_VAR
     pthread_mutex_t posix_lock;
 #endif
-} partitioned_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} partitioned_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t partitioned_cond_t;
 typedef void *partitioned_context_t; // Unused, take the less space as possible

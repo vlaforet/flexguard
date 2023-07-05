@@ -38,22 +38,22 @@ struct hyshmcs_hnode;
 typedef struct hyshmcs_qnode {
     struct hyshmcs_qnode *volatile next;
     char __pad[pad_to_cache_line(sizeof(struct hyshmcs_qnode *))];
-    volatile uint64_t status __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile uint64_t status __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad2[pad_to_cache_line(sizeof(uint64_t))];
     struct hyshmcs_hnode *cur_node;
     bool took_fast_path;
     uint8_t cur_depth;
     uint8_t real_depth;
     uint8_t depth_waited;
-} hyshmcs_qnode_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} hyshmcs_qnode_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct hyshmcs_hnode {
-    struct hyshmcs_hnode *parent __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    struct hyshmcs_hnode *parent __attribute__((aligned(CACHE_LINE_SIZE)));
     struct hyshmcs_qnode *volatile tail;
     char __pad[pad_to_cache_line(sizeof(struct hyshmcs_qnode *) +
                                  sizeof(struct hyshmcs_hnode *))];
     hyshmcs_qnode_t node;
-} hyshmcs_hnode_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} hyshmcs_hnode_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct hyshmcs_mutex {
 #if COND_VAR
@@ -62,7 +62,7 @@ typedef struct hyshmcs_mutex {
 #endif
     hyshmcs_hnode_t global;
     hyshmcs_hnode_t local[NUMA_NODES];
-} hyshmcs_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} hyshmcs_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t hyshmcs_cond_t;
 hyshmcs_mutex_t *hyshmcs_mutex_create(const pthread_mutexattr_t *attr);

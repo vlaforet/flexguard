@@ -36,15 +36,15 @@ typedef union __ticket_lock {
         volatile uint32_t grant;
         volatile uint32_t request;
     } s;
-} ticket_lock_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ticket_lock_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct ticket_mutex {
-    ticket_lock_t u __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    ticket_lock_t u __attribute__((aligned(CACHE_LINE_SIZE)));
 #if COND_VAR
     char __pad[pad_to_cache_line(sizeof(ticket_lock_t))];
     pthread_mutex_t posix_lock;
 #endif
-} ticket_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ticket_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t ticket_cond_t;
 typedef void *ticket_context_t; // Unused, take the less space as possible

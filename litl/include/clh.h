@@ -32,12 +32,12 @@
 // CLH variant with standard interface from M.L.Scott
 
 typedef struct clh_node {
-    volatile int spin __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile int spin __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(int))];
-} clh_node_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} clh_node_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct clh_mutex {
-    clh_node_t dummy __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    clh_node_t dummy __attribute__((aligned(CACHE_LINE_SIZE)));
     // clh_node_t is cache aligned
     clh_node_t *volatile head;
     clh_node_t *volatile tail;
@@ -48,13 +48,13 @@ typedef struct clh_mutex {
 #else
     char __pad[pad_to_cache_line(sizeof(clh_node_t *) + sizeof(clh_node_t *))];
 #endif
-} clh_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} clh_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct clh_context {
     clh_node_t initial;
-    clh_node_t *volatile current __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    clh_node_t *volatile current __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(clh_node_t) + sizeof(clh_node_t *))];
-} clh_context_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} clh_context_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t clh_cond_t;
 

@@ -39,21 +39,21 @@
 #define MAX_BACKOFF_DELAY ((1 << 20) - 1)
 
 typedef struct backoff_ttas {
-    volatile uint8_t spin_lock __attribute__((aligned(L_CACHE_LINE_SIZE)));
-} backoff_ttas_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile uint8_t spin_lock __attribute__((aligned(CACHE_LINE_SIZE)));
+} backoff_ttas_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct mcs_node {
     struct mcs_node *volatile next;
     char __pad1[pad_to_cache_line(sizeof(struct mcs_node *))];
 
-    volatile int spin __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile int spin __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad2[pad_to_cache_line(sizeof(int))];
-} mcs_node_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} mcs_node_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct mcs_mutex {
-    mcs_node_t *volatile tail __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    mcs_node_t *volatile tail __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(mcs_node_t *))];
-} mcs_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} mcs_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 // Local lock cohorted structure
 typedef struct local_mcs_lock {
@@ -62,7 +62,7 @@ typedef struct local_mcs_lock {
     volatile uint32_t top_grant;
     int32_t batch_count;
     char __pad[pad_to_cache_line(sizeof(uint32_t) + sizeof(int32_t))];
-} local_mcs_lock_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} local_mcs_lock_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 // Global lock cohorted structure
 typedef backoff_ttas_t global_backoff_ttas_lock_t;
@@ -75,7 +75,7 @@ typedef struct c_ptl_tkt {
     pthread_mutex_t posix_lock;
 #endif
     local_mcs_lock_t *volatile top_home;
-} cbomcs_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} cbomcs_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t cbomcs_cond_t;
 typedef mcs_node_t cbomcs_node_t;

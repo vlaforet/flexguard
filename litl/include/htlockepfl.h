@@ -54,7 +54,7 @@ typedef struct {
     } u;
 
     char __pad[pad_to_cache_line(sizeof(uint64_t))];
-} ticket_lock_local_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ticket_lock_local_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct {
     union {
@@ -65,7 +65,7 @@ typedef struct {
         } s;
     } u;
     char __pad[pad_to_cache_line(sizeof(uint64_t))];
-} ticket_lock_global_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ticket_lock_global_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct htlock {
     ticket_lock_global_t global;
@@ -74,12 +74,12 @@ typedef struct htlock {
     pthread_mutex_t posix_lock;
     char __pad[pad_to_cache_line(sizeof(pthread_mutex_t))];
 #endif
-} htlockepfl_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} htlockepfl_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct htlock_context {
     uint8_t last_numa_node;
     char __pad[pad_to_cache_line(sizeof(uint8_t))];
-} htlockepfl_context_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} htlockepfl_context_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t htlockepfl_cond_t;
 

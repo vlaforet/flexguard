@@ -45,8 +45,8 @@ typedef struct mcs_tp_node {
     char __pad[pad_to_cache_line(sizeof(long long) +
                                  sizeof(struct mcs_tp_mutex *) +
                                  sizeof(struct mcs_tp_node *))];
-    volatile uint64_t status __attribute__((aligned(L_CACHE_LINE_SIZE)));
-} mcs_tp_node_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile uint64_t status __attribute__((aligned(CACHE_LINE_SIZE)));
+} mcs_tp_node_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct mcs_tp_mutex {
 #if COND_VAR
@@ -59,8 +59,8 @@ typedef struct mcs_tp_mutex {
     char __pad[pad_to_cache_line(sizeof(long long))];
 #endif
     struct mcs_tp_node *volatile tail
-        __attribute__((aligned(L_CACHE_LINE_SIZE)));
-} mcs_tp_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+        __attribute__((aligned(CACHE_LINE_SIZE)));
+} mcs_tp_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t mcs_tp_cond_t;
 

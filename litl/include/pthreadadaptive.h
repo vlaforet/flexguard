@@ -35,7 +35,7 @@ typedef struct pthread_adative_mutex {
     char __pad[pad_to_cache_line(sizeof(pthread_mutex_t))];
 #endif
     pthread_mutex_t lock;
-} pthread_adaptive_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} pthread_adaptive_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t pthread_adaptive_cond_t;
 typedef void *pthread_adaptive_context_t; // Unused, take the less space

@@ -33,12 +33,12 @@
 // CLHEPFL using standard interface from M.L.Scott
 
 typedef struct clhepfl_node {
-    volatile int spin __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile int spin __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(int))];
-} clhepfl_node_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} clhepfl_node_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct clhepfl_mutex {
-    clhepfl_node_t dummy __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    clhepfl_node_t dummy __attribute__((aligned(CACHE_LINE_SIZE)));
     // clhepfl_node_t is cache aligned
     clhepfl_node_t *volatile head;
     clhepfl_node_t *volatile tail;
@@ -51,15 +51,15 @@ typedef struct clhepfl_mutex {
     char __pad[pad_to_cache_line(sizeof(clhepfl_node_t *) +
                                  sizeof(clhepfl_node_t *))];
 #endif
-} clhepfl_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} clhepfl_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct clhepfl_context {
     clhepfl_node_t initial;
     clhepfl_node_t *volatile current
-        __attribute__((aligned(L_CACHE_LINE_SIZE)));
+        __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(clhepfl_node_t) +
                                  sizeof(clhepfl_node_t *))];
-} clhepfl_context_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} clhepfl_context_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t clhepfl_cond_t;
 

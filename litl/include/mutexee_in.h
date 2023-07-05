@@ -159,7 +159,7 @@ extern const struct timespec mutexee_max_sleep;
 #define mutexee_cas(a, b, c) __sync_val_compare_and_swap(a, b, c)
 #define atomic_add(a, b) __sync_fetch_and_add(a, b)
 
-  typedef __attribute__((aligned(L_CACHE_LINE_SIZE))) struct mutexee_lock 
+  typedef __attribute__((aligned(CACHE_LINE_SIZE))) struct mutexee_lock 
   {
     union
     {
@@ -182,7 +182,7 @@ extern const struct timespec mutexee_max_sleep;
     unsigned int n_acq_first_sleep;
     unsigned int retry_spin_every;
     unsigned int padding3;
-    uint8_t padding2[L_CACHE_LINE_SIZE - 6 * sizeof(size_t)];
+    uint8_t padding2[CACHE_LINE_SIZE - 6 * sizeof(size_t)];
   } mutexee_lock_t;
 
 #define STATIC_ASSERT(a, msg)           _Static_assert ((a), msg);
@@ -210,7 +210,7 @@ extern const struct timespec mutexee_max_sleep;
     int seq;
     int pad;
 #if PADDING == 1
-    uint8_t padding[L_CACHE_LINE_SIZE - 16];
+    uint8_t padding[CACHE_LINE_SIZE - 16];
 #endif
   } upmutex_cond1_t;
 

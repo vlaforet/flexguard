@@ -29,7 +29,7 @@
 
 inline void *alloc_cache_align(size_t n) {
     void *res = 0;
-    if ((MEMALIGN(&res, L_CACHE_LINE_SIZE, cache_align(n)) < 0) || !res) {
+    if ((MEMALIGN(&res, CACHE_LINE_SIZE, cache_align(n)) < 0) || !res) {
         fprintf(stderr, "MEMALIGN(%llu, %llu)", (unsigned long long)n,
                 (unsigned long long)cache_align(n));
         exit(-1);

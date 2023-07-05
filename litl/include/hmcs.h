@@ -37,18 +37,18 @@ struct hmcs_hnode;
 typedef struct hmcs_qnode {
     struct hmcs_qnode *volatile next;
     char __pad[pad_to_cache_line(sizeof(struct hmcs_qnode *))];
-    volatile uint64_t status __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile uint64_t status __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad2[pad_to_cache_line(sizeof(uint64_t))];
-    struct hmcs_hnode *last_local __attribute__((aligned(L_CACHE_LINE_SIZE)));
-} hmcs_qnode_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    struct hmcs_hnode *last_local __attribute__((aligned(CACHE_LINE_SIZE)));
+} hmcs_qnode_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct hmcs_hnode {
-    struct hmcs_hnode *parent __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    struct hmcs_hnode *parent __attribute__((aligned(CACHE_LINE_SIZE)));
     struct hmcs_qnode *volatile tail;
     char __pad[pad_to_cache_line(sizeof(struct hmcs_qnode *) +
                                  sizeof(struct hmcs_hnode *))];
     hmcs_qnode_t node;
-} hmcs_hnode_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} hmcs_hnode_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct hmcs_mutex {
 #if COND_VAR
@@ -57,7 +57,7 @@ typedef struct hmcs_mutex {
 #endif
     hmcs_hnode_t global;
     hmcs_hnode_t local[NUMA_NODES];
-} hmcs_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} hmcs_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t hmcs_cond_t;
 hmcs_mutex_t *hmcs_mutex_create(const pthread_mutexattr_t *attr);

@@ -31,12 +31,12 @@
 #define SUPPORT_WAITING 0
 
 typedef struct ttas_mutex {
-    volatile uint8_t spin_lock __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile uint8_t spin_lock __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(uint8_t))];
 #if COND_VAR
     pthread_mutex_t posix_lock;
 #endif
-} ttas_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ttas_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t ttas_cond_t;
 typedef void *ttas_context_t; // Unused, take the less space as possible

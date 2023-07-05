@@ -38,7 +38,7 @@ typedef struct mutexee_mutex {
     char __pad[pad_to_cache_line(sizeof(pthread_mutex_t))];
 #endif
     mutexee_lock_t lock; // The structure is already cache aligned
-} mutexee_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} mutexee_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t mutexee_cond_t;
 typedef void *mutexee_context_t; // Unused, take the less space as possible

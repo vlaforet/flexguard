@@ -32,16 +32,16 @@
 typedef struct mcs_node {
     struct mcs_node *volatile next;
     char __pad[pad_to_cache_line(sizeof(struct mcs_node *))];
-    volatile int spin __attribute__((aligned(L_CACHE_LINE_SIZE)));
-} mcs_node_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile int spin __attribute__((aligned(CACHE_LINE_SIZE)));
+} mcs_node_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct mcs_mutex {
 #if COND_VAR
     pthread_mutex_t posix_lock;
     char __pad[pad_to_cache_line(sizeof(pthread_mutex_t))];
 #endif
-    struct mcs_node *volatile tail __attribute__((aligned(L_CACHE_LINE_SIZE)));
-} mcs_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    struct mcs_node *volatile tail __attribute__((aligned(CACHE_LINE_SIZE)));
+} mcs_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t mcs_cond_t;
 mcs_mutex_t *mcs_mutex_create(const pthread_mutexattr_t *attr);

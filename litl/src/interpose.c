@@ -171,71 +171,71 @@ static lock_transparent_mutex_t *ht_lock_get(pthread_mutex_t *mutex) {
 
 int (*REAL(pthread_mutex_init))(pthread_mutex_t *mutex,
                                 const pthread_mutexattr_t *attr)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_destroy))(pthread_mutex_t *mutex)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_lock))(pthread_mutex_t *mutex)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_timedlock))(pthread_mutex_t *mutex,
                                      const struct timespec *abstime)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_trylock))(pthread_mutex_t *mutex)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_unlock))(pthread_mutex_t *mutex)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_create))(pthread_t *thread, const pthread_attr_t *attr,
                             void *(*start_routine)(void *), void *arg)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_init))(pthread_cond_t *cond,
                                const pthread_condattr_t *attr)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_destroy))(pthread_cond_t *cond)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_timedwait))(pthread_cond_t *cond,
                                     pthread_mutex_t *mutex,
                                     const struct timespec *abstime)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_wait))(pthread_cond_t *cond, pthread_mutex_t *mutex)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_signal))(pthread_cond_t *cond)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_cond_broadcast))(pthread_cond_t *cond)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 
 // spin locks
 int (*REAL(pthread_spin_init))(pthread_spinlock_t *lock, int pshared)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_spin_destroy))(pthread_spinlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_spin_lock))(pthread_spinlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_spin_trylock))(pthread_spinlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_spin_unlock))(pthread_spinlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 
 // rw locks
 int (*REAL(pthread_rwlock_init))(pthread_rwlock_t *lock,
                                  const pthread_rwlockattr_t *attr)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_destroy))(pthread_rwlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_rdlock))(pthread_rwlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_wrlock))(pthread_rwlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_timedrdlock))(pthread_rwlock_t *lock,
                                         const struct timespec *abstime)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_timedwrlock))(pthread_rwlock_t *lock,
                                         const struct timespec *abstime)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_tryrdlock))(pthread_rwlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_trywrlock))(pthread_rwlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_rwlock_unlock))(pthread_rwlock_t *lock)
-    __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    __attribute__((aligned(CACHE_LINE_SIZE)));
 
 #if CLEANUP_ON_SIGNAL
 static void signal_exit(int signo);
@@ -410,7 +410,7 @@ static void *lp_start_routine(void *_arg) {
 }
 
 int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
-                   void *(*start_routine)(void *), void *arg) {
+                     void *(*start_routine)(void *), void *arg) {
     DEBUG_PTHREAD("[p] pthread_create\n");
     struct routine *r = malloc(sizeof(struct routine));
 

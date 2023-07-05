@@ -39,7 +39,7 @@ typedef struct concurrency_node {
     char __pad[pad_to_cache_line(sizeof(uint64_t) * 3 + sizeof(double))];
     pthread_mutex_t lock;
     char __pad2[pad_to_cache_line(sizeof(pthread_mutex_t))];
-} concurrency_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} concurrency_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t concurrency_cond_t;
 typedef void *concurrency_context_t;

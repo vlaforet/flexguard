@@ -36,13 +36,13 @@
 
 // Each thread needs to remember its index (used while unlocking)
 typedef struct alockepfl_context {
-    uint32_t my_index __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    uint32_t my_index __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(uint32_t))];
 } alockepfl_context_t;
 
 // This is the memory address on which the thread spin
 typedef struct alockepfl_flag_line {
-    volatile uint16_t flag __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile uint16_t flag __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(uint16_t))];
 } alockepfl_flag_line_t;
 
@@ -54,7 +54,7 @@ typedef struct alockepfl_mutex {
 #if COND_VAR
     pthread_mutex_t posix_lock;
 #endif
-} alockepfl_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} alockepfl_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t alockepfl_cond_t;
 

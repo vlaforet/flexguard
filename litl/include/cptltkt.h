@@ -45,17 +45,17 @@ typedef struct ticket_lock {
             volatile uint32_t grant;
             volatile uint32_t request;
         } s;
-    } u __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    } u __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(uint32_t) + sizeof(uint32_t))];
     volatile uint32_t top_grant;
     int32_t batch_count;
 
-} tkt_lock_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} tkt_lock_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 struct grant_slot {
     volatile uint32_t grant;
     char __pad[pad_to_cache_line(sizeof(uint32_t))];
-} __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct partitioned_ticket_lock {
     volatile uint32_t request;
@@ -64,7 +64,7 @@ typedef struct partitioned_ticket_lock {
     // Each slot is cache align, the purpose of PLT is avoid cache line
     // transfers
     struct grant_slot grants[PTL_SLOTS];
-} ptl_lock_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ptl_lock_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct c_ptl_tkt {
     ptl_lock_t top_lock;
@@ -73,7 +73,7 @@ typedef struct c_ptl_tkt {
     pthread_mutex_t posix_lock;
 #endif
     tkt_lock_t *volatile top_home;
-} cpt_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} cpt_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t cpt_cond_t;
 typedef void *cpt_node_t;

@@ -34,8 +34,8 @@ typedef struct spinlock_mutex {
     pthread_mutex_t posix_lock;
     char __pad[pad_to_cache_line(sizeof(pthread_mutex_t))];
 #endif
-    volatile int spin_lock __attribute__((aligned(L_CACHE_LINE_SIZE)));
-} spinlock_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile int spin_lock __attribute__((aligned(CACHE_LINE_SIZE)));
+} spinlock_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t spinlock_cond_t;
 typedef void *spinlock_context_t; // Unused, take the less space as possible

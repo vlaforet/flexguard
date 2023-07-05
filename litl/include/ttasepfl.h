@@ -35,17 +35,17 @@
 #define MAX_DELAY 1000
 
 typedef struct ttasepfl_mutex {
-    volatile uint8_t spin_lock __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile uint8_t spin_lock __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(uint8_t))];
 #if COND_VAR
     pthread_mutex_t posix_lock;
 #endif
-} ttasepfl_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ttasepfl_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct ttasepfl_context {
-    uint32_t limit __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    uint32_t limit __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(uint32_t))];
-} ttasepfl_context_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} ttasepfl_context_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t ttasepfl_cond_t;
 

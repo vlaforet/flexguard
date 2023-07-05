@@ -37,12 +37,12 @@
 
 // The lock is a memory address where all threads spinloop
 typedef struct backoff_mutex {
-    volatile uint8_t spin_lock __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile uint8_t spin_lock __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(uint8_t))];
 #if COND_VAR
     pthread_mutex_t posix_lock;
 #endif
-} backoff_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} backoff_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t backoff_cond_t;
 typedef void *backoff_context_t; // Unused, take the less space as possible

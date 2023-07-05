@@ -31,20 +31,20 @@
 #define SUPPORT_WAITING 0
 
 typedef struct mcsepfl_node {
-    volatile uint8_t spin __attribute__((aligned(L_CACHE_LINE_SIZE)));
+    volatile uint8_t spin __attribute__((aligned(CACHE_LINE_SIZE)));
     volatile struct mcsepfl_node *volatile next;
     char __pad[pad_to_cache_line(sizeof(struct mcsepfl_node *) +
                                  sizeof(uint8_t))];
-} mcsepfl_node_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} mcsepfl_node_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct mcsepfl_mutex {
     struct mcsepfl_node *volatile tail
-        __attribute__((aligned(L_CACHE_LINE_SIZE)));
+        __attribute__((aligned(CACHE_LINE_SIZE)));
     char __pad[pad_to_cache_line(sizeof(struct mcsepfl_node *))];
 #if COND_VAR
     pthread_mutex_t posix_lock;
 #endif
-} mcsepfl_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} mcsepfl_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t mcsepfl_cond_t;
 mcsepfl_mutex_t *mcsepfl_mutex_create(const pthread_mutexattr_t *attr);

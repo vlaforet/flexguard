@@ -35,7 +35,7 @@ typedef struct pthread_interpose_mutex {
     char __pad[pad_to_cache_line(sizeof(pthread_mutex_t))];
 #endif
     pthread_mutex_t lock;
-} pthread_interpose_mutex_t __attribute__((aligned(L_CACHE_LINE_SIZE)));
+} pthread_interpose_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t pthread_interpose_cond_t;
 typedef void *pthread_interpose_context_t; // Unused, take the less space
