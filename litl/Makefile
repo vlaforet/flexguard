@@ -23,7 +23,7 @@ no_cond_var: all
 
 %.so: obj/CLHT/libclht.a obj/
 	mkdir -p lib/
-	$(MAKE) -C src/ LOCK_VERSION=$(LOCK_VERSION) CORE_NUM_FLAGS=$(CORE_NUM_FLAGS) ../lib/$@
+	$(MAKE) -C src/ EXTERNAL_CFLAGS="$(EXTERNAL_CFLAGS)" ../lib/$@
 
 obj/:
 	mkdir -p $@

@@ -1,11 +1,17 @@
 PLATFORM_NUMA=1
+ADD_PADDING=1
 
 ifeq ($(DEBUG),1)
   DEBUG_FLAGS=-Wall -ggdb -DDEBUG
-  COMPILE_FLAGS=-O0 -DADD_PADDING -fno-inline -fPIC
+  COMPILE_FLAGS=-O0 -fno-inline -fPIC
 else
   DEBUG_FLAGS=-Wall
-  COMPILE_FLAGS=-O3 -DADD_PADDING -fPIC
+  COMPILE_FLAGS=-O3 -fPIC
+endif
+
+ifeq ($(ADD_PADDING),1)
+	COMPILE_FLAGS+=-DADD_PADDING
+	LITL_CFLAGS=-DADD_PADDING
 endif
 
 ifndef NOBPF
@@ -39,11 +45,12 @@ endif
 
 CORE_NUM := $(shell nproc)
 ifneq ($(CORE_NUM), )
-CORE_NUM_FLAGS += -DCORE_NUM=${CORE_NUM}
+COMPILE_FLAGS += -DCORE_NUM=${CORE_NUM}
+LITL_CFLAGS += -DCORE_NUM=${CORE_NUM}
 else
-CORE_NUM_FLAGS += -DCORE_NUM=8
+COMPILE_FLAGS += -DCORE_NUM=8
+LITL_CFLAGS += -DCORE_NUM=8
 endif
-COMPILE_FLAGS += $(CORE_NUM_FLAGS)
 $(info ********************************** Using as a default number of cores: $(CORE_NUM) on 1 socket)
 $(info ********************************** Is this correct? If not, fix it in platform_defs.h)
 
@@ -68,6 +75,7 @@ ifndef LOCK_VERSION
   # LOCK_VERSION=-DUSE_FUTEX_LOCKS
   # LOCK_VERSION=-DUSE_HTICKET_LOCKS
 endif
+LITL_CFLAGS += $(LOCK_VERSION)
 
 TOP := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
 
@@ -131,7 +139,7 @@ BPF_SKELETON += $(OUTPUT)/hybridlock.skel.h
 endif
 
 litl: include/lock_if.h libsync.a
-	$(MAKE) -C litl/ LOCK_VERSION=$(LOCK_VERSION) CORE_NUM_FLAGS=$(CORE_NUM_FLAGS)
+	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(LITL_CFLAGS)"
 
 libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o include/atomic_ops.h include/utils.h include/lock_if.h
 	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o
