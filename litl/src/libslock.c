@@ -49,7 +49,6 @@ libslock_mutex_t *libslock_mutex_create(const pthread_mutexattr_t *attr) {
     libslock_mutex_t *impl =
         (libslock_mutex_t *)alloc_cache_align(sizeof(libslock_mutex_t));
     init_lock_global(&impl->lock);
-    printf("CREATE impl:%p\n", (void *)impl);
 
 #if COND_VAR
     REAL(pthread_mutex_init)
@@ -60,11 +59,7 @@ libslock_mutex_t *libslock_mutex_create(const pthread_mutexattr_t *attr) {
 }
 
 int libslock_mutex_lock(libslock_mutex_t *impl, libslock_context_t *me) {
-    printf("[%d] Locking lock me:%p impl:%p\n", cur_thread_id, (void *)me,
-           (void *)&impl->lock);
     acquire_write(me, &impl->lock);
-    printf("[%d] Locking lock OUT me:%p impl:%p\n", cur_thread_id, (void *)me,
-           (void *)&impl->lock);
 
 #if COND_VAR
     int ret = REAL(pthread_mutex_lock)(&impl->posix_lock);
@@ -75,8 +70,6 @@ int libslock_mutex_lock(libslock_mutex_t *impl, libslock_context_t *me) {
 }
 
 int libslock_mutex_trylock(libslock_mutex_t *impl, libslock_context_t *me) {
-    printf("[%d] TRYLOCK!!! me:%p impl:%p\n", cur_thread_id, (void *)me,
-           (void *)impl);
     if (acquire_trylock(me, &impl->lock) == 0) {
 #if COND_VAR
         int ret = 0;
@@ -92,11 +85,7 @@ int libslock_mutex_trylock(libslock_mutex_t *impl, libslock_context_t *me) {
 }
 
 void __libslock_mutex_unlock(libslock_mutex_t *impl, libslock_context_t *me) {
-    printf("[%d] Unlocking lock me:%p impl:%p\n", cur_thread_id, (void *)me,
-           (void *)&impl->lock);
     release_write(me, &impl->lock);
-    printf("[%d] Unlocking lock OUT me:%p impl:%p\n", cur_thread_id, (void *)me,
-           (void *)&impl->lock);
 }
 
 void libslock_mutex_unlock(libslock_mutex_t *impl, libslock_context_t *me) {
