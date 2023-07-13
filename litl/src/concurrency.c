@@ -57,6 +57,7 @@ concurrency_mutex_t *concurrency_mutex_create(const pthread_mutexattr_t *attr) {
     impl->mean    = 0;
     impl->max     = 0;
     impl->current = 0;
+    impl->cond_var = 0;
 
     REAL(pthread_mutex_init)(&impl->lock, attr);
 
@@ -111,9 +112,10 @@ void concurrency_mutex_unlock(concurrency_mutex_t *impl,
 }
 
 int concurrency_mutex_destroy(concurrency_mutex_t *lock) {
-    REAL(pthread_mutex_destroy)(&lock->lock);
+    // Do not destroy the lock if concurrent accesses
+    // REAL(pthread_mutex_destroy)(&lock->lock);
 
-    fprintf(stderr, "\n%p,%lu,%f\n", lock, lock->max, lock->mean);
+    fprintf(stderr, "lock: %p, max waiters: %lu, mean waiters: %f, cond waits: %lu, count %lu\n", lock, lock->max, lock->mean, lock->cond_var, lock->count);
 
     free(lock);
     lock = NULL;
@@ -127,15 +129,17 @@ int concurrency_cond_init(concurrency_cond_t *cond,
 }
 
 int concurrency_cond_timedwait(concurrency_cond_t *cond,
-                               concurrency_mutex_t *lock,
+                               concurrency_mutex_t *impl,
                                concurrency_context_t *UNUSED(me),
                                const struct timespec *ts) {
-    return REAL(pthread_cond_timedwait)(cond, &lock->lock, ts);
+    impl->cond_var++;
+    return REAL(pthread_cond_timedwait)(cond, &impl->lock, ts);
 }
 
-int concurrency_cond_wait(concurrency_cond_t *cond, concurrency_mutex_t *lock,
+int concurrency_cond_wait(concurrency_cond_t *cond, concurrency_mutex_t *impl,
                           concurrency_context_t *UNUSED(me)) {
-    return REAL(pthread_cond_wait)(cond, &lock->lock);
+    impl->cond_var++;
+    return REAL(pthread_cond_wait)(cond, &impl->lock);
 }
 
 int concurrency_cond_signal(concurrency_cond_t *cond) {

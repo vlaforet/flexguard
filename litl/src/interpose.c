@@ -345,10 +345,7 @@ static void __attribute__((destructor)) REAL(interpose_exit)(void) {
                 if (bucket->key[j]) {
                     lock_transparent_mutex_t *lock =
                         (lock_transparent_mutex_t *)bucket->val[j];
-                    fprintf(stderr, "\n%p,%lu,%f\n", lock->lock_lock,
-                            lock->lock_lock->max, lock->lock_lock->mean);
-                    // Do not destroy the lock if concurrent accesses
-                    // concurrency_mutex_destroy(lock->lock_lock);
+                    lock_mutex_destroy(lock->lock_lock);
                 }
             }
 
