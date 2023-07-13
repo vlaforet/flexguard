@@ -95,7 +95,7 @@ static int __mcs_mutex_lock(mcs_mutex_t *impl, mcs_node_t *me) {
 
     /* Someone there, need to link in */
     tail->next = me;
-    COMPILER_BARRIER();
+    // COMPILER_BARRIER();
 
     waiting_policy_sleep(&me->spin);
 
