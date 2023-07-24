@@ -485,13 +485,13 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
 
 int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {
     DEBUG_PTHREAD("[p] pthread_cond_init\n");
-    return lock_cond_init(cond, attr);
+    return lock_cond_init((lock_cond_t *)cond, attr);
 }
 __asm__(".symver __pthread_cond_init,pthread_cond_init@@" GLIBC_2_3_2);
 
 int __pthread_cond_destroy(pthread_cond_t *cond) {
     DEBUG_PTHREAD("[p] pthread_cond_destroy\n");
-    return lock_cond_destroy(cond);
+    return lock_cond_destroy((lock_cond_t *)cond);
 }
 __asm__(".symver __pthread_cond_destroy,pthread_cond_destroy@@" GLIBC_2_3_2);
 
@@ -500,9 +500,10 @@ int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
     DEBUG_PTHREAD("[p] pthread_cond_timedwait\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
-    return lock_cond_timedwait(cond, impl->lock_lock, get_node(impl), abstime);
+    return lock_cond_timedwait((lock_cond_t *)cond, impl->lock_lock,
+                               get_node(impl), abstime);
 #else
-    return lock_cond_timedwait(cond, mutex, NULL, abstime);
+    return lock_cond_timedwait((lock_cond_t *)cond, mutex, NULL, abstime);
 #endif
 }
 __asm__(
@@ -512,22 +513,22 @@ int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_cond_wait\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
-    return lock_cond_wait(cond, impl->lock_lock, get_node(impl));
+    return lock_cond_wait((lock_cond_t *)cond, impl->lock_lock, get_node(impl));
 #else
-    return lock_cond_wait(cond, mutex, NULL);
+    return lock_cond_wait((lock_cond_t *)cond, mutex, NULL);
 #endif
 }
 __asm__(".symver __pthread_cond_wait,pthread_cond_wait@@" GLIBC_2_3_2);
 
 int __pthread_cond_signal(pthread_cond_t *cond) {
     DEBUG_PTHREAD("[p] pthread_cond_signal\n");
-    return lock_cond_signal(cond);
+    return lock_cond_signal((lock_cond_t *)cond);
 }
 __asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
 
 int __pthread_cond_broadcast(pthread_cond_t *cond) {
     DEBUG_PTHREAD("[p] pthread_cond_broadcast\n");
-    return lock_cond_broadcast(cond);
+    return lock_cond_broadcast((lock_cond_t *)cond);
 }
 __asm__(
     ".symver __pthread_cond_broadcast,pthread_cond_broadcast@@" GLIBC_2_3_2);
