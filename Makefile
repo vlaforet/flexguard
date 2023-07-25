@@ -15,7 +15,7 @@ ifeq ($(ADD_PADDING),1)
 endif
 
 ifndef NOBPF
-OUTPUT := .output
+OUTPUT := $(abspath .output)
 CLANG ?= clang
 LLVM_STRIP ?= llvm-strip
 LIBBPF_SRC := $(abspath ./libbpf/src)
@@ -27,9 +27,11 @@ LIBBLAZESYM_SRC := $(abspath ./blazesym/)
 LIBBLAZESYM_OBJ := $(abspath $(OUTPUT)/libblazesym.a)
 LIBBLAZESYM_HEADER := $(abspath $(OUTPUT)/blazesym.h)
 ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/' | sed 's/ppc64le/powerpc/' | sed 's/mips.*/mips/')
-VMLINUX := ./vmlinux/$(ARCH)/vmlinux.h
-BPFINCLUDES := -I$(OUTPUT) -I../libbpf/include/uapi -I$(dir $(VMLINUX))
+VMLINUX := $(abspath ./vmlinux/$(ARCH)/vmlinux.h)
+BPFINCLUDES := -I$(OUTPUT) -I$(abspath ../libbpf/include/uapi) -I$(dir $(VMLINUX))
+
 COMPILE_FLAGS += -DBPF
+LITL_CFLAGS += -DBPF
 
 # Get Clang's default includes on this system. We'll explicitly add these dirs
 # to the includes list when compiling with `-target bpf` because otherwise some
@@ -77,12 +79,11 @@ ifndef LOCK_VERSION
 endif
 LITL_CFLAGS += $(LOCK_VERSION)
 
-TOP := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
-
-SRCPATH := $(TOP)/src
-MAININCLUDE := $(TOP)/include
-
+SRCPATH := $(abspath ./src/)
+MAININCLUDE := $(abspath ./include/)
 INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
+LITL_CFLAGS += $(INCLUDES)
+
 OBJ_FILES :=  mcs.o clh.o ttas.o spinlock.o rw_ttas.o ticket.o alock.o hclh.o gl_lock.o htlock.o hybridlock.o hybridspin.o futex.o
 
 ifndef NOBPF
@@ -138,10 +139,10 @@ $(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 BPF_SKELETON += $(OUTPUT)/hybridlock.skel.h
 endif
 
-litl: include/lock_if.h libsync.a
-	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(LITL_CFLAGS)"
+litl: include/lock_if.h libsync.a $(LIBBPF_OBJ)
+	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(LITL_CFLAGS)" EXTERNAL_OBJS="$(LIBBPF_OBJ)"
 
-libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o include/atomic_ops.h include/utils.h include/lock_if.h
+libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
 	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o
 
 ttas.o: src/ttas.c 

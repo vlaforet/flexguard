@@ -23,7 +23,7 @@ no_cond_var: all
 
 %.so: obj/CLHT/libclht.a obj/
 	mkdir -p lib/
-	$(MAKE) -C src/ EXTERNAL_CFLAGS="$(EXTERNAL_CFLAGS)" ../lib/$@
+	$(MAKE) -C src/ EXTERNAL_CFLAGS="$(EXTERNAL_CFLAGS)" EXTERNAL_OBJS="$(EXTERNAL_OBJS)" ../lib/$@
 
 obj/:
 	mkdir -p $@
