@@ -96,11 +96,16 @@ int libslock_cond_init(libslock_cond_t *cond, const pthread_condattr_t *attr) {
 int libslock_cond_wait(libslock_cond_t *cond, libslock_mutex_t *lock,
                        libslock_context_t *me) {
 #if COND_VAR
-    cond->target++; // No need for atomic operations, I have the lock
+    // No need for atomic operations, I have the lock
+    uint32_t target = ++cond->target;
+    uint32_t seq    = cond->seq;
     __libslock_mutex_unlock(lock, me);
 
-    while (cond->target > cond->seq)
-        PAUSE;
+    while (target > seq) {
+        // PAUSE;
+        syscall(SYS_futex, &cond->seq, FUTEX_WAIT_PRIVATE, seq, NULL, NULL, 0);
+        seq = cond->seq;
+    }
     return __libslock_mutex_lock(lock, me);
 #else
     fprintf(stderr, "Error cond_var not supported.");
@@ -121,7 +126,8 @@ int libslock_cond_timedwait(libslock_cond_t *cond, libslock_mutex_t *lock,
 
 int libslock_cond_signal(libslock_cond_t *cond) {
 #if COND_VAR
-    cond->seq = cond->target;
+    cond->seq++;
+    syscall(SYS_futex, &cond->seq, FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
     return 0;
 #else
     fprintf(stderr, "Error cond_var not supported.");
@@ -132,6 +138,7 @@ int libslock_cond_signal(libslock_cond_t *cond) {
 int libslock_cond_broadcast(libslock_cond_t *cond) {
 #if COND_VAR
     cond->seq = cond->target;
+    syscall(SYS_futex, &cond->seq, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
     return 0;
 #else
     fprintf(stderr, "Error cond_var not supported.");
