@@ -373,7 +373,8 @@ static inline local_data init_lock_array_local(int core_to_pin, int num_locks, g
 #elif defined(USE_SPINLOCK_LOCKS)
     return init_spinlock_array_local(core_to_pin, num_locks);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    return init_hybridlock_array_local(core_to_pin, num_locks);
+    perror("Array helpers not supported for Hybrid lock.");
+    return NULL;
 #elif defined(USE_HYBRIDSPIN_LOCKS)
     init_hybridspin_array_local(core_to_pin, num_locks);
     return NULL;
@@ -445,7 +446,7 @@ static inline void free_lock_local(lock_local_data local_d)
 #elif defined(USE_SPINLOCK_LOCKS)
     //    end_spinlock_array_local(local_d);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    end_hybridlock_local(local_d);
+    // end_hybridlock_local(local_d);
 #elif defined(USE_HYBRIDSPIN_LOCKS)
     // end_hybridspin_local(local_d);
 #elif defined(USE_ARRAY_LOCKS)
@@ -476,7 +477,7 @@ static inline void free_lock_array_local(local_data local_d, int num_locks)
 #elif defined(USE_SPINLOCK_LOCKS)
     end_spinlock_array_local(local_d);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    end_hybridlock_array_local(local_d);
+    perror("Array helpers not supported for Hybrid lock.");
 #elif defined(USE_HYBRIDSPIN_LOCKS)
     // end_hybridspin_array_local(local_d);
 #elif defined(USE_ARRAY_LOCKS)
@@ -507,7 +508,8 @@ static inline global_data init_lock_array_global(int num_locks, int num_threads)
 #elif defined(USE_SPINLOCK_LOCKS)
     return init_spinlock_array_global(num_locks);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    return init_hybridlock_array_global(num_locks);
+    perror("Array helpers not supported for Hybrid lock.");
+    return NULL;
 #elif defined(USE_HYBRIDSPIN_LOCKS)
     return init_hybridspin_array_global(num_locks);
 #elif defined(USE_ARRAY_LOCKS)
@@ -587,7 +589,7 @@ static inline void free_lock_array_global(global_data the_locks, int num_locks)
 #elif defined(USE_SPINLOCK_LOCKS)
     end_spinlock_array_global(the_locks);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    end_hybridlock_array_global(the_locks, num_locks);
+    perror("Array helpers not supported for Hybrid lock.");
 #elif defined(USE_HYBRIDSPIN_LOCKS)
     end_hybridspin_array_global(the_locks);
 #elif defined(USE_ARRAY_LOCKS)
@@ -622,7 +624,7 @@ static inline void free_lock_global(lock_global_data the_lock)
 #elif defined(USE_SPINLOCK_LOCKS)
     end_spinlock_global(the_lock);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    end_hybridlock_global(the_lock);
+    // end_hybridlock_global(the_lock);
 #elif defined(USE_HYBRIDSPIN_LOCKS)
     end_hybridspin_global(the_lock);
 #elif defined(USE_ARRAY_LOCKS)

@@ -219,42 +219,8 @@ int is_free_hybridlock(hybridlock_lock_t *the_lock)
 }
 
 /*
-   Some methods for easy lock array manipulation
-   */
-
-hybridlock_lock_t *init_hybridlock_array_global(uint32_t size)
-{
-    hybridlock_lock_t *the_locks = (hybridlock_lock_t *)malloc(size * sizeof(hybridlock_lock_t));
-    for (uint32_t i = 0; i < size; i++)
-    {
-        the_locks[i].mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
-        *(the_locks[i].mcs_lock) = 0;
-    }
-
-    MEM_BARRIER;
-    return the_locks;
-}
-
-hybridlock_local_params_t *init_hybridlock_array_local(uint32_t thread_num, uint32_t size)
-{
-    set_cpu(thread_num);
-
-    hybridlock_local_params_t *local_params = (hybridlock_local_params_t *)malloc(size * sizeof(mcs_qnode_t *));
-    MEM_BARRIER;
-    return local_params;
-}
-
-void end_hybridlock_array_local(hybridlock_local_params_t *local_params)
-{
-    free(local_params);
-}
-
-void end_hybridlock_array_global(hybridlock_lock_t *the_locks, uint32_t size)
-{
-    for (uint32_t i = 0; i < size; i++)
-        free(the_locks[i].mcs_lock);
-    free(the_locks);
-}
+ *  Some methods for easy lock array manipluation - NOT SUPPORTED FOR NOW
+ */
 
 #ifdef BPF
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
@@ -364,16 +330,6 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_
 
     MEM_BARRIER;
     return 0;
-}
-
-void end_hybridlock_local()
-{
-    // function not needed
-}
-
-void end_hybridlock_global()
-{
-    // function not needed
 }
 
 /*
