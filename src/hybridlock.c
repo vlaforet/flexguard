@@ -375,3 +375,59 @@ void end_hybridlock_global()
 {
     // function not needed
 }
+
+/*
+ *  Condition Variables
+ */
+
+int hybridlock_condvar_init(hybridlock_condvar_t *cond)
+{
+    cond->seq = 0;
+    cond->target = 0;
+    return 0;
+}
+
+int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
+{
+    // No need for atomic operations, I have the lock
+    uint32_t target = ++cond->target;
+    uint32_t seq = cond->seq;
+    hybridlock_unlock(the_lock, local_params);
+
+    while (target > seq)
+    {
+        if (LOCK_CURR_TYPE(the_lock->lock_state) == LOCK_TYPE_FUTEX)
+            futex_wait(&cond->seq, seq);
+        else
+            PAUSE;
+        seq = cond->seq;
+    }
+    hybridlock_lock(the_lock, local_params);
+    return 0;
+}
+
+int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock, const struct timespec *ts)
+{
+    perror("Timedwait not supported yet.");
+}
+
+int hybridlock_condvar_signal(hybridlock_condvar_t *cond)
+{
+    cond->seq++;
+    futex_wake(&cond->seq, 1);
+    return 0;
+}
+
+int hybridlock_condvar_broadcast(hybridlock_condvar_t *cond)
+{
+    cond->seq = cond->target;
+    futex_wake(&cond->seq, INT_MAX);
+    return 0;
+}
+
+int hybridlock_condvar_destroy(hybridlock_condvar_t *cond)
+{
+    cond->seq = 0;
+    cond->target = 0;
+    return 0;
+}

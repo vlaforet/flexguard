@@ -708,3 +708,63 @@ static inline void release_trylock(lock_local_data* local_d, lock_global_data* g
 #endif
 }
 
+/* Condition Variables */
+#ifdef USE_HYBRIDLOCK_LOCKS
+typedef hybridlock_condvar_t lock_condvar_t;
+#else
+typedef int lock_condvar_t;
+#endif
+
+static inline int condvar_init(lock_condvar_t *cond)
+{
+#ifdef USE_HYBRIDLOCK_LOCKS
+    return hybridlock_condvar_init(cond);
+#else
+    perror("condvar not supported by this lock.");
+#endif
+}
+
+static inline int condvar_wait(lock_condvar_t *cond, lock_local_data *local_d, lock_global_data *global_d)
+{
+#ifdef USE_HYBRIDLOCK_LOCKS
+    return hybridlock_condvar_wait(cond, local_d, global_d);
+#else
+    perror("condvar not supported by this lock.");
+#endif
+}
+
+static inline int condvar_timedwait(lock_condvar_t *cond, lock_local_data *local_d, lock_global_data *global_d, const struct timespec *ts)
+{
+#ifdef USE_HYBRIDLOCK_LOCKS
+    return hybridlock_condvar_timedwait(cond, local_d, global_d, ts);
+#else
+    perror("condvar not supported by this lock.");
+#endif
+}
+
+static inline int condvar_signal(lock_condvar_t *cond)
+{
+#ifdef USE_HYBRIDLOCK_LOCKS
+    return hybridlock_condvar_signal(cond);
+#else
+    perror("condvar not supported by this lock.");
+#endif
+}
+
+static inline int condvar_broadcast(lock_condvar_t *cond)
+{
+#ifdef USE_HYBRIDLOCK_LOCKS
+    return hybridlock_condvar_broadcast(cond);
+#else
+    perror("condvar not supported by this lock.");
+#endif
+}
+
+static inline int condvar_destroy(lock_condvar_t *cond)
+{
+#ifdef USE_HYBRIDLOCK_LOCKS
+    return hybridlock_condvar_destroy(cond);
+#else
+    perror("condvar not supported by this lock.");
+#endif
+}

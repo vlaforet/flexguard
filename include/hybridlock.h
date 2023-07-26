@@ -110,6 +110,15 @@ typedef struct hybridlock_local_params_t
   };
 } hybridlock_local_params_t;
 
+typedef union
+{
+  uint32_t seq;
+  uint32_t target;
+#ifdef ADD_PADDING
+  uint8_t padding[48];
+#endif
+} hybridlock_condvar_t;
+
 /*
  *  Lock manipulation methods
  */
@@ -145,5 +154,16 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_
 void end_hybridlock_local();
 
 void end_hybridlock_global();
+
+/*
+ *  Condition Variables
+ */
+
+int hybridlock_condvar_init(hybridlock_condvar_t *cond);
+int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock);
+int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock, const struct timespec *ts);
+int hybridlock_condvar_signal(hybridlock_condvar_t *cond);
+int hybridlock_condvar_broadcast(hybridlock_condvar_t *cond);
+int hybridlock_condvar_destroy(hybridlock_condvar_t *cond);
 
 #endif
