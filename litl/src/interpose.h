@@ -59,7 +59,8 @@ extern int (*REAL(pthread_mutex_init))(pthread_mutex_t *mutex,
                                        const pthread_mutexattr_t *attr);
 extern int (*REAL(pthread_mutex_destroy))(pthread_mutex_t *mutex);
 extern int (*REAL(pthread_mutex_lock))(pthread_mutex_t *mutex);
-extern int (*REAL(pthread_mutex_timedlock))(pthread_mutex_t *mutex, const struct timespec *abstime);
+extern int (*REAL(pthread_mutex_timedlock))(pthread_mutex_t *mutex,
+                                            const struct timespec *abstime);
 extern int (*REAL(pthread_mutex_trylock))(pthread_mutex_t *mutex);
 extern int (*REAL(pthread_mutex_unlock))(pthread_mutex_t *mutex);
 extern int (*REAL(pthread_create))(pthread_t *thread,
@@ -77,8 +78,7 @@ extern int (*REAL(pthread_cond_signal))(pthread_cond_t *cond);
 extern int (*REAL(pthread_cond_broadcast))(pthread_cond_t *cond);
 
 // spin locks
-extern int (*REAL(pthread_spin_init))(pthread_spinlock_t *lock,
-                                    int pshared);
+extern int (*REAL(pthread_spin_init))(pthread_spinlock_t *lock, int pshared);
 extern int (*REAL(pthread_spin_destroy))(pthread_spinlock_t *lock);
 extern int (*REAL(pthread_spin_lock))(pthread_spinlock_t *lock);
 extern int (*REAL(pthread_spin_trylock))(pthread_spinlock_t *lock);
