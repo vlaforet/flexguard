@@ -1,6 +1,6 @@
 include ../Makefile.config
 
-LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -L../../ -Wl,--whole-archive -Wl,--version-script=interpose.map -lsync -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -lpapi -m64 -pthread -lelf -lz
+LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -L../../ -L../../.output/ -Wl,--whole-archive -Wl,--version-script=interpose.map -lbpf -lsync -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -lpapi -m64 -pthread -lelf -lz
 CFLAGS=-I../include/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/include/ $(EXTERNAL_CFLAGS) -fPIC -Wall -Werror -O3 -g -D_GNU_SOURCE
 
 # Keep objects files

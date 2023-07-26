@@ -109,7 +109,7 @@ $(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(OUTPU
 	$(MAKE) -C $(LIBBPF_SRC) BUILD_STATIC_ONLY=1		\
 		    OBJDIR=$(dir $@)/libbpf DESTDIR=$(dir $@)	\
 		    INCLUDEDIR= LIBDIR= UAPIDIR=			       	\
-		    install
+		    EXTRA_CFLAGS=-fPIC install
 
 # Build bpftool
 $(BPFTOOL): | $(BPFTOOL_OUTPUT)
@@ -140,7 +140,7 @@ BPF_SKELETON += $(OUTPUT)/hybridlock.skel.h
 endif
 
 litl: include/lock_if.h libsync.a $(LIBBPF_OBJ)
-	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(LITL_CFLAGS)" EXTERNAL_OBJS="$(LIBBPF_OBJ)"
+	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(LITL_CFLAGS)"
 
 libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
 	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o
