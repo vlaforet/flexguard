@@ -112,8 +112,11 @@ typedef struct hybridlock_local_params_t
 
 typedef union
 {
-  uint32_t seq;
-  uint32_t target;
+  struct
+  {
+    uint32_t seq;
+    uint32_t target;
+  };
 #ifdef ADD_PADDING
   uint8_t padding[48];
 #endif
