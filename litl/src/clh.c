@@ -67,7 +67,7 @@ clh_mutex_t *clh_mutex_create(const pthread_mutexattr_t *attr) {
 
 #if COND_VAR
     REAL(pthread_mutex_init)(&impl->posix_lock, attr);
-    DEBUG("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
+    DPRINT_LITL("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
 #endif
 
     return impl;
@@ -104,7 +104,7 @@ int clh_mutex_lock(clh_mutex_t *impl, clh_context_t *me) {
     assert(ret == 0);
 #if COND_VAR
     if (ret == 0) {
-        DEBUG_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id, &impl->posix_lock);
+        DPRINT_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id, &impl->posix_lock);
         assert(REAL(pthread_mutex_lock)(&impl->posix_lock) == 0);
     }
 #endif
@@ -124,7 +124,7 @@ static void __clh_mutex_unlock(clh_mutex_t *impl, clh_context_t *me) {
 
 void clh_mutex_unlock(clh_mutex_t *impl, clh_context_t *me) {
 #if COND_VAR
-    DEBUG_PTHREAD("[%d] Unlock posix=%p\n", cur_thread_id, &impl->posix_lock);
+    DPRINT_PTHREAD("[%d] Unlock posix=%p\n", cur_thread_id, &impl->posix_lock);
     assert(REAL(pthread_mutex_unlock)(&impl->posix_lock) == 0);
 #endif
     __clh_mutex_unlock(impl, me);
@@ -155,9 +155,9 @@ int clh_cond_timedwait(clh_cond_t *cond, clh_mutex_t *lock, clh_context_t *me,
     int res;
 
     __clh_mutex_unlock(lock, me);
-    DEBUG("[%d] Sleep cond=%p lock=%p posix_lock=%p\n", cur_thread_id, cond,
+    DPRINT_LITL("[%d] Sleep cond=%p lock=%p posix_lock=%p\n", cur_thread_id, cond,
           lock, &(lock->posix_lock));
-    DEBUG_PTHREAD("[%d] Cond posix = %p lock = %p\n", cur_thread_id, cond,
+    DPRINT_PTHREAD("[%d] Cond posix = %p lock = %p\n", cur_thread_id, cond,
                   &lock->posix_lock);
 
     if (ts)
@@ -200,7 +200,7 @@ int clh_cond_signal(clh_cond_t *cond) {
 
 int clh_cond_broadcast(clh_cond_t *cond) {
 #if COND_VAR
-    DEBUG("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
+    DPRINT_LITL("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
     return REAL(pthread_cond_broadcast)(cond);
 #else
     fprintf(stderr, "Error cond_var not supported.");

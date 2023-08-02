@@ -408,7 +408,7 @@ static void *lp_start_routine(void *_arg) {
 
 int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                      void *(*start_routine)(void *), void *arg) {
-    DEBUG_PTHREAD("[p] pthread_create\n");
+    DPRINT_PTHREAD("[p] pthread_create\n");
     struct routine *r = malloc(sizeof(struct routine));
 
     r->fct = start_routine;
@@ -421,7 +421,7 @@ __asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
 
 int pthread_mutex_init(pthread_mutex_t *mutex,
                        const pthread_mutexattr_t *attr) {
-    DEBUG_PTHREAD("[p] pthread_mutex_init\n");
+    DPRINT_PTHREAD("[p] pthread_mutex_init\n");
 #if !NO_INDIRECTION
     ht_lock_create(mutex, attr);
     return 0;
@@ -431,7 +431,7 @@ int pthread_mutex_init(pthread_mutex_t *mutex,
 }
 
 int pthread_mutex_destroy(pthread_mutex_t *mutex) {
-    DEBUG_PTHREAD("[p] pthread_mutex_destroy\n");
+    DPRINT_PTHREAD("[p] pthread_mutex_destroy\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = (lock_transparent_mutex_t *)clht_remove(
         pthread_to_lock, (clht_addr_t)mutex);
@@ -447,7 +447,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 }
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
-    DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
+    DPRINT_PTHREAD("[p] pthread_mutex_lock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
@@ -462,7 +462,7 @@ int pthread_mutex_timedlock(pthread_mutex_t *mutex,
 }
 
 int pthread_mutex_trylock(pthread_mutex_t *mutex) {
-    DEBUG_PTHREAD("[p] pthread_mutex_trylock\n");
+    DPRINT_PTHREAD("[p] pthread_mutex_trylock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     return lock_mutex_trylock(impl->lock_lock, get_node(impl));
@@ -472,7 +472,7 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 }
 
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
-    DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
+    DPRINT_PTHREAD("[p] pthread_mutex_unlock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     lock_mutex_unlock(impl->lock_lock, get_node(impl));
@@ -484,20 +484,20 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
 }
 
 int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {
-    DEBUG_PTHREAD("[p] pthread_cond_init\n");
+    DPRINT_PTHREAD("[p] pthread_cond_init\n");
     return lock_cond_init((lock_cond_t *)cond, attr);
 }
 __asm__(".symver __pthread_cond_init,pthread_cond_init@@" GLIBC_2_3_2);
 
 int __pthread_cond_destroy(pthread_cond_t *cond) {
-    DEBUG_PTHREAD("[p] pthread_cond_destroy\n");
+    DPRINT_PTHREAD("[p] pthread_cond_destroy\n");
     return lock_cond_destroy((lock_cond_t *)cond);
 }
 __asm__(".symver __pthread_cond_destroy,pthread_cond_destroy@@" GLIBC_2_3_2);
 
 int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
                              const struct timespec *abstime) {
-    DEBUG_PTHREAD("[p] pthread_cond_timedwait\n");
+    DPRINT_PTHREAD("[p] pthread_cond_timedwait\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     return lock_cond_timedwait((lock_cond_t *)cond, impl->lock_lock,
@@ -510,7 +510,7 @@ __asm__(
     ".symver __pthread_cond_timedwait,pthread_cond_timedwait@@" GLIBC_2_3_2);
 
 int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
-    DEBUG_PTHREAD("[p] pthread_cond_wait\n");
+    DPRINT_PTHREAD("[p] pthread_cond_wait\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     return lock_cond_wait((lock_cond_t *)cond, impl->lock_lock, get_node(impl));
@@ -521,13 +521,13 @@ int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
 __asm__(".symver __pthread_cond_wait,pthread_cond_wait@@" GLIBC_2_3_2);
 
 int __pthread_cond_signal(pthread_cond_t *cond) {
-    DEBUG_PTHREAD("[p] pthread_cond_signal\n");
+    DPRINT_PTHREAD("[p] pthread_cond_signal\n");
     return lock_cond_signal((lock_cond_t *)cond);
 }
 __asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
 
 int __pthread_cond_broadcast(pthread_cond_t *cond) {
-    DEBUG_PTHREAD("[p] pthread_cond_broadcast\n");
+    DPRINT_PTHREAD("[p] pthread_cond_broadcast\n");
     return lock_cond_broadcast((lock_cond_t *)cond);
 }
 __asm__(
@@ -535,7 +535,7 @@ __asm__(
 
 // Spinlocks
 int pthread_spin_init(pthread_spinlock_t *spin, int pshared) {
-    DEBUG_PTHREAD("[p] pthread_spin_init\n");
+    DPRINT_PTHREAD("[p] pthread_spin_init\n");
     if (init_spinlock != 2) {
         REAL(interpose_init)();
     }
@@ -549,7 +549,7 @@ int pthread_spin_init(pthread_spinlock_t *spin, int pshared) {
 }
 
 int pthread_spin_destroy(pthread_spinlock_t *spin) {
-    DEBUG_PTHREAD("[p] pthread_spin_destroy\n");
+    DPRINT_PTHREAD("[p] pthread_spin_destroy\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = (lock_transparent_mutex_t *)clht_remove(
         pthread_to_lock, (clht_addr_t)spin);
@@ -565,7 +565,7 @@ int pthread_spin_destroy(pthread_spinlock_t *spin) {
 }
 
 int pthread_spin_lock(pthread_spinlock_t *spin) {
-    DEBUG_PTHREAD("[p] pthread_spin_lock\n");
+    DPRINT_PTHREAD("[p] pthread_spin_lock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void *)spin);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
@@ -575,7 +575,7 @@ int pthread_spin_lock(pthread_spinlock_t *spin) {
 }
 
 int pthread_spin_trylock(pthread_spinlock_t *spin) {
-    DEBUG_PTHREAD("[p] pthread_spin_trylock\n");
+    DPRINT_PTHREAD("[p] pthread_spin_trylock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void *)spin);
     return lock_mutex_trylock(impl->lock_lock, get_node(impl));
@@ -585,7 +585,7 @@ int pthread_spin_trylock(pthread_spinlock_t *spin) {
 }
 
 int pthread_spin_unlock(pthread_spinlock_t *spin) {
-    DEBUG_PTHREAD("[p] pthread_spin_unlock\n");
+    DPRINT_PTHREAD("[p] pthread_spin_unlock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void *)spin);
     lock_mutex_unlock(impl->lock_lock, get_node(impl));
@@ -598,7 +598,7 @@ int pthread_spin_unlock(pthread_spinlock_t *spin) {
 // Rw locks
 int pthread_rwlock_init(pthread_rwlock_t *rwlock,
                         const pthread_rwlockattr_t *attr) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_init\n");
+    DPRINT_PTHREAD("[p] pthread_rwlock_init\n");
     if (init_spinlock != 2) {
         REAL(interpose_init)();
     }
@@ -612,7 +612,7 @@ int pthread_rwlock_init(pthread_rwlock_t *rwlock,
 }
 
 int pthread_rwlock_destroy(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_destroy\n");
+    DPRINT_PTHREAD("[p] pthread_rwlock_destroy\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = (lock_transparent_mutex_t *)clht_remove(
         pthread_to_lock, (clht_addr_t)rwlock);
@@ -628,7 +628,7 @@ int pthread_rwlock_destroy(pthread_rwlock_t *rwlock) {
 }
 
 int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_rdlock\n");
+    DPRINT_PTHREAD("[p] pthread_rwlock_rdlock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
@@ -638,7 +638,7 @@ int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock) {
 }
 
 int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_wrlock\n");
+    DPRINT_PTHREAD("[p] pthread_rwlock_wrlock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
@@ -658,7 +658,7 @@ int pthread_rwlock_timedwrlock(pthread_rwlock_t *lock,
 }
 
 int pthread_rwlock_rdtrylock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_trylock\n");
+    DPRINT_PTHREAD("[p] pthread_rwlock_trylock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     return lock_mutex_trylock(impl->lock_lock, get_node(impl));
@@ -668,7 +668,7 @@ int pthread_rwlock_rdtrylock(pthread_rwlock_t *rwlock) {
 }
 
 int pthread_rwlock_wrtrylock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_trylock\n");
+    DPRINT_PTHREAD("[p] pthread_rwlock_trylock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     return lock_mutex_trylock(impl->lock_lock, get_node(impl));
@@ -678,7 +678,7 @@ int pthread_rwlock_wrtrylock(pthread_rwlock_t *rwlock) {
 }
 
 int pthread_rwlock_unlock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_unlock\n");
+    DPRINT_PTHREAD("[p] pthread_rwlock_unlock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void *)rwlock);
     lock_mutex_unlock(impl->lock_lock, get_node(impl));

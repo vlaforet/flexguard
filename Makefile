@@ -4,14 +4,19 @@ ADD_PADDING=1
 ifeq ($(DEBUG),1)
   DEBUG_FLAGS=-Wall -ggdb -DDEBUG
   COMPILE_FLAGS=-O0 -fno-inline -fPIC
+	DEFINED=-DDEBUG
 else
   DEBUG_FLAGS=-Wall
   COMPILE_FLAGS=-O3 -fPIC
 endif
 
+ifeq ($(DEBUG_LITL),1)
+	DEFINED+=-DDEBUG_LITL
+endif
+
 ifeq ($(ADD_PADDING),1)
 	COMPILE_FLAGS+=-DADD_PADDING
-	LITL_CFLAGS=-DADD_PADDING
+	DEFINED+=-DADD_PADDING
 endif
 
 ifndef NOBPF
@@ -31,7 +36,7 @@ VMLINUX := $(abspath ./vmlinux/$(ARCH)/vmlinux.h)
 BPFINCLUDES := -I$(OUTPUT) -I$(abspath ../libbpf/include/uapi) -I$(dir $(VMLINUX))
 
 COMPILE_FLAGS += -DBPF
-LITL_CFLAGS += -DBPF
+DEFINED += -DBPF
 
 # Get Clang's default includes on this system. We'll explicitly add these dirs
 # to the includes list when compiling with `-target bpf` because otherwise some
@@ -48,10 +53,10 @@ endif
 CORE_NUM := $(shell nproc)
 ifneq ($(CORE_NUM), )
 COMPILE_FLAGS += -DCORE_NUM=${CORE_NUM}
-LITL_CFLAGS += -DCORE_NUM=${CORE_NUM}
+DEFINED += -DCORE_NUM=${CORE_NUM}
 else
 COMPILE_FLAGS += -DCORE_NUM=8
-LITL_CFLAGS += -DCORE_NUM=8
+DEFINED += -DCORE_NUM=8
 endif
 $(info ********************************** Using as a default number of cores: $(CORE_NUM) on 1 socket)
 $(info ********************************** Is this correct? If not, fix it in platform_defs.h)
@@ -77,12 +82,11 @@ ifndef LOCK_VERSION
   # LOCK_VERSION=-DUSE_FUTEX_LOCKS
   # LOCK_VERSION=-DUSE_HTICKET_LOCKS
 endif
-LITL_CFLAGS += $(LOCK_VERSION)
+DEFINED += $(LOCK_VERSION)
 
 SRCPATH := $(abspath ./src/)
 MAININCLUDE := $(abspath ./include/)
 INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
-LITL_CFLAGS += $(INCLUDES)
 
 OBJ_FILES :=  mcs.o clh.o ttas.o spinlock.o rw_ttas.o ticket.o alock.o hclh.o gl_lock.o htlock.o hybridlock.o hybridspin.o futex.o
 
@@ -126,7 +130,7 @@ $(LIBBLAZESYM_HEADER): $(LIBBLAZESYM_SRC)/target/release/libblazesym.a | $(OUTPU
 
 # Build BPF code
 $(OUTPUT)/%.bpf.o: src/%.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(VMLINUX) | $(OUTPUT)
-	$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
+	$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) $(DEFINED) -c $(filter %.c,$^) -o $@
 	$(LLVM_STRIP) -g $@ # strip useless DWARF info
 
 # Generate BPF skeletons
@@ -140,7 +144,7 @@ BPF_SKELETON += $(OUTPUT)/hybridlock.skel.h
 endif
 
 litl: include/lock_if.h libsync.a $(LIBBPF_OBJ)
-	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(LITL_CFLAGS)"
+	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(DEFINED) $(INCLUDES)"
 
 libsync.a: ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
 	ar -r libsync.a ttas.o rw_ttas.o ticket.o clh.o mcs.o hclh.o alock.o htlock.o spinlock.o futex.o hybridlock.o hybridspin.o

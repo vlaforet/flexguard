@@ -115,7 +115,7 @@ static inline void waiting_policy_sleep(volatile int *var) {
              * Note: FUTEX_WAIT_PRIVATE acts like an atomic operation.
              **/
             if (errno == EAGAIN) {
-                DEBUG("[-1] Race\n");
+                DPRINT_LITL("[-1] Race\n");
                 break;
             }
             perror("Unable to futex wait");

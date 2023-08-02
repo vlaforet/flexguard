@@ -232,7 +232,7 @@ static void __malthusian_mutex_unlock(malthusian_mutex_t *impl,
      * lock-holder's element, passing ownership of the lock to T"
      **/
     if (xor_random() == 0) {
-        DEBUG("[%d] Insert T as successor of me\n", cur_thread_id);
+        DPRINT_LITL("[%d] Insert T as successor of me\n", cur_thread_id);
         malthusian_node_t *elem = passive_set_pop_back(impl);
         if (elem != 0) {
             __malthusian_insert_at_head(impl, me, elem);
@@ -249,17 +249,17 @@ static void __malthusian_mutex_unlock(malthusian_mutex_t *impl,
          * from the head of the passive list, insert it into the
          * queue at the tail and pass ownership to that thread."
          **/
-        DEBUG("[%d - %p] Trying to extract from PS because no waiter\n",
+        DPRINT_LITL("[%d - %p] Trying to extract from PS because no waiter\n",
               cur_thread_id, me);
         malthusian_node_t *extract_next = passive_set_pop_front(impl);
         if (extract_next == 0) {
-            DEBUG("[%d - %p] No passive thread, old code\n", cur_thread_id, me);
+            DPRINT_LITL("[%d - %p] No passive thread, old code\n", cur_thread_id, me);
             /* Try to atomically unlock */
             if (__sync_val_compare_and_swap(&impl->tail, me, 0) == me)
                 return;
 
             /* Wait for successor to appear */
-            DEBUG("[%d - %p] Wait for successor to appear\n", cur_thread_id,
+            DPRINT_LITL("[%d - %p] Wait for successor to appear\n", cur_thread_id,
                   me);
             while (!me->next)
                 CPU_PAUSE();
@@ -267,7 +267,7 @@ static void __malthusian_mutex_unlock(malthusian_mutex_t *impl,
             waiting_policy_wake(&me->next->spin);
             return;
         } else {
-            DEBUG("[%d - %p] Fetching thread from PS %p\n", cur_thread_id, me,
+            DPRINT_LITL("[%d - %p] Fetching thread from PS %p\n", cur_thread_id, me,
                   extract_next);
             __malthusian_insert_at_head(impl, me, extract_next);
             waiting_policy_wake(&me->next->spin);
@@ -285,7 +285,7 @@ static void __malthusian_mutex_unlock(malthusian_mutex_t *impl,
      * that is enqueued just behind the current lock holder. *
      **/
     if (me->next != impl->tail) {
-        DEBUG("[%d - %p] Moving %p to PS\n", cur_thread_id, me, me->next);
+        DPRINT_LITL("[%d - %p] Moving %p to PS\n", cur_thread_id, me, me->next);
 
         /**
          * It is possible that the successor of the node that we want to unlink
@@ -341,9 +341,9 @@ int malthusian_cond_timedwait(malthusian_cond_t *cond, malthusian_mutex_t *lock,
     int res;
 
     __malthusian_mutex_unlock(lock, me);
-    DEBUG("[%d] Sleep cond=%p lock=%p posix_lock=%p\n", cur_thread_id, cond,
+    DPRINT_LITL("[%d] Sleep cond=%p lock=%p posix_lock=%p\n", cur_thread_id, cond,
           lock, &(lock->posix_lock));
-    DEBUG_PTHREAD("[%d] Cond posix = %p lock = %p\n", cur_thread_id, cond,
+    DPRINT_PTHREAD("[%d] Cond posix = %p lock = %p\n", cur_thread_id, cond,
                   &lock->posix_lock);
 
     if (ts)
@@ -387,7 +387,7 @@ int malthusian_cond_signal(malthusian_cond_t *cond) {
 
 int malthusian_cond_broadcast(malthusian_cond_t *cond) {
 #if COND_VAR
-    DEBUG("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
+    DPRINT_LITL("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
     return REAL(pthread_cond_broadcast)(cond);
 #else
     fprintf(stderr, "Error cond_var not supported.");

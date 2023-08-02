@@ -28,6 +28,7 @@
  */
 
 #include "vmlinux.h"
+#include "platform_defs.h"
 #include "hybridlock_bpf.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>

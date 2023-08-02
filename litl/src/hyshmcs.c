@@ -93,7 +93,7 @@ hyshmcs_mutex_t *hyshmcs_mutex_create(const pthread_mutexattr_t *attr) {
 
 #if COND_VAR
     REAL(pthread_mutex_init)(&impl->posix_lock, /*&errattr */ attr);
-    DEBUG("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
+    DPRINT_LITL("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
 #endif
 
     return impl;
@@ -106,13 +106,13 @@ static inline int __hyshmcs_mutex_global_lock(hyshmcs_hnode_t *impl,
     me->next   = 0;
     me->status = LOCKED;
 
-    DEBUG("[%2d] Trying to lock global %p (me=%p)\n", cur_thread_id, impl, me);
+    DPRINT_LITL("[%2d] Trying to lock global %p (me=%p)\n", cur_thread_id, impl, me);
     tail = xchg_64((void *)&impl->tail, (void *)me);
 
     /* No one there? */
     if (!tail) {
         me->status = UNLOCKED;
-        DEBUG("[%2d] Locking global %p (me=%p)\n", cur_thread_id, impl, me);
+        DPRINT_LITL("[%2d] Locking global %p (me=%p)\n", cur_thread_id, impl, me);
         return LEVEL_GLOBAL;
     }
 
@@ -123,7 +123,7 @@ static inline int __hyshmcs_mutex_global_lock(hyshmcs_hnode_t *impl,
     while (me->status == LOCKED)
         CPU_PAUSE();
 
-    DEBUG("[%2d] Locking global %p (me=%p)\n", cur_thread_id, impl, me);
+    DPRINT_LITL("[%2d] Locking global %p (me=%p)\n", cur_thread_id, impl, me);
     return LEVEL_GLOBAL;
 }
 
@@ -135,14 +135,14 @@ static inline int __hyshmcs_mutex_local_lock(hyshmcs_hnode_t *impl,
     me->next   = 0;
     me->status = WAIT;
 
-    DEBUG("[%2d] Trying to lock local %p (me=%p)\n", cur_thread_id, impl, me);
+    DPRINT_LITL("[%2d] Trying to lock local %p (me=%p)\n", cur_thread_id, impl, me);
     tail = xchg_64((void *)&impl->tail, (void *)me);
 
     if (tail) {
         tail->next = me;
         uint64_t cur_status;
 
-        DEBUG("[%2d] There was someone (%p)...\n", cur_thread_id, tail);
+        DPRINT_LITL("[%2d] There was someone (%p)...\n", cur_thread_id, tail);
 
         COMPILER_BARRIER();
         while ((cur_status = me->status) == WAIT)
@@ -150,7 +150,7 @@ static inline int __hyshmcs_mutex_local_lock(hyshmcs_hnode_t *impl,
 
         // Acquired, enter CS
         if (cur_status < ACQUIRE_PARENT) {
-            DEBUG(
+            DPRINT_LITL(
                 "[%2d] Locking local without locking global (h+1 lock held) %p "
                 "(me=%p)\n",
                 cur_thread_id, impl, me);
@@ -158,7 +158,7 @@ static inline int __hyshmcs_mutex_local_lock(hyshmcs_hnode_t *impl,
         }
     }
 
-    DEBUG("[%2d] Locking local %p (me=%p\n", cur_thread_id, impl, me);
+    DPRINT_LITL("[%2d] Locking local %p (me=%p\n", cur_thread_id, impl, me);
     me->status = COHORT_START;
     return __hyshmcs_mutex_global_lock(impl->parent, &impl->node);
 }
@@ -177,7 +177,7 @@ static inline void __hyshmcs_release_helper(hyshmcs_hnode_t *impl,
     }
 
     // Pass lock
-    DEBUG("[%2d] me=%p passing the lock %p to succ=%p with val=%lu\n",
+    DPRINT_LITL("[%2d] me=%p passing the lock %p to succ=%p with val=%lu\n",
           cur_thread_id, me, impl, me->next, val);
     me->next->status = val;
     MEMORY_BARRIER();
@@ -185,7 +185,7 @@ static inline void __hyshmcs_release_helper(hyshmcs_hnode_t *impl,
 
 static inline int __hyshmcs_mutex_global_unlock(hyshmcs_hnode_t *impl,
                                                 hyshmcs_qnode_t *me) {
-    DEBUG("[%2d] Unlocking global %p (me=%p)\n", cur_thread_id, impl, me);
+    DPRINT_LITL("[%2d] Unlocking global %p (me=%p)\n", cur_thread_id, impl, me);
     __hyshmcs_release_helper(impl, me, UNLOCKED);
     return LEVEL_GLOBAL;
 }
@@ -194,11 +194,11 @@ static inline int __hyshmcs_mutex_local_unlock(hyshmcs_hnode_t *impl,
                                                hyshmcs_qnode_t *me) {
     uint64_t cur_count = me->status;
 
-    DEBUG("[%2d] Unlocking local %p (me=%p)\n", cur_thread_id, impl, me);
+    DPRINT_LITL("[%2d] Unlocking local %p (me=%p)\n", cur_thread_id, impl, me);
 
     // Lower level release
     if (cur_count == RELEASE_THRESHOLD) {
-        DEBUG("[%2d] Release threshold reached, releasing the global lock\n",
+        DPRINT_LITL("[%2d] Release threshold reached, releasing the global lock\n",
               cur_thread_id);
         // Reached threshold, release the next level (suppose 2-level)
         __hyshmcs_mutex_global_unlock(impl->parent, &impl->node);
@@ -211,7 +211,7 @@ static inline int __hyshmcs_mutex_local_unlock(hyshmcs_hnode_t *impl,
     // Not reached threshold
     hyshmcs_qnode_t *succ = me->next;
     if (succ) {
-        DEBUG("[%2d] Successor is here for lock %p (succ=%p, cur_count=%lu, "
+        DPRINT_LITL("[%2d] Successor is here for lock %p (succ=%p, cur_count=%lu, "
               "me=%p)\n",
               cur_thread_id, impl, succ, cur_count, me);
         succ->status = cur_count + 1;
@@ -228,7 +228,7 @@ static inline int __hyshmcs_mutex_local_unlock(hyshmcs_hnode_t *impl,
 
 static inline void __hyshmcs_mutex_lock(hyshmcs_mutex_t *impl,
                                         hyshmcs_qnode_t *me) {
-    DEBUG("[%2d] Mutex lock %p at level %s\n", cur_thread_id, impl,
+    DPRINT_LITL("[%2d] Mutex lock %p at level %s\n", cur_thread_id, impl,
           me->cur_depth == LEVEL_LOCAL ? "local" : "global");
     hyshmcs_hnode_t *cur_lock = NULL;
 
@@ -247,7 +247,7 @@ static inline void __hyshmcs_mutex_lock(hyshmcs_mutex_t *impl,
         // Is root-level contended ?
         if (impl->global.tail == NULL) {
             // Root is uncontended, take fast-path
-            DEBUG("[%2d] Taking fast-path\n", cur_thread_id);
+            DPRINT_LITL("[%2d] Taking fast-path\n", cur_thread_id);
             me->took_fast_path = true;
             __hyshmcs_mutex_global_lock(&impl->global, me);
             return;
@@ -287,7 +287,7 @@ int hyshmcs_mutex_lock(hyshmcs_mutex_t *impl, hyshmcs_qnode_t *me) {
     __hyshmcs_mutex_lock(impl, me);
 #if COND_VAR
     assert(REAL(pthread_mutex_lock)(&impl->posix_lock) == 0);
-    DEBUG("[%2d]\tLock acquired %p (me=%p)\n", cur_thread_id, impl, me);
+    DPRINT_LITL("[%2d]\tLock acquired %p (me=%p)\n", cur_thread_id, impl, me);
 #endif
     return 0;
 }
@@ -336,17 +336,17 @@ static inline void __hyshmcs_mutex_unlock(hyshmcs_mutex_t *impl,
     uint8_t depth_passed;
 
     if (me->took_fast_path) {
-        DEBUG("[%2d]\tUnlocking after fast-path %p (me=%p)\n", cur_thread_id,
+        DPRINT_LITL("[%2d]\tUnlocking after fast-path %p (me=%p)\n", cur_thread_id,
               impl, me);
         __hyshmcs_mutex_global_unlock(&impl->global, me);
         me->took_fast_path = false;
     } else {
         if (me->real_depth == LEVEL_LOCAL) {
-            DEBUG("[%2d]\tUnlocking at local level %p (me=%p)\n", cur_thread_id,
+            DPRINT_LITL("[%2d]\tUnlocking at local level %p (me=%p)\n", cur_thread_id,
                   impl, me);
             depth_passed = __hyshmcs_mutex_local_unlock(me->cur_node, me);
         } else {
-            DEBUG("[%2d]\tUnlocking at global level %p (me=%p)\n",
+            DPRINT_LITL("[%2d]\tUnlocking at global level %p (me=%p)\n",
                   cur_thread_id, impl, me);
             depth_passed = __hyshmcs_mutex_global_unlock(me->cur_node, me);
         }
@@ -410,13 +410,13 @@ int hyshmcs_cond_timedwait(hyshmcs_cond_t *cond, hyshmcs_mutex_t *lock,
         res = REAL(pthread_cond_wait)(cond, &lock->posix_lock);
 
     if (res != 0 && res != ETIMEDOUT) {
-        DEBUG("Error on cond_{timed,}wait %d\n", res);
+        DPRINT_LITL("Error on cond_{timed,}wait %d\n", res);
         assert(0);
     }
 
     int ret = 0;
     if ((ret = REAL(pthread_mutex_unlock)(&lock->posix_lock)) != 0) {
-        DEBUG("Error on mutex_unlock %d\n", ret == EPERM);
+        DPRINT_LITL("Error on mutex_unlock %d\n", ret == EPERM);
         assert(0);
     }
 
@@ -450,7 +450,7 @@ int hyshmcs_cond_signal(hyshmcs_cond_t *cond) {
 
 int hyshmcs_cond_broadcast(hyshmcs_cond_t *cond) {
 #if COND_VAR
-    DEBUG("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
+    DPRINT_LITL("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
     return REAL(pthread_cond_broadcast)(cond);
 #else
     fprintf(stderr, "Error cond_var not supported.");

@@ -95,7 +95,7 @@ int ctkt_mutex_lock(ctkt_mutex_t *impl, ctkt_node_t *me) {
     assert(ret == 0);
 #if COND_VAR
     if (ret == 0) {
-        DEBUG_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id, &impl->posix_lock);
+        DPRINT_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id, &impl->posix_lock);
         assert(REAL(pthread_mutex_lock)(&impl->posix_lock) == 0);
     }
 #endif
@@ -207,9 +207,9 @@ int ctkt_cond_timedwait(ctkt_cond_t *cond, ctkt_mutex_t *lock, ctkt_node_t *me,
     int res;
 
     __ctkt_mutex_unlock(lock, me);
-    DEBUG("[%d] Sleep cond=%p lock=%p posix_lock=%p\n", cur_thread_id, cond,
+    DPRINT_LITL("[%d] Sleep cond=%p lock=%p posix_lock=%p\n", cur_thread_id, cond,
           lock, &(lock->posix_lock));
-    DEBUG_PTHREAD("[%d] Cond posix = %p lock = %p\n", cur_thread_id, cond,
+    DPRINT_PTHREAD("[%d] Cond posix = %p lock = %p\n", cur_thread_id, cond,
                   &lock->posix_lock);
 
     if (ts)
@@ -252,7 +252,7 @@ int ctkt_cond_signal(ctkt_cond_t *cond) {
 
 int ctkt_cond_broadcast(ctkt_cond_t *cond) {
 #if COND_VAR
-    DEBUG("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
+    DPRINT_LITL("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
     return REAL(pthread_cond_broadcast)(cond);
 #else
     fprintf(stderr, "Error cond_var not supported.");

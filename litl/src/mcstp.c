@@ -70,14 +70,14 @@ typedef enum { INIT, AVAILABLE, WAITING, TIMED_OUT, FAILED } qnode_status;
 
 int mcs_tp_mutex_lock(mcs_tp_mutex_t *impl, mcs_tp_node_t *me) {
 #if COND_VAR
-    DEBUG("[%d] MCS-TP lock=%p posix_lock=%p\n", cur_thread_id, impl,
+    DPRINT_LITL("[%d] MCS-TP lock=%p posix_lock=%p\n", cur_thread_id, impl,
           &(impl->posix_lock));
 #endif
 
     while (mcs_tp_mutex_trylock(impl, me) == EBUSY)
         ;
 #if COND_VAR
-    DEBUG_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id, &impl->posix_lock);
+    DPRINT_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id, &impl->posix_lock);
 
 // The posix lock is already taken at the exit of mcs_tp_mutex_trylock
 // assert(REAL(pthread_mutex_lock)(&impl->posix_lock) == 0);
@@ -98,10 +98,10 @@ int mcs_tp_mutex_trylock_oneshot(mcs_tp_mutex_t *impl, mcs_tp_node_t *me) {
         pred = __sync_val_compare_and_swap(&impl->tail, 0, me);
         if (!pred) { // lock was free
             impl->cs_start_time = GET_TIME();
-            DEBUG("[%d] TryLocking lock=%p tail=%p me=%p\n", cur_thread_id,
+            DPRINT_LITL("[%d] TryLocking lock=%p tail=%p me=%p\n", cur_thread_id,
                   impl, impl->tail, me);
 #if COND_VAR
-            DEBUG_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id,
+            DPRINT_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id,
                           &impl->posix_lock);
             int ret = 0;
             while ((ret = REAL(pthread_mutex_trylock)(&impl->posix_lock)) ==
@@ -121,7 +121,7 @@ int mcs_tp_mutex_trylock(mcs_tp_mutex_t *impl, mcs_tp_node_t *me) {
     long long start_time = GET_TIME();
 
 #if COND_VAR
-    DEBUG("[%d] MCS-TP trylock=%p posix_lock=%p\n", cur_thread_id, impl,
+    DPRINT_LITL("[%d] MCS-TP trylock=%p posix_lock=%p\n", cur_thread_id, impl,
           &(impl->posix_lock));
 #endif
     /* Try to reclaim position in queue */
@@ -223,7 +223,7 @@ static void __mcs_tp_mutex_unlock(mcs_tp_mutex_t *impl, mcs_tp_node_t *me) {
 
 void mcs_tp_mutex_unlock(mcs_tp_mutex_t *impl, mcs_tp_node_t *me) {
 #if COND_VAR
-    DEBUG_PTHREAD("[%d] Unlock posix=%p\n", cur_thread_id, &impl->posix_lock);
+    DPRINT_PTHREAD("[%d] Unlock posix=%p\n", cur_thread_id, &impl->posix_lock);
     assert(REAL(pthread_mutex_unlock)(&impl->posix_lock) == 0);
 #endif
     __mcs_tp_mutex_unlock(impl, me);
@@ -237,7 +237,7 @@ mcs_tp_mutex_t *mcs_tp_mutex_create(const pthread_mutexattr_t *attr) {
     impl->cs_start_time = 0;
 #if COND_VAR
     REAL(pthread_mutex_init)(&impl->posix_lock, /*&errattr */ attr);
-    DEBUG("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
+    DPRINT_LITL("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
 #endif
 
     return impl;
@@ -268,9 +268,9 @@ int mcs_tp_cond_timedwait(mcs_tp_cond_t *cond, mcs_tp_mutex_t *lock,
     int res;
 
     __mcs_tp_mutex_unlock(lock, me);
-    DEBUG("[%d] Sleep cond=%p lock=%p posix_lock=%p\n", cur_thread_id, cond,
+    DPRINT_LITL("[%d] Sleep cond=%p lock=%p posix_lock=%p\n", cur_thread_id, cond,
           lock, &(lock->posix_lock));
-    DEBUG_PTHREAD("[%d] Cond posix = %p lock = %p\n", cur_thread_id, cond,
+    DPRINT_PTHREAD("[%d] Cond posix = %p lock = %p\n", cur_thread_id, cond,
                   &lock->posix_lock);
 
     if (ts)
@@ -314,7 +314,7 @@ int mcs_tp_cond_signal(mcs_tp_cond_t *cond) {
 
 int mcs_tp_cond_broadcast(mcs_tp_cond_t *cond) {
 #if COND_VAR
-    DEBUG("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
+    DPRINT_LITL("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
     return REAL(pthread_cond_broadcast)(cond);
 #else
     fprintf(stderr, "Error cond_var not supported.");

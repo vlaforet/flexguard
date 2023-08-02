@@ -78,7 +78,7 @@ hmcs_mutex_t *hmcs_mutex_create(const pthread_mutexattr_t *attr) {
 
 #if COND_VAR
     REAL(pthread_mutex_init)(&impl->posix_lock, /*&errattr */ attr);
-    DEBUG("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
+    DPRINT_LITL("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
 #endif
 
     return impl;
@@ -96,7 +96,7 @@ static inline int __hmcs_mutex_global_lock(hmcs_hnode_t *impl,
     /* No one there? */
     if (!tail) {
         me->status = UNLOCKED;
-        DEBUG("[%2d] Locking global %p\n", cur_thread_id, impl);
+        DPRINT_LITL("[%2d] Locking global %p\n", cur_thread_id, impl);
         return 0;
     }
 
@@ -107,7 +107,7 @@ static inline int __hmcs_mutex_global_lock(hmcs_hnode_t *impl,
     while (me->status == LOCKED)
         CPU_PAUSE();
 
-    DEBUG("[%2d] Locking global %p\n", cur_thread_id, impl);
+    DPRINT_LITL("[%2d] Locking global %p\n", cur_thread_id, impl);
     return 0;
 }
 
@@ -126,7 +126,7 @@ static inline int __hmcs_mutex_local_lock(hmcs_hnode_t *impl,
         tail->next = me;
         uint64_t cur_status;
 
-        DEBUG("[%2d] There was someone (%p)...\n", cur_thread_id, tail);
+        DPRINT_LITL("[%2d] There was someone (%p)...\n", cur_thread_id, tail);
 
         COMPILER_BARRIER();
         while ((cur_status = me->status) == WAIT)
@@ -134,13 +134,13 @@ static inline int __hmcs_mutex_local_lock(hmcs_hnode_t *impl,
 
         // Acquired, enter CS
         if (cur_status < ACQUIRE_PARENT) {
-            DEBUG("[%2d] Locking local without locking global %p\n",
+            DPRINT_LITL("[%2d] Locking local without locking global %p\n",
                   cur_thread_id, impl);
             return 0;
         }
     }
 
-    DEBUG("[%2d] Locking local %p\n", cur_thread_id, impl);
+    DPRINT_LITL("[%2d] Locking local %p\n", cur_thread_id, impl);
     me->status = COHORT_START;
     int ret    = __hmcs_mutex_global_lock(impl->parent, &impl->node);
     return ret;
@@ -208,7 +208,7 @@ static inline int __hmcs_mutex_local_trylock(hmcs_hnode_t *impl,
 
 static inline int __hmcs_mutex_global_unlock(hmcs_hnode_t *impl,
                                              hmcs_qnode_t *me) {
-    DEBUG("[%2d] Unlocking global %p\n", cur_thread_id, impl);
+    DPRINT_LITL("[%2d] Unlocking global %p\n", cur_thread_id, impl);
     __hmcs_release_helper(impl, me, UNLOCKED);
     return 0;
 }
@@ -217,11 +217,11 @@ static inline int __hmcs_mutex_local_unlock(hmcs_hnode_t *impl,
                                             hmcs_qnode_t *me) {
     uint64_t cur_count = me->status;
 
-    DEBUG("[%2d] Unlocking local %p\n", cur_thread_id, impl);
+    DPRINT_LITL("[%2d] Unlocking local %p\n", cur_thread_id, impl);
 
     // Lower level release
     if (cur_count == RELEASE_THRESHOLD) {
-        DEBUG("[%2d] Threshold reached\n", cur_thread_id);
+        DPRINT_LITL("[%2d] Threshold reached\n", cur_thread_id);
         // Reached threshold, release the next level (suppose 2-level)
         __hmcs_mutex_global_unlock(impl->parent, &impl->node);
 
@@ -233,7 +233,7 @@ static inline int __hmcs_mutex_local_unlock(hmcs_hnode_t *impl,
     // Not reached threshold
     hmcs_qnode_t *succ = me->next;
     if (succ) {
-        DEBUG("[%2d] Successor is here\n", cur_thread_id);
+        DPRINT_LITL("[%2d] Successor is here\n", cur_thread_id);
         succ->status = cur_count + 1;
         return 0;
     }
@@ -252,16 +252,16 @@ int hmcs_mutex_lock(hmcs_mutex_t *impl, hmcs_qnode_t *me) {
     // Must remember the last local node for release
     me->last_local = local;
 
-    DEBUG("[%2d] Waiting for local lock %p\n", cur_thread_id, local);
+    DPRINT_LITL("[%2d] Waiting for local lock %p\n", cur_thread_id, local);
     int ret = __hmcs_mutex_local_lock(local, me);
     assert(ret == 0);
 #if COND_VAR
     if (ret == 0) {
-        DEBUG_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id, &impl->posix_lock);
+        DPRINT_PTHREAD("[%d] Lock posix=%p\n", cur_thread_id, &impl->posix_lock);
         assert(REAL(pthread_mutex_lock)(&impl->posix_lock) == 0);
     }
 #endif
-    DEBUG("[%2d]\tLock acquired posix=%p\n", cur_thread_id, &impl->posix_lock);
+    DPRINT_LITL("[%2d]\tLock acquired posix=%p\n", cur_thread_id, &impl->posix_lock);
     return ret;
 }
 
@@ -286,7 +286,7 @@ int hmcs_mutex_trylock(hmcs_mutex_t *impl, hmcs_qnode_t *me) {
 
 void hmcs_mutex_unlock(hmcs_mutex_t *impl, hmcs_qnode_t *me) {
 #if COND_VAR
-    DEBUG("[%2d]\tUnlock posix=%p\n", cur_thread_id, &impl->posix_lock);
+    DPRINT_LITL("[%2d]\tUnlock posix=%p\n", cur_thread_id, &impl->posix_lock);
     assert(REAL(pthread_mutex_unlock)(&impl->posix_lock) == 0);
 #endif
     __hmcs_mutex_local_unlock(me->last_local, me);
@@ -323,13 +323,13 @@ int hmcs_cond_timedwait(hmcs_cond_t *cond, hmcs_mutex_t *lock, hmcs_qnode_t *me,
         res = REAL(pthread_cond_wait)(cond, &lock->posix_lock);
 
     if (res != 0 && res != ETIMEDOUT) {
-        DEBUG("Error on cond_{timed,}wait %d\n", res);
+        DPRINT_LITL("Error on cond_{timed,}wait %d\n", res);
         assert(0);
     }
 
     int ret = 0;
     if ((ret = REAL(pthread_mutex_unlock)(&lock->posix_lock)) != 0) {
-        DEBUG("Error on mutex_unlock %d\n", ret == EPERM);
+        DPRINT_LITL("Error on mutex_unlock %d\n", ret == EPERM);
         assert(0);
     }
 
@@ -357,7 +357,7 @@ int hmcs_cond_signal(hmcs_cond_t *cond) {
 
 int hmcs_cond_broadcast(hmcs_cond_t *cond) {
 #if COND_VAR
-    DEBUG("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
+    DPRINT_LITL("[%d] Broadcast cond=%p\n", cur_thread_id, cond);
     return REAL(pthread_cond_broadcast)(cond);
 #else
     fprintf(stderr, "Error cond_var not supported.");
