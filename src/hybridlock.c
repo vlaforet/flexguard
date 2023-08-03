@@ -352,7 +352,7 @@ int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_
 
     while (target > seq)
     {
-        if (LOCK_CURR_TYPE(the_lock->lock_state) == LOCK_TYPE_FUTEX)
+        if (LOCK_CURR_TYPE(*the_lock->lock_state) == LOCK_TYPE_FUTEX)
             futex_wait(&cond->seq, seq);
         else
             PAUSE;
