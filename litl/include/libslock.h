@@ -47,8 +47,12 @@ typedef struct libslock_mutex_t {
     lock_global_data lock __attribute__((aligned(CACHE_LINE_SIZE)));
 } libslock_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
+typedef struct libslock_context_t {
+    uint8_t init;
+    lock_local_data me __attribute__((aligned(CACHE_LINE_SIZE)));
+} libslock_context_t __attribute__((aligned(CACHE_LINE_SIZE)));
+
 typedef lock_condvar_t libslock_cond_t;
-typedef lock_local_data libslock_context_t;
 
 libslock_mutex_t *libslock_mutex_create(const pthread_mutexattr_t *attr);
 int libslock_mutex_lock(libslock_mutex_t *impl, libslock_context_t *me);

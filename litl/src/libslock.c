@@ -45,6 +45,13 @@
 
 extern __thread unsigned int cur_thread_id;
 
+void try_to_initialize_me(libslock_mutex_t *impl, libslock_context_t *me) {
+    if (!me->init) {
+        init_lock_local(INT_MAX, &impl->lock, &me->me);
+        me->init = 1;
+    }
+}
+
 libslock_mutex_t *libslock_mutex_create(const pthread_mutexattr_t *attr) {
     libslock_mutex_t *impl =
         (libslock_mutex_t *)alloc_cache_align(sizeof(libslock_mutex_t));
@@ -54,19 +61,22 @@ libslock_mutex_t *libslock_mutex_create(const pthread_mutexattr_t *attr) {
 }
 
 int libslock_mutex_lock(libslock_mutex_t *impl, libslock_context_t *me) {
-    acquire_write(me, &impl->lock);
+    try_to_initialize_me(impl, me);
+    acquire_write(&me->me, &impl->lock);
     return 0;
 }
 
 int libslock_mutex_trylock(libslock_mutex_t *impl, libslock_context_t *me) {
-    if (acquire_trylock(me, &impl->lock) == 0)
+    try_to_initialize_me(impl, me);
+    if (acquire_trylock(&me->me, &impl->lock) == 0)
         return 0;
 
     return EBUSY;
 }
 
 void libslock_mutex_unlock(libslock_mutex_t *impl, libslock_context_t *me) {
-    release_write(me, &impl->lock);
+    try_to_initialize_me(impl, me);
+    release_write(&me->me, &impl->lock);
 }
 
 int libslock_mutex_destroy(libslock_mutex_t *impl) {
@@ -85,8 +95,9 @@ int libslock_cond_init(libslock_cond_t *cond, const pthread_condattr_t *attr) {
 
 int libslock_cond_wait(libslock_cond_t *cond, libslock_mutex_t *impl,
                        libslock_context_t *me) {
+    try_to_initialize_me(impl, me);
 #if COND_VAR
-    return condvar_wait(cond, me, &impl->lock);
+    return condvar_wait(cond, &me->me, &impl->lock);
 #else
     fprintf(stderr, "Error cond_var not supported.");
     assert(0);
@@ -95,8 +106,9 @@ int libslock_cond_wait(libslock_cond_t *cond, libslock_mutex_t *impl,
 
 int libslock_cond_timedwait(libslock_cond_t *cond, libslock_mutex_t *impl,
                             libslock_context_t *me, const struct timespec *ts) {
+    try_to_initialize_me(impl, me);
 #if COND_VAR
-    return condvar_timedwait(cond, me, &impl->lock, ts);
+    return condvar_timedwait(cond, &me->me, &impl->lock, ts);
 #else
     fprintf(stderr, "Error cond_var not supported.");
     assert(0);
@@ -145,5 +157,5 @@ void libslock_application_exit(void) {
 void libslock_init_context(lock_mutex_t *impl, lock_context_t *context,
                            int number) {
     for (int i = 0; i < number; i++)
-        init_lock_local(INT_MAX, &impl->lock, &context[i]);
+        context[i].init = 0;
 }
