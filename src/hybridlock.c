@@ -34,6 +34,10 @@
 #include "hybridlock.skel.h"
 #endif
 
+#ifdef HYBRID_GLOBAL_STATE
+lock_type_t global_type;
+#endif
+
 static void futex_wait(void *addr, int val)
 {
     syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
@@ -184,6 +188,11 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
     {
         state = *the_lock->lock_state;
 
+#ifdef HYBRID_GLOBAL_STATE
+        if (global_type != LOCK_CURR_TYPE(state))
+            __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_CURR_TYPE(state)), LOCK_TRANSITION(LOCK_CURR_TYPE(state), LOCK_STABLE(global_type)));
+#endif
+
         if (!lock_type(the_lock, local_params, LOCK_CURR_TYPE(state)))
             continue;
 
@@ -195,6 +204,9 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
                     PAUSE;
 
                 DPRINT("[%d] Switched lock to %d\n", gettid(), LOCK_CURR_TYPE(state));
+#ifdef HYBRID_GLOBAL_STATE
+                global_type = LOCK_CURR_TYPE(state);
+#endif
 
                 (*the_lock->lock_state) = LOCK_STABLE(LOCK_CURR_TYPE(state));
             }
