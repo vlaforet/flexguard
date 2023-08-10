@@ -136,7 +136,7 @@ void *test_latency(void *data)
     rand_max = num_entries - 1;
 
     unsigned long do_not_measure=0;
-    int entry=0;
+    [[maybe_unused]] int entry=0;
     ticks t1 = 0, t2 = 0;
     barrier_cross(d->barrier);
 
@@ -240,13 +240,13 @@ void *test_success(void *data)
     data_type old_data;
     data_type new_data;
 #endif
-    uint64_t res;
+    [[maybe_unused]] uint64_t res;
 
     seeds = seed_rand();
     rand_max = num_entries - 1;
 
     barrier_cross(d->barrier);
-    int entry=0;
+    [[maybe_unused]] int entry=0;
     while (stop == 0) {
         if (num_entries>1) {
             entry =(int) my_random(&(seeds[0]),&(seeds[1]),&(seeds[2])) & rand_max;
@@ -316,7 +316,7 @@ void *test_throughput(void *data)
     rand_max = num_entries - 1;
 
     barrier_cross(d->barrier);
-    int entry=0;
+    [[maybe_unused]] int entry=0;
     while (stop == 0) {
         if (num_entries>1) {
             entry =(int) my_random(&(seeds[0]),&(seeds[1]),&(seeds[2])) & rand_max;

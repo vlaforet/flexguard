@@ -287,7 +287,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 
     // Set pointer to lock state
     the_lock->lock_state = &skel->bss->lock_state;
-    the_lock->mcs_lock = &skel->bss->mcs_lock;
+    the_lock->mcs_lock = (volatile mcs_qnode_t **)&skel->bss->mcs_lock;
 
     // Load BPF skeleton
     err = hybridlock_bpf__load(skel);
@@ -377,6 +377,7 @@ int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_
 int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock, const struct timespec *ts)
 {
     perror("Timedwait not supported yet.");
+    return 1;
 }
 
 int hybridlock_condvar_signal(hybridlock_condvar_t *cond)
