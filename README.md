@@ -5,15 +5,19 @@ This is a fork of the [libslock project](https://github.com/tudordavid/libslock)
 
 ## Installation
 
-After cloning the repository update submodules:
-```
-git submodule update --init --recursive
-```
+Linux Kernel version > 6.1 should be used.
 
 Install required dependencies (mostly used to compile bpf programs).
 On Ubuntu/Debian:
 ```
-sudo apt install -y llvm clang libelf1 libelf-dev zlib1g-dev bpftrace
+apt-get update
+apt-get install -y git pkg-config cmake software-properties-common build-essential python3-pip numactl python3-matplotlib libnuma-dev libelf1 libelf-dev zlib1g-dev bpftrace clang-16 papi-tools libpapi-dev
+ln -s /usr/bin/clang-16 /usr/bin/clang
+```
+
+After cloning the repository update submodules:
+```
+git submodule update --init --recursive
 ```
 
 ## Building
@@ -57,7 +61,7 @@ make LOCK_VERSION=-DUSE_MCS_LOCKS DEBUG=1
 ```
 
 
-## Benchmarks
+## Microbenchmarks
 ### Scheduling
 The `scheduling` benchmark has been tailored to test the hybrid lock.
 
@@ -71,19 +75,17 @@ Options:
   -h, --help
         Print this message
   -b, --base-threads <int>
-        Base number of threads (default=0)
-  -c, --compute-cycles <int>
+        Base number of threads (default=1)
+  -c, --contention <int>
         Compute delay between critical sections, in cycles (default=100)
-  -d, --launch-delay <int>
-        Delay between thread creations in milliseconds (default=1000)
-  -l, --use-locks <int>
-        Use locks or not (default=1)
+  -d, --step-duration <int>
+        Duration of a step (measurement of a thread count) (default=1000)
   -n, --num-threads <int>
-        Number of threads (default=10)
+        Maximum number of threads (default=10)
   -t, --cache-lines <int>
         Number of cache lines touched in each CS (default=1)
   -s, --switch-thread-count <int>
-        Core count after which the lock will be blocking (default=48)
+        Core count after which the lock will be blocking (default=-1)
         A value of -1 will disable the switch (always spin) and with a value of 0 the lock will never spin.
 ```
 
@@ -105,20 +107,22 @@ futex_c1000_t5.csv     hybrid_emulated_c1000_t5.csv     mcs_c1000_t5.csv
 
 A Python script `scripts/chart_scheduling.py` is then available to create a graph from these CSVs.
 ```
-usage: chart_scheduling.py [-h] [-c CONTENTION [CONTENTION ...]]
-                           [-t CACHE_LINE [CACHE_LINE ...]] [-l LOCK [LOCK ...]]
-                           [-o OUTPUT_FILE]
+usage: chart_scheduling.py [-h] [-i INPUT_FOLDER] [-c CONTENTION [CONTENTION ...]]
+                           [-t CACHE_LINE [CACHE_LINE ...]] [-l LOCK [LOCK ...]] [-o OUTPUT_FILE]
+                           [--increasing-only]
 
 Chart data from scheduling benchmark
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
+  -i INPUT_FOLDER       Input folder for CSVs (default="")
   -c CONTENTION [CONTENTION ...]
                         Contention delays to show (default=[1000])
   -t CACHE_LINE [CACHE_LINE ...]
                         Cache lines to show (default=[1])
-  -l LOCK [LOCK ...]    Locks to show (default=["hybrid_emulated", "futex", "mcs"])
+  -l LOCK [LOCK ...]    Locks to show (default=["Futex", "MCS", "Hybridlock"])
   -o OUTPUT_FILE        Locks to show (default="out.png")
+  --increasing-only     Only show the increasing thread count part (default=False)
 ```
 
 Example:
@@ -126,3 +130,34 @@ Example:
 cd results
 ../scripts/chart_scheduling.py -c 0 -t 1 5 -l futex mcs
 ```
+
+# LevelDB Benchmark
+## Installation
+
+```
+git clone --recurse-submodules https://github.com/google/leveldb.git
+cd leveldb && mkdir -p build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build .
+```
+
+## Build bpf-hybrid-locks with LiTL
+In bpf-hybrid-locks root directory:
+```
+make all litl # Per-lock state
+make all litl HYBRID_GLOBAL_STATE=1 # Global lock state
+```
+
+## Usage
+The LevelDB benchmark can then be launched stock:
+```
+~/leveldb/build/db_bench --benchmarks=fillrandom,readrandom --threads=50 --num=100000 --db=/tmp/db
+```
+
+Or using bpf-hybrid-locks: (Must be root)
+```
+~/bpf-hybrid-locks/litl/liblibslock_original.sh ~/leveldb/build/db_bench --benchmarks=fillrandom,readrandom --threads=50 --num=100000 --db=/tmp/db
+```
+
+`--threads=50` specifies the number of database clients
+
+`--num=100000` specifies the amount of operations done by each client
