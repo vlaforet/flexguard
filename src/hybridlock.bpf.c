@@ -94,7 +94,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	bpf_printk("[tid: %d] %s (%d) -> %s (%d)", tid, prev->comm, prev->pid, next->comm, next->pid);
 #endif
 
-	if (__builtin_memcmp(next->parent->comm, "kthreadd", sizeof(next->parent->comm)) == 0)
+	if (next->flags & 0x00200000) // PF_KTHREAD
 	{
 		bpf_printk("Intermediate process - storing that");
 		bpf_map_update_elem(&intermediate_map, &cpu, &tid, BPF_ANY);
