@@ -94,6 +94,12 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	bpf_printk("[tid: %d] %s (%d) -> %s (%d)", tid, prev->comm, prev->pid, next->comm, next->pid);
 #endif
 
+	if (__builtin_memcmp(next->comm, "migration", 9) == 0)
+	{
+		bpf_map_delete_elem(&intermediate_map, &cpu);
+		return 0;
+	}
+
 	if (next->flags & 0x00200000) // PF_KTHREAD
 	{
 		bpf_printk("Intermediate process - storing that");
