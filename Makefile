@@ -100,7 +100,7 @@ OBJ_FILES += $(LIBBPF_OBJ)
 LIBS += -lelf -lz
 endif
 
-ALL := bank scheduling bank_one bank_simple test_array_alloc test_trylock sample_generic sample_mcs test_correctness stress_one stress_test stress_latency atomic_bench individual_ops uncontended measure_contention libsync.a
+ALL := bank scheduling bank_one bank_simple test_array_alloc test_trylock sample_generic sample_mcs test_correctness stress_one stress_test stress_latency atomic_bench individual_ops uncontended libsync.a
 ifeq ($(LOCK_VERSION), -DUSE_HTICKET_LOCKS)
 ALL += htlock_test
 endif
@@ -211,9 +211,6 @@ bank_simple: bmarks/bank_simple.c $(OBJ_FILES) Makefile
 stress_test: bmarks/stress_test.c $(OBJ_FILES) Makefile
 	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/stress_test.c -o stress_test $(LIBS)
 
-measure_contention: bmarks/measure_contention.c $(OBJ_FILES) ticket_contention.o Makefile
-	$(GCC) -DUSE_TICKET_LOCKS -DMEASURE_CONTENTION -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) ticket_contention.o bmarks/measure_contention.c -o measure_contention $(LIBS)
-
 stress_one: bmarks/stress_one.c $(OBJ_FILES) Makefile
 	$(GCC) $(LOCK_VERSION) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEBUG_FLAGS) $(INCLUDES) $(OBJ_FILES) bmarks/stress_one.c -o stress_one $(LIBS)
 
@@ -251,5 +248,5 @@ endif
 
 
 clean:
-	rm -rf $(OUTPUT) *.o locks mcs_test hclh_test bank_one bank_simple bank* stress_latency* test_array_alloc test_trylock sample_* test_correctness stress_one stress_test* atomic_bench uncontended individual_ops trylock_test htlock_test measure_contention libsync.a scheduling
+	rm -rf $(OUTPUT) *.o locks mcs_test hclh_test bank_one bank_simple bank* stress_latency* test_array_alloc test_trylock sample_* test_correctness stress_one stress_test* atomic_bench uncontended individual_ops trylock_test htlock_test libsync.a scheduling
 	$(MAKE) -C litl/ clean
