@@ -3,8 +3,6 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 
-plt.rcParams.update({'font.size': 22})
-
 parser = argparse.ArgumentParser(description="Chart data from scheduling benchmark")
 parser.add_argument(
     "-i",
