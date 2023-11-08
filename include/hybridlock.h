@@ -74,6 +74,7 @@ typedef struct hybridlock_lock_t
   {
     struct
     {
+      uint64_t *preempted_at;
       lock_state_t *lock_state;
       struct bpf_map *nodes_map;
     };

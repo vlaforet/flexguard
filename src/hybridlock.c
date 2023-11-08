@@ -38,14 +38,22 @@
 lock_type_t global_type;
 #endif
 
+static unsigned long get_nsecs()
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000000000UL + ts.tv_nsec;
+}
+
 static void futex_wait(void *addr, int val)
 {
     syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
 }
 
-static void futex_wake(void *addr, int nb_threads)
+static long futex_wake(void *addr, int nb_threads)
 {
-    syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
+    return syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
 }
 
 static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
@@ -107,7 +115,14 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         pred->next = local_params->qnode; // make pred point to me
 
         while (local_params->qnode->waiting != 0 && LOCK_CURR_TYPE(*the_lock->lock_state) == lock_type)
+        {
             PAUSE;
+            if (*the_lock->preempted_at + 100 > get_nsecs())
+            {
+                lock_state_t state = *the_lock->lock_state;
+                __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_CURR_TYPE(state)), LOCK_TRANSITION(LOCK_CURR_TYPE(state), LOCK_TYPE_FUTEX));
+            }
+        }
 
         if (local_params->qnode->waiting != 0 && __sync_val_compare_and_swap(&local_params->qnode->waiting, 1, 0) == 1)
             return 0; // Failed to acquire
@@ -162,10 +177,16 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 
         break;
     case LOCK_TYPE_FUTEX:
+        long ret = 0;
         if (__sync_fetch_and_sub(&the_lock->futex_lock, 1) != 1)
         {
             the_lock->futex_lock = 0;
-            futex_wake((void *)&the_lock->futex_lock, 1);
+            ret = futex_wake((void *)&the_lock->futex_lock, 1);
+        }
+
+        if (ret == 0)
+        {
+            __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_MCS));
         }
         break;
     default:
@@ -205,7 +226,8 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
 
                 DPRINT("[%d] Switched lock to %d\n", gettid(), LOCK_CURR_TYPE(state));
 #ifdef HYBRID_GLOBAL_STATE
-                global_type = LOCK_CURR_TYPE(state);
+                if (LOCK_CURR_TYPE(state) == LOCK_TYPE_FUTEX)
+                    global_type = LOCK_TYPE_FUTEX; // Only switch globally to Futex
 #endif
 
                 (*the_lock->lock_state) = LOCK_STABLE(LOCK_CURR_TYPE(state));
@@ -288,6 +310,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     // Set pointer to lock state
     the_lock->lock_state = &skel->bss->lock_state;
     the_lock->mcs_lock = (volatile mcs_qnode_t **)&skel->bss->mcs_lock;
+    the_lock->preempted_at = &skel->bss->preempted_at;
 
     // Load BPF skeleton
     err = hybridlock_bpf__load(skel);
@@ -315,6 +338,9 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 
     the_lock->lock_state = malloc(sizeof(lock_state_t));
     (*the_lock->lock_state) = LOCK_STABLE(LOCK_TYPE_MCS);
+
+    the_lock->preempted_at = malloc(sizeof(uint64_t));
+    (*the_lock->preempted_at) = INT64_MAX;
 #endif
 
     MEM_BARRIER;
