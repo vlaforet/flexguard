@@ -52,6 +52,8 @@
 #include "utils.h"
 #elif defined(USE_FUTEX_LOCKS)
 #include "futex.h"
+#elif defined(USE_ATOMICCLH_LOCKS)
+#include "atomicclh.h"
 #elif defined(USE_HTICKET_LOCKS)
 #include "htlock.h"
 #else
@@ -83,6 +85,8 @@ typedef ticketlock_t lock_global_data;
 typedef pthread_mutex_t lock_global_data;
 #elif defined(USE_FUTEX_LOCKS)
 typedef futex_lock_t lock_global_data;
+#elif defined(USE_ATOMICCLH_LOCKS)
+typedef atomicclh_lock_t lock_global_data;
 #elif defined(USE_HTICKET_LOCKS)
 typedef htlock_t lock_global_data;
 #endif
@@ -114,6 +118,8 @@ typedef void *lock_local_data; // no local data for ticket locks
 typedef void *lock_local_data; // no local data for mutexes
 #elif defined(USE_FUTEX_LOCKS)
 typedef void *lock_local_data; // no local data for futexes
+#elif defined(USE_ATOMICCLH_LOCKS)
+typedef atomicclh_local_params_t lock_local_data;
 #elif defined(USE_HTICKET_LOCKS)
 typedef void *lock_local_data; // no local data for hticket locks
 #endif
@@ -201,6 +207,8 @@ static inline void acquire_lock(lock_local_data *local_d, lock_global_data *glob
     pthread_mutex_lock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_lock(global_d);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    atomicclh_lock(global_d, local_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_lock(global_d);
 #endif
@@ -231,6 +239,8 @@ static inline void acquire_write(lock_local_data *local_d, lock_global_data *glo
     pthread_mutex_lock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_lock(global_d);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    atomicclh_lock(global_d, local_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_lock(global_d);
 #endif
@@ -262,6 +272,8 @@ static inline void acquire_read(lock_local_data *local_d, lock_global_data *glob
     pthread_mutex_lock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_lock(global_d);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    atomicclh_lock(global_d, local_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_lock(global_d);
 #endif
@@ -293,6 +305,8 @@ static inline void release_lock(lock_local_data *local_d, lock_global_data *glob
     pthread_mutex_unlock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_unlock(global_d);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    atomicclh_unlock(global_d, local_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_release(global_d);
 #endif
@@ -324,6 +338,8 @@ static inline void release_write(lock_local_data *local_d, lock_global_data *glo
     pthread_mutex_unlock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_unlock(global_d);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    atomicclh_unlock(global_d, local_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_release(global_d);
 #endif
@@ -355,6 +371,8 @@ static inline void release_read(lock_local_data *local_d, lock_global_data *glob
     pthread_mutex_unlock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_unlock(global_d);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    atomicclh_unlock(global_d, local_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_release(global_d);
 #endif
@@ -394,6 +412,9 @@ static inline local_data init_lock_array_local(int core_to_pin, int num_locks, g
 #elif defined(USE_FUTEX_LOCKS)
     init_futex_array_local(core_to_pin);
     return NULL;
+#elif defined(USE_ATOMICCLH_LOCKS)
+    perror("Array helpers not supported for Atomic CLH lock.");
+    return NULL;
 #elif defined(USE_HTICKET_LOCKS)
     init_thread_htlocks(core_to_pin);
     return NULL;
@@ -429,6 +450,8 @@ static inline int init_lock_local(int core_to_pin, lock_global_data *the_lock, l
     return 0;
 #elif defined(USE_FUTEX_LOCKS)
     return init_futex_local(core_to_pin);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    return init_atomicclh_local(core_to_pin, local_data, the_lock);
 #elif defined(USE_HTICKET_LOCKS)
     init_thread_htlocks(core_to_pin);
     return 0;
@@ -531,6 +554,9 @@ static inline global_data init_lock_array_global(int num_locks, int num_threads)
     return the_locks;
 #elif defined(USE_FUTEX_LOCKS)
     return init_futex_array_global(num_locks);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    perror("Array helpers not supported for Atomic CLH lock.");
+    return NULL;
 #elif defined(USE_HTICKET_LOCKS)
     return init_htlocks(num_locks);
 #endif
@@ -564,6 +590,8 @@ static inline int init_lock_global(lock_global_data *the_lock)
     return 0;
 #elif defined(USE_FUTEX_LOCKS)
     return init_futex_global(the_lock);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    return init_atomicclh_global(the_lock);
 #elif defined(USE_HTICKET_LOCKS)
     return create_htlock(the_lock);
 #endif
@@ -608,6 +636,8 @@ static inline void free_lock_array_global(global_data the_locks, int num_locks)
     }
 #elif defined(USE_FUTEX_LOCKS)
     end_futex_array_global(the_locks);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    perror("Array helpers not supported for Atomic CLH lock.");
 #elif defined(USE_HTICKET_LOCKS)
     free_htlocks(the_locks);
 #endif
@@ -681,6 +711,8 @@ static inline int acquire_trylock(lock_local_data *local_d, lock_global_data *gl
     return pthread_mutex_trylock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     return futex_trylock(global_d);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    return atomicclh_trylock(global_d, local_d);
 #elif defined(USE_HTICKET_LOCKS)
     if (htlock_trylock(global_d))
         return 0;
@@ -714,6 +746,8 @@ static inline void release_trylock(lock_local_data *local_d, lock_global_data *g
     pthread_mutex_unlock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_unlock(global_d);
+#elif defined(USE_ATOMICCLH_LOCKS)
+    atomicclh_unlock(global_d, local_d);
 #elif defined(USE_HTICKET_LOCKS)
     htlock_release_try(global_d);
 #endif
