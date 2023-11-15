@@ -32,8 +32,8 @@ parser.add_argument(
     dest="lock",
     type=str,
     nargs="+",
-    default=["Futex", "MCS", "Hybridlock"],
-    help='Locks to show (default=["Futex", "MCS", "Hybridlock"])',
+    default=["Futex", "Atomic_CLH", "Hybridlock"],
+    help='Locks to show (default=["Futex", "Atomic_CLH", "Hybridlock"])',
 )
 parser.add_argument(
     "-o",
@@ -111,5 +111,5 @@ for contention in args.contention:
                 ax,
             )
 
-fig.legend()
+fig.legend(loc="right", bbox_to_anchor=(0.77, 0.245))
 plt.savefig(args.output_file, dpi=600, bbox_inches="tight")

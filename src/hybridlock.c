@@ -3,7 +3,7 @@
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Implementation of a MCS/futex hybrid lock
+ *      Implementation of a CLH/Futex or Ticket/Futex hybrid lock
  *
  * The MIT License (MIT)
  *
@@ -60,11 +60,18 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
 {
     switch (lock_type)
     {
-    case LOCK_TYPE_MCS:
-        assert(the_lock->mcs_lock != NULL);
-        if ((*the_lock->mcs_lock) != NULL)
+#ifdef HYBRID_TICKET
+    case LOCK_TYPE_TICKET:
+        if (the_lock->ticket_lock.next - the_lock->ticket_lock.calling != 1)
             return 0; // Not free
         break;
+#else
+    case LOCK_TYPE_CLH:
+        assert(the_lock->clh_lock != NULL);
+        if ((*the_lock->clh_lock)->done != 1)
+            return 0; // Not free
+        break;
+#endif
     case LOCK_TYPE_FUTEX:
         if (the_lock->futex_lock != 0)
             return 0; // Not free
@@ -80,11 +87,27 @@ static inline int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 {
     switch (lock_type)
     {
-    case LOCK_TYPE_MCS:
-        local_params->qnode->next = NULL;
-        if (CAS_PTR(the_lock->mcs_lock, NULL, local_params->qnode) != NULL)
+#ifdef HYBRID_TICKET
+    case LOCK_TYPE_TICKET:
+        uint32_t me = the_lock->ticket_lock.next;
+        uint32_t me_new = me + 1;
+        uint64_t cmp = ((uint64_t)me << 32) + me_new;
+        uint64_t cmp_new = ((uint64_t)me_new << 32) + me_new;
+
+        if (!__sync_bool_compare_and_swap((uint64_t *)&the_lock->ticket_lock, cmp, cmp_new))
             return 1;
         break;
+#else
+    case LOCK_TYPE_CLH:
+        local_params->qnode->pred = *the_lock->clh_lock;
+        local_params->qnode->done = 0;
+        if (local_params->qnode->pred->done == 0 || !__sync_bool_compare_and_swap(the_lock->clh_lock, local_params->qnode->pred, local_params->qnode))
+        {
+            local_params->qnode->done = 1;
+            return 1;
+        }
+        break;
+#endif
     case LOCK_TYPE_FUTEX:
         if (__sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1) != 0)
             return 1;
@@ -100,34 +123,58 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
 {
     switch (lock_type)
     {
-    case LOCK_TYPE_MCS:
+#ifdef HYBRID_TICKET
+    case LOCK_TYPE_TICKET:
+        local_params->ticket = __sync_add_and_fetch(&the_lock->ticket_lock.next, 1);
+
+        uint32_t curr, distance;
+        while (1)
+        {
+            curr = the_lock->ticket_lock.calling;
+            if (curr == local_params->ticket)
+                return 1; // Success
+
+            distance = curr > local_params->ticket ? curr - local_params->ticket : local_params->ticket - curr;
+            if (distance <= 1)
+                PAUSE;
+            else
+                nop_rep(distance * 512);
+        }
+        break;
+#else
+    case LOCK_TYPE_CLH:
         assert(local_params->qnode != NULL);
-        assert(the_lock->mcs_lock != NULL);
-        assert(*the_lock->mcs_lock != local_params->qnode);
+        assert(the_lock->clh_lock != NULL);
 
-        local_params->qnode->next = NULL;
-        mcs_qnode_ptr pred = (mcs_qnode_t *)atomic_exchange(the_lock->mcs_lock, local_params->qnode);
-        if (pred == NULL) /* lock was free */
-            return 1;     // Success
+        while (local_params->qnode->done != 1)
+            PAUSE;
 
-        local_params->qnode->waiting = 1; // word on which to spin
-        MEM_BARRIER;
-        pred->next = local_params->qnode; // make pred point to me
+        do
+        {
+            local_params->qnode->pred = *the_lock->clh_lock;
+            local_params->qnode->done = 0;
+        } while (!__sync_bool_compare_and_swap(the_lock->clh_lock, local_params->qnode->pred, local_params->qnode));
 
-        while (local_params->qnode->waiting != 0 && LOCK_CURR_TYPE(*the_lock->lock_state) == lock_type)
+        while (local_params->qnode->pred->done == 0 && LOCK_CURR_TYPE(*the_lock->lock_state) == lock_type)
         {
             PAUSE;
-            if (*the_lock->preempted_at + 100 > get_nsecs())
+            if (*the_lock->preempted_at + 500000 < get_nsecs())
             {
-                lock_state_t state = *the_lock->lock_state;
-                __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_CURR_TYPE(state)), LOCK_TRANSITION(LOCK_CURR_TYPE(state), LOCK_TYPE_FUTEX));
+                *the_lock->preempted_at = INT64_MAX;
+                __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_CLH), LOCK_TRANSITION(LOCK_TYPE_CLH, LOCK_TYPE_FUTEX));
             }
         }
 
-        if (local_params->qnode->waiting != 0 && __sync_val_compare_and_swap(&local_params->qnode->waiting, 1, 0) == 1)
-            return 0; // Failed to acquire
-
+        // Cannot abort properly. This only targets cases where every waiter aborts.
+        if (local_params->qnode->pred->done == 0)
+        {
+            volatile clh_qnode_t *pred = local_params->qnode->pred;
+            local_params->qnode->done = 1;
+            local_params->qnode = pred;
+            return 0; // Aborted
+        }
         return 1; // Success
+#endif
     case LOCK_TYPE_FUTEX:;
         int state;
 
@@ -153,30 +200,24 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 {
     switch (lock_type)
     {
-    case LOCK_TYPE_MCS:;
+#ifdef HYBRID_TICKET
+    case LOCK_TYPE_TICKET:
+        the_lock->ticket_lock.calling++;
+        break;
+#else
+    case LOCK_TYPE_CLH:
         assert(local_params->qnode != NULL);
-        assert(the_lock->mcs_lock != NULL);
-        mcs_qnode_ptr curr = local_params->qnode, succ;
-        do
-        {
-            succ = curr->next;
-            if (!succ) /* I seem to have no succ. */
-            {
-                /* try to fix global pointer */
-                if (CAS_PTR(the_lock->mcs_lock, curr, NULL) == curr)
-                    break;
-                do
-                {
-                    succ = curr->next;
-                    PAUSE;
-                } while (!succ); // wait for successor
-            }
+        assert(the_lock->clh_lock != NULL);
+        assert(local_params->qnode->pred != NULL);
 
-            curr = succ;
-        } while (__sync_val_compare_and_swap(&succ->waiting, 1, 0) != 1); // Spin over aborted nodes
+        volatile clh_qnode_t *pred = local_params->qnode->pred;
+        local_params->qnode->done = 1;
+        local_params->qnode = pred;
 
         break;
+#endif
     case LOCK_TYPE_FUTEX:
+        static int debouncer = 0;
         long ret = 0;
         if (__sync_fetch_and_sub(&the_lock->futex_lock, 1) != 1)
         {
@@ -184,9 +225,10 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
             ret = futex_wake((void *)&the_lock->futex_lock, 1);
         }
 
-        if (ret == 0)
+        if (debouncer++ >= 40 && ret == 0)
         {
-            __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_MCS));
+            debouncer = 0;
+            __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_CLH));
         }
         break;
     default:
@@ -306,11 +348,17 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         return 1;
     }
     bpf_map__set_max_entries(skel->maps.nodes_map, max_pid);
+    bpf_map__set_max_entries(skel->maps.preempted_map, max_pid);
 
     // Set pointer to lock state
     the_lock->lock_state = &skel->bss->lock_state;
-    the_lock->mcs_lock = (volatile mcs_qnode_t **)&skel->bss->mcs_lock;
     the_lock->preempted_at = &skel->bss->preempted_at;
+
+#ifdef HYBRID_TICKET
+    skel->bss->ticket_calling = &the_lock->ticket_lock.next;
+#else
+    the_lock->clh_lock = (clh_lock_t *)&skel->bss->clh_lock;
+#endif
 
     // Load BPF skeleton
     err = hybridlock_bpf__load(skel);
@@ -333,15 +381,27 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         return 1;
     }
 #else
-    the_lock->mcs_lock = (mcs_lock_t *)malloc(sizeof(mcs_lock_t));
-    *(the_lock->mcs_lock) = NULL;
+#ifdef HYBRID_TICKET
+#else
+    the_lock->clh_lock = (clh_lock_t *)malloc(sizeof(clh_lock_t));
+#endif
 
     the_lock->lock_state = malloc(sizeof(lock_state_t));
-    (*the_lock->lock_state) = LOCK_STABLE(LOCK_TYPE_MCS);
-
     the_lock->preempted_at = malloc(sizeof(uint64_t));
-    (*the_lock->preempted_at) = INT64_MAX;
 #endif
+
+#ifdef HYBRID_TICKET
+    (*the_lock->lock_state) = LOCK_STABLE(LOCK_TYPE_TICKET);
+    the_lock->ticket_lock.calling = 1;
+    the_lock->ticket_lock.next = 0;
+#else
+    (*the_lock->lock_state) = LOCK_STABLE(LOCK_TYPE_CLH);
+    *(the_lock->clh_lock) = (clh_qnode_t *)malloc(sizeof(clh_qnode_t));
+    (*the_lock->clh_lock)->done = 1;
+    (*the_lock->clh_lock)->pred = NULL;
+#endif
+
+    (*the_lock->preempted_at) = INT64_MAX;
 
     MEM_BARRIER;
     return 0;
@@ -351,14 +411,22 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_
 {
     set_cpu(thread_num);
 
-    local_params->qnode = (mcs_qnode_t *)malloc(sizeof(mcs_qnode_t));
-    local_params->qnode->waiting = 0;
-    local_params->qnode->next = NULL;
+#ifdef HYBRID_TICKET
+
+#else
+    local_params->qnode = (clh_qnode_t *)malloc(sizeof(clh_qnode_t));
+    local_params->qnode->done = 1;
+    local_params->qnode->pred = NULL;
+#endif
 
 #ifdef BPF
     // Register thread in BPF map
     __u32 tid = gettid();
-    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), &local_params->qnode, sizeof(mcs_qnode_t *), BPF_ANY);
+#ifdef HYBRID_TICKET
+    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), &local_params->ticket, sizeof(uint32_t *), BPF_ANY);
+#else
+    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), &local_params->qnode, sizeof(clh_qnode_t *), BPF_ANY);
+#endif
     if (err)
     {
         fprintf(stderr, "Failed to register thread with BPF: %d\n", err);

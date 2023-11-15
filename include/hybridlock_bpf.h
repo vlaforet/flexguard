@@ -3,7 +3,7 @@
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Shared header between the BPF and userspace code for the MCS/Futex hybrid lock.
+ *      Shared header between the BPF and userspace code for the CLH/Futex or Ticket/Futex hybrid lock.
  *
  * The MIT License (MIT)
  *
@@ -30,8 +30,9 @@
 #ifndef _HYBRIDLOCK_BPF_H_
 #define _HYBRIDLOCK_BPF_H_
 
-#define LOCK_TYPE_MCS (uint32_t)0
+#define LOCK_TYPE_CLH (uint32_t)0
 #define LOCK_TYPE_FUTEX (uint32_t)1
+#define LOCK_TYPE_TICKET (uint32_t)2
 
 #define LOCK_LAST_TYPE(state) (uint32_t)(state >> 32)
 #define LOCK_CURR_TYPE(state) (uint32_t) state
@@ -42,19 +43,26 @@
 typedef uint32_t lock_type_t;
 typedef uint64_t lock_state_t;
 
-typedef struct mcs_qnode_t
+#ifdef HYBRID_TICKET
+
+#else
+typedef struct clh_qnode_t
 {
   union
   {
-    struct
-    {
-      volatile uint8_t waiting;
-      volatile struct mcs_qnode_t *volatile next;
-    };
+    volatile uint8_t done;
 #ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE];
+    uint8_t padding1[CACHE_LINE_SIZE];
 #endif
   };
-} mcs_qnode_t;
+  union
+  {
+    volatile struct clh_qnode_t *pred;
+#ifdef ADD_PADDING
+    uint8_t padding2[CACHE_LINE_SIZE];
+#endif
+  };
+} clh_qnode_t;
+#endif
 
 #endif

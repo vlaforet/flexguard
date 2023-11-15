@@ -29,7 +29,7 @@ Any of these tags can be added to the make command to compile the desired versio
 LOCK_VERSION=-DUSE_HCLH_LOCKS
 LOCK_VERSION=-DUSE_TTAS_LOCKS
 LOCK_VERSION=-DUSE_SPINLOCK_LOCKS
-LOCK_VERSION=-DUSE_HYBRIDLOCK_LOCKS // MCS/Futex hybrid lock
+LOCK_VERSION=-DUSE_HYBRIDLOCK_LOCKS // CLH/Futex hybrid lock
 LOCK_VERSION=-DUSE_HYBRIDSPIN_LOCKS // Compare-And-Swap/Futex hybrid lock
 LOCK_VERSION=-DUSE_MCS_LOCKS
 LOCK_VERSION=-DUSE_ARRAY_LOCKS
@@ -57,7 +57,7 @@ make LOCK_VERSION=-DUSE_FUTEX_LOCKS NOBPF=1
 ### Debug
 When working on an implementation debug mode can help.
 ```
-make LOCK_VERSION=-DUSE_MCS_LOCKS DEBUG=1
+make LOCK_VERSION=-DUSE_ATOMICCLH_LOCKS DEBUG=1
 ```
 
 
@@ -120,7 +120,7 @@ options:
                         Contention delays to show (default=[1000])
   -t CACHE_LINE [CACHE_LINE ...]
                         Cache lines to show (default=[1])
-  -l LOCK [LOCK ...]    Locks to show (default=["Futex", "MCS", "Hybridlock"])
+  -l LOCK [LOCK ...]    Locks to show (default=["Futex", "Atomic_CLH", "Hybridlock"])
   -o OUTPUT_FILE        Locks to show (default="out.png")
   --increasing-only     Only show the increasing thread count part (default=False)
 ```

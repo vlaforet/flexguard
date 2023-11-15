@@ -34,8 +34,8 @@ parser.add_argument(
     dest="lock",
     type=str,
     nargs="+",
-    default=["Futex", "MCS", "Hybridlock"],
-    help='Locks to show (default=["Futex", "MCS", "Hybridlock"])',
+    default=["Futex", "Atomic_CLH", "Hybridlock"],
+    help='Locks to show (default=["Futex", "Atomic_CLH", "Hybridlock"])',
 )
 parser.add_argument(
     "-o",

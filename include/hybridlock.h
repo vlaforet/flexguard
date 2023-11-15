@@ -3,7 +3,7 @@
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Implementation of a MCS/futex hybrid lock
+ *      Implementation of a CLH/Futex or Ticket/Futex hybrid lock
  *
  * The MIT License (MIT)
  *
@@ -63,8 +63,11 @@
 #include "utils.h"
 #include "hybridlock_bpf.h"
 
-typedef volatile mcs_qnode_t *mcs_qnode_ptr;
-typedef mcs_qnode_ptr mcs_lock_t;
+#ifdef HYBRID_TICKET
+#else
+typedef volatile clh_qnode_t *clh_qnode_ptr;
+typedef clh_qnode_ptr clh_lock_t;
+#endif
 
 typedef volatile int futex_lock_t;
 
@@ -93,7 +96,16 @@ typedef struct hybridlock_lock_t
 
   union
   {
-    mcs_lock_t *mcs_lock;
+#ifdef HYBRID_TICKET
+    struct ticketlock_t
+    {
+      volatile uint32_t next;
+      volatile uint32_t calling;
+    } ticket_lock;
+#else
+    clh_lock_t *clh_lock;
+#endif
+
 #ifdef ADD_PADDING
     uint8_t padding3[CACHE_LINE_SIZE];
 #endif
@@ -104,7 +116,11 @@ typedef struct hybridlock_local_params_t
 {
   union
   {
-    mcs_qnode_t *qnode;
+#ifdef HYBRID_TICKET
+    uint32_t ticket;
+#else
+    volatile clh_qnode_t *qnode;
+#endif
 #ifdef ADD_PADDING
     uint8_t padding2[CACHE_LINE_SIZE];
 #endif

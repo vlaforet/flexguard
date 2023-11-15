@@ -28,7 +28,7 @@ fig, ax = plt.subplots()
 ax.set_xlabel("Thread count / Core count")
 
 ax.plot(thread_count_futex, futex, label="Blocking (Futex)", color="green")
-ax.plot(thread_count_mcs, mcs, label="Spinlock (MCS)")
+ax.plot(thread_count_mcs, mcs, label="Spinlock (CLH)")
 ax.plot(thread_count_ideal, ideal, label="Ideal hybrid lock", color="orange")
 
 ax.set_yscale("log")

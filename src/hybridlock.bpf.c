@@ -3,7 +3,7 @@
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Implementation of a MCS/futex hybrid lock - BPF preemptions detection
+ *      Implementation of a CLH/futex hybrid lock - BPF preemptions detection
  *
  * The MIT License (MIT)
  *
@@ -34,13 +34,22 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 
-lock_state_t lock_state = LOCK_STABLE(LOCK_TYPE_MCS);
-mcs_qnode_t *mcs_lock;
+lock_state_t lock_state;
 uint64_t preempted_at;
+
+#ifdef HYBRID_TICKET
+uint32_t *ticket_calling;
+#else
+clh_qnode_t *clh_lock;
+#endif
 
 char _license[4] SEC("license") = "GPL";
 
-typedef mcs_qnode_t *map_value;
+#ifdef HYBRID_TICKET
+typedef uint32_t *map_value;
+#else
+typedef clh_qnode_t *map_value;
+#endif
 
 struct
 {
@@ -49,36 +58,83 @@ struct
 	__type(value, map_value);
 } nodes_map SEC(".maps");
 
+struct
+{
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u32);
+	__type(value, u32);
+} preempted_map SEC(".maps");
+
 SEC("tp_btf/sched_switch")
 int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
 {
 	u32 tid;
-	mcs_qnode_t **qnode;
 	u64 time = bpf_ktime_get_ns();
+
+#ifdef HYBRID_TICKET
+	uint32_t **elem;
+
+	uint32_t calling;
+	long err;
+	if ((err = bpf_core_read_user(&calling, sizeof(calling), ticket_calling)) != 0)
+	{
+		bpf_printk("Failed to read ticket calling (%ld).", err);
+		return 0;
+	}
+
+#else
+	clh_qnode_t **elem;
+#endif
 
 	if (LOCK_CURR_TYPE(lock_state) == LOCK_TYPE_FUTEX)
 		return 0;
 
 	// Handling prev
 	tid = prev->pid;
-	qnode = bpf_map_lookup_elem(&nodes_map, &tid);
-	if (qnode != NULL && BPF_PROBE_READ_USER(*qnode, waiting) == 0 && (mcs_lock == *qnode || (BPF_PROBE_READ_USER(*qnode, next) != NULL && BPF_PROBE_READ_USER(*qnode, next, waiting) == 1)))
+	elem = bpf_map_lookup_elem(&nodes_map, &tid);
+
+#ifdef HYBRID_TICKET
+	uint32_t ticket;
+	if (elem != NULL)
+		if (bpf_probe_read_user(&ticket, sizeof(ticket), *elem) != 0)
+		{
+			bpf_printk("Failed to read thread ticket.");
+			return 0;
+		}
+
+	if (elem != NULL && ticket == calling)
+#else
+	if (elem != NULL && BPF_PROBE_READ_USER(*elem, done) == 0 && BPF_PROBE_READ_USER(*elem, pred, done) == 1)
+#endif
 	{
 #if DEBUG == 1
-		bpf_printk("%s (%d) preempted by %s (%d) at %ld: %d", prev->comm, prev->pid, next->comm, next->pid, time, BPF_PROBE_READ_USER(*qnode, has_lock));
+		bpf_printk("%s (%d) preempted by %s (%d) at %ld", prev->comm, prev->pid, next->comm, next->pid, time);
 #endif
 		preempted_at = time;
+		bpf_map_update_elem(&preempted_map, &tid, &tid, BPF_MAP_CREATE);
 	}
 
 	// Handling next
 	tid = next->pid;
-	qnode = bpf_map_lookup_elem(&nodes_map, &tid);
-	if (qnode != NULL && BPF_PROBE_READ_USER(*qnode, waiting) == 0 && (mcs_lock == *qnode || (BPF_PROBE_READ_USER(*qnode, next) != NULL && BPF_PROBE_READ_USER(*qnode, next, waiting) == 1)))
+	elem = bpf_map_lookup_elem(&nodes_map, &tid);
+
+#ifdef HYBRID_TICKET
+	if (elem != NULL)
+		if (bpf_probe_read_user(&ticket, sizeof(ticket), *elem) != 0)
+		{
+			bpf_printk("Failed to read thread ticket.");
+			return 0;
+		}
+
+	if (elem != NULL && ticket == calling)
+#else
+	if (elem != NULL && bpf_map_delete_elem(&preempted_map, &tid) == 0)
+#endif
 	{
 #if DEBUG == 1
 		bpf_printk("%s (%d) rescheduled after %s (%d) at %ld", next->comm, next->pid, prev->comm, prev->pid, time);
 #endif
-		preempted_at = 18446744073709551615UL; // INT64_MAX
+		preempted_at = 116886717438980000; // INT64_MAX
 	}
 
 	return 0;
