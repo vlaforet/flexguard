@@ -37,9 +37,6 @@
 #include <sys/time.h>
 #include <time.h>
 #include <malloc.h>
-#ifndef __sparc__
-#include <numa.h>
-#endif
 #include "atomic_ops.h"
 #include "utils.h"
 #include "lock_if.h"
@@ -120,7 +117,7 @@ void *test(void *data)
     while (!d->stop)
     {
         t1 = __builtin_ia32_rdtsc();
-        acquire_write(&(local_th_data[d->id]), &the_lock);
+        acquire_lock(&(local_th_data[d->id]), &the_lock);
 
         for (i = 0; i < dummy_array_size; i++)
         {
@@ -128,7 +125,7 @@ void *test(void *data)
             arr = arr->next;
         }
 
-        release_write(&(local_th_data[d->id]), &the_lock);
+        release_lock(&(local_th_data[d->id]), &the_lock);
         t2 = __builtin_ia32_rdtsc();
 
         if (d->reset)

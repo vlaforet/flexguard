@@ -50,9 +50,6 @@
 #include <linux/futex.h>
 
 #include <fcntl.h>
-#ifndef __sparc__
-#include <numa.h>
-#endif
 #include <pthread.h>
 #include "atomic_ops.h"
 #include "utils.h"

@@ -21,43 +21,48 @@ git submodule update --init --recursive
 ```
 
 ## Building
+### Getting Started
+All binaries can be made at the same time thanks to the `make_all_versions.sh` script from the root directory.
+
+```
+./scripts/make_all_versions.sh [-v] [-s suffix] [-d] [-l locks]
+    -v             verbose
+    -s suffix      suffix the executable with suffix
+    -d             delete
+    -l locks       specify which lock(s) to make
+```
+
+Binaries can also be built separately using `make`. 
+
+```
+make LOCK_VERSION=HYBRIDLOCK
+```
+
 ### Locks
 There are several locks available in this library.
 Any of these tags can be added to the make command to compile the desired version.
 
 ```
-LOCK_VERSION=-DUSE_HCLH_LOCKS
-LOCK_VERSION=-DUSE_TTAS_LOCKS
-LOCK_VERSION=-DUSE_SPINLOCK_LOCKS
-LOCK_VERSION=-DUSE_HYBRIDLOCK_LOCKS // CLH/Futex hybrid lock
-LOCK_VERSION=-DUSE_HYBRIDSPIN_LOCKS // Compare-And-Swap/Futex hybrid lock
-LOCK_VERSION=-DUSE_MCS_LOCKS
-LOCK_VERSION=-DUSE_ARRAY_LOCKS
-LOCK_VERSION=-DUSE_RW_LOCKS
-LOCK_VERSION=-DUSE_CLH_LOCKS
-LOCK_VERSION=-DUSE_TICKET_LOCKS
-LOCK_VERSION=-DUSE_MUTEX_LOCKS
-LOCK_VERSION=-DUSE_FUTEX_LOCKS      // raw futex lock
-LOCK_VERSION=-DUSE_HTICKET_LOCKS
-```
-
-### Getting Started
-Binaries can be built from the root directory using
-
-```
-make LOCK_VERSION=-DUSE_HYBRIDLOCK_LOCKS
+LOCK_VERSION=SPINLOCK
+LOCK_VERSION=HYBRIDLOCK // Hybrid lock
+LOCK_VERSION=HYBRIDSPIN // Compare-And-Swap/Futex hybrid lock
+LOCK_VERSION=MCS
+LOCK_VERSION=CLH
+LOCK_VERSION=TICKET
+LOCK_VERSION=MUTEX
+LOCK_VERSION=FUTEX      // Raw futex lock
 ```
 
 ### No BPF
-If you do not need BPF (for a non-hybrid lock or when computing benchmarks) you can disable BPF entirely. This will significantly speed up compilation.
+If you do not need BPF for the Hybrid Lock (for example when some benchmarks) you can disable BPF entirely. This will significantly speed up compilation.
 ```
-make LOCK_VERSION=-DUSE_FUTEX_LOCKS NOBPF=1
+make LOCK_VERSION=HYBRIDLOCK NOBPF=1
 ```
 
 ### Debug
 When working on an implementation debug mode can help.
 ```
-make LOCK_VERSION=-DUSE_ATOMICCLH_LOCKS DEBUG=1
+make LOCK_VERSION=MCS DEBUG=1
 ```
 
 
@@ -89,7 +94,6 @@ Options:
         A value of -1 will disable the switch (always spin) and with a value of 0 the lock will never spin.
 ```
 
-### Automated benchmarks
 The `scripts/scheduling_all.sh` script can be run to compute a `scheduling` benchmark for different lock types (by default hybridlock, futex and mcs), different cache lines (by default 1 and 5) and different delays between critical sections (by default 0, 1000 and 1000000). The resulting CSVs will be placed in `results`.
 
 Example:
@@ -130,6 +134,19 @@ Example:
 cd results
 ../scripts/chart_scheduling.py -c 0 -t 1 5 -l futex mcs
 ```
+
+### Correctness benchmark
+The `./scripts/test_correctness.sh` benchmark is made to test the correctness of all locks at the same time.
+
+```
+./scripts/test_correctness.sh [-v] [-s suffix] [-n num_cores] [-l locks]
+    -d duration    test duration
+    -s suffix      suffix the executable with suffix
+    -n num_cores   number of cores to test on
+    -l locks       specify which lock(s) to make
+```
+
+It will output a `correctness.out` file at the root of the repository containing the correctness results.
 
 # LevelDB Benchmark
 ## Installation

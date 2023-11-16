@@ -1,13 +1,13 @@
 /*
  * File: clh.h
- * Author: Tudor David <tudor.david@epfl.ch>
+ * Author: Victor Laforet <victor.laforet@inria.fr>
  *
- * Description: 
+ * Description:
  *      Implementation of a CLH lock
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013 Tudor David
+ * Copyright (c) 2023 Victor Laforet
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -37,66 +37,63 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
-#ifndef __sparc__
-#include <numa.h>
-#endif
-#include <pthread.h>
-#include "utils.h"
 #include "atomic_ops.h"
+#include "utils.h"
 
-typedef struct clh_qnode {
-    volatile uint8_t locked;
+typedef struct clh_qnode_t
+{
+  union
+  {
+    volatile uint8_t done;
 #ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE - 1];
+    uint8_t padding1[CACHE_LINE_SIZE];
 #endif
-} clh_qnode;
-
-typedef volatile clh_qnode *clh_qnode_ptr;
-typedef clh_qnode_ptr clh_lock;
-
-typedef struct clh_local_params {
-    clh_qnode* my_qnode;
-    clh_qnode* my_pred;
-} clh_local_params;
-
-
-typedef struct clh_global_params {
-    clh_lock* the_lock;
+  };
+  union
+  {
+    volatile struct clh_qnode_t *pred;
 #ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE - 8];
+    uint8_t padding2[CACHE_LINE_SIZE];
 #endif
-} clh_global_params;
+  };
+} clh_qnode_t;
+
+typedef volatile clh_qnode_t *clh_qnode_ptr;
+
+typedef struct clh_lock_t
+{
+  union
+  {
+    clh_qnode_ptr *lock;
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#endif
+  };
+} clh_lock_t;
+
+typedef struct clh_local_params_t
+{
+  union
+  {
+    volatile clh_qnode_t *qnode;
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#endif
+  };
+} clh_local_params_t;
 
 /*
- *lock array creation and destruction methods
+ * Lock manipulation methods
  */
-clh_global_params* init_clh_array_global(uint32_t num_locks);
-
-clh_local_params* init_clh_array_local(uint32_t thread_num, uint32_t num_locks);
-
-void end_clh_array_local(clh_local_params* the_params, uint32_t size);
-
-void end_clh_array_global(clh_global_params* the_locks, uint32_t size);
+void clh_lock(clh_lock_t *the_lock, clh_local_params_t *local_params);
+int clh_trylock(clh_lock_t *the_locks, clh_local_params_t *local_params);
+void clh_unlock(clh_lock_t *the_locks, clh_local_params_t *local_params);
+int is_free_clh(clh_lock_t *the_lock);
 
 /*
- *single lock creation and destruction methods
+ * Methods for single lock manipulation
  */
-int init_clh_global(clh_global_params* the_lock);
-
-int init_clh_local(uint32_t thread_num, clh_local_params* local_d);
-
-void end_clh_local(clh_local_params the_params);
-
-void end_clh_global(clh_global_params the_lock);
-
-/*
- *  Lock manipulation methods
- */
-volatile clh_qnode* clh_acquire(clh_lock* the_lock, clh_qnode* my_qnode);
-
-clh_qnode* clh_release(clh_qnode* my_qnode, clh_qnode* my_pred);
-
-int clh_trylock(clh_lock * L, clh_qnode_ptr I);
-
+int init_clh_global(clh_lock_t *the_lock);
+int init_clh_local(uint32_t thread_num, clh_local_params_t *local_params, clh_lock_t *the_lock);
 
 #endif

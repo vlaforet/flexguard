@@ -1,13 +1,13 @@
 /*
  * File: clh.c
- * Author: Tudor David <tudor.david@epfl.ch>
+ * Author: Victor Laforet <victor.laforet@inria.fr>
  *
- * Description: 
- *      Clh lock implementation
+ * Description:
+ *      Implementation of a CLH lock
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013 Tudor David
+ * Copyright (c) 2023 Victor Laforet
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -27,103 +27,53 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
-
 #include "clh.h"
 
-int clh_trylock(clh_lock * L, clh_qnode_ptr I) {
-    return 1;
-}
-
-
-volatile clh_qnode* clh_acquire(clh_lock *L, clh_qnode* I ) 
+int clh_trylock(clh_lock_t *the_locks, clh_local_params_t *local_params)
 {
-    I->locked=1;
-    clh_qnode_ptr pred = (clh_qnode*) SWAP_PTR((volatile void*) (L), (void*) I);
-    if (pred == NULL) 		/* lock was free */
-        return NULL;
-    while (pred->locked != 0) 
-    {
+    return 1; // Fail
+}
+
+void clh_lock(clh_lock_t *the_lock, clh_local_params_t *local_params)
+{
+    local_params->qnode->done = 0;
+    local_params->qnode->pred = SWAP_PTR(the_lock->lock, local_params->qnode);
+
+    while (local_params->qnode->pred->done == 0)
         PAUSE;
-    }
-
-    return pred;
 }
 
-clh_qnode* clh_release(clh_qnode *my_qnode, clh_qnode * my_pred) {
-    COMPILER_BARRIER;
-    my_qnode->locked=0;
-    return my_pred;
+void clh_unlock(clh_lock_t *the_locks, clh_local_params_t *local_params)
+{
+    volatile clh_qnode_t *pred = local_params->qnode->pred;
+    local_params->qnode->done = 1;
+    local_params->qnode = pred;
 }
 
-clh_global_params* init_clh_array_global(uint32_t num_locks) {
-    clh_global_params* the_params;
-    the_params = (clh_global_params*)malloc(num_locks * sizeof(clh_global_params));
-    uint32_t i;
-    for (i=0;i<num_locks;i++) {
-        the_params[i].the_lock=(clh_lock*)malloc(sizeof(clh_lock));
-        clh_qnode * a_node = (clh_qnode *) malloc(sizeof(clh_qnode));
-        a_node->locked=0;
-        *(the_params[i].the_lock) = a_node;
-    }
-    MEM_BARRIER;
-    return the_params;
+int is_free_clh(clh_lock_t *the_lock)
+{
+    return 0; // Not free
 }
 
-clh_local_params* init_clh_array_local(uint32_t thread_num, uint32_t num_locks) {
-    set_cpu(thread_num);
+int init_clh_global(clh_lock_t *the_lock)
+{
+    the_lock->lock = (clh_qnode_ptr *)malloc(sizeof(clh_qnode_ptr));
+    (*the_lock->lock) = (clh_qnode_t *)malloc(sizeof(clh_qnode_t));
+    (*the_lock->lock)->done = 1;
+    (*the_lock->lock)->pred = NULL;
 
-    //init its qnodes
-    uint32_t i;
-    clh_local_params* local_params = (clh_local_params*)malloc(num_locks * sizeof(clh_local_params));
-    for (i=0;i<num_locks;i++) {
-        local_params[i].my_qnode = (clh_qnode*) malloc(sizeof(clh_qnode));
-        local_params[i].my_qnode->locked=0;
-        local_params[i].my_pred = NULL;
-    }
-    MEM_BARRIER;
-    return local_params;
-
-}
-
-void end_clh_array_local(clh_local_params* the_params, uint32_t size){
-    free(the_params);
-}
-
-void end_clh_array_global(clh_global_params* the_locks, uint32_t size) {
-    uint32_t i;
-    for (i = 0; i < size; i++) {
-        free(the_locks[i].the_lock);
-    }
-    free(the_locks);
-}
-
-int init_clh_global(clh_global_params* the_params) {
-    the_params->the_lock=(clh_lock*)malloc(sizeof(clh_lock));
-    clh_qnode * a_node = (clh_qnode *) malloc(sizeof(clh_qnode));
-    a_node->locked=0;
-    *(the_params->the_lock) = a_node;
     MEM_BARRIER;
     return 0;
 }
 
-int init_clh_local(uint32_t thread_num, clh_local_params* local_params) {
+int init_clh_local(uint32_t thread_num, clh_local_params_t *local_params, clh_lock_t *the_lock)
+{
     set_cpu(thread_num);
 
-    //init its qnodes
-    local_params->my_qnode = (clh_qnode*) malloc(sizeof(clh_qnode));
-    local_params->my_qnode->locked=0;
-    local_params->my_pred = NULL;
+    local_params->qnode = (clh_qnode_t *)malloc(sizeof(clh_qnode_t));
+    local_params->qnode->done = 1;
+    local_params->qnode->pred = NULL;
+
     MEM_BARRIER;
     return 0;
-
 }
-
-void end_clh_local(clh_local_params the_params){
-    //empty method
-}
-
-void end_clh_global(clh_global_params the_lock) {
-    free(the_lock.the_lock);
-}
-

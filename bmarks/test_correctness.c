@@ -42,10 +42,6 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
-#ifndef __sparc__
-#include <numa.h>
-#endif
-#include "gl_lock.h"
 #include "utils.h"
 #include "lock_if.h"
 #include "atomic_ops.h"
@@ -63,7 +59,6 @@ static volatile int stop;
 
 __thread unsigned long *seeds;
 __thread uint32_t phys_id;
-__thread uint32_t cluster_id;
 lock_global_data the_lock;
 __attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
 
@@ -129,7 +124,6 @@ void *test_correctness(void *data)
 {
     thread_data_t *d = (thread_data_t *)data;
     phys_id = the_cores[d->id];
-    cluster_id = get_cluster(phys_id);
 
     init_lock_local(phys_id, &the_lock, &(local_th_data[d->id]));
 

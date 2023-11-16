@@ -62,7 +62,7 @@ libslock_mutex_t *libslock_mutex_create(const pthread_mutexattr_t *attr) {
 
 int libslock_mutex_lock(libslock_mutex_t *impl, libslock_context_t *me) {
     try_to_initialize_me(impl, me);
-    acquire_write(&me->me, &impl->lock);
+    acquire_lock(&me->me, &impl->lock);
     return 0;
 }
 
@@ -76,7 +76,7 @@ int libslock_mutex_trylock(libslock_mutex_t *impl, libslock_context_t *me) {
 
 void libslock_mutex_unlock(libslock_mutex_t *impl, libslock_context_t *me) {
     try_to_initialize_me(impl, me);
-    release_write(&me->me, &impl->lock);
+    release_lock(&me->me, &impl->lock);
 }
 
 int libslock_mutex_destroy(libslock_mutex_t *impl) {

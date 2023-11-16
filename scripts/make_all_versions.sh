@@ -1,66 +1,66 @@
 #!/bin/sh
 
-LOCKS="USE_HCLH_LOCKS USE_SPINLOCK_LOCKS USE_HYBRIDLOCK_LOCKS USE_TTAS_LOCKS USE_MCS_LOCKS USE_CLH_LOCKS USE_ARRAY_LOCKS USE_RW_LOCKS USE_TICKET_LOCKS USE_MUTEX_LOCKS USE_HTICKET_LOCKS"
+LOCKS="SPINLOCK HYBRIDLOCK HYBRIDSPIN MCS CLH TICKET MUTEX FUTEX"
+BENCHMARKS="scheduling test_correctness"
 
-MAKE="";
-UNAME=`uname`;
-if [ $UNAME = "Linux" ];
-then
-    MAKE=make;
-    # jda() { cd $(pwd | sed "s/\(\/$@\/\).*/\1/g"); }
-    # jda primitives
-else
-    MAKE=gmake;
-fi;
+MAKE="make"
 
-
-
-usage()
-{
-    echo "$0 [-v] [-s suffix]";
-    echo "    -v             verbose";
-    echo "    -s suffix      suffix the executable with suffix";
+usage() {
+    echo "$0 [-v] [-s suffix] [-d] [-l locks]"
+    echo "    -v             verbose"
+    echo "    -s suffix      suffix the executable with suffix"
+    echo "    -d             delete"
+    echo "    -l locks       specify which lock(s) to make"
 }
 
+USUFFIX=""
+VERBOSE=0
+DELETE=0
+while getopts "hs:vdl:" OPTION; do
+    case $OPTION in
+    h)
+        usage
+        exit 1
+        ;;
+    s)
+        USUFFIX="_$OPTARG"
+        echo "Using suffix: $USUFFIX"
+        ;;
+    v)
+        VERBOSE=1
+        ;;
+    d)
+        DELETE=1
+        ;;
+    l)
+        LOCKS="$OPTARG"
+        echo "Making $LOCKS"
+        ;;
+    ?)
+        usage
+        exit
+        ;;
+    esac
+done
 
-USUFFIX="";
-VERBOSE=0;
- while getopts "hs:v" OPTION
- do
-      case $OPTION in
-          h)
-	      usage;
-              exit 1
-              ;;
-          s)
-              USUFFIX="_$OPTARG"
-	      echo "Using suffix: $USUFFIX"
-              ;;
-          v)
-              VERBOSE=1
-              ;;
-          ?)
-	      usage;
-              exit;
-              ;;
-      esac
- done
+for lock in $LOCKS; do
+    suffix=$(echo $lock | tr "[:upper:]" "[:lower:]")
 
-for lock in $LOCKS
-do
-    echo "Building: $lock";
-    touch Makefile;
-    if [ $VERBOSE -eq 1 ]; then
-	$MAKE all LOCK_VERSION=-D$lock
+    if [ $DELETE -eq 1 ]; then
+        echo "Deleting: $lock"
+        for benchmark in $BENCHMARKS; do
+            rm ${benchmark}_$suffix$USUFFIX 2> /dev/null
+        done
     else
-	$MAKE all LOCK_VERSION=-D$lock > /dev/null;
+        echo "Building: $lock"
+        if [ $VERBOSE -eq 1 ]; then
+            $MAKE all LOCK_VERSION=$lock
+        else
+            $MAKE all LOCK_VERSION=$lock >/dev/null
+        fi
+
+        for benchmark in $BENCHMARKS; do
+            mv $benchmark ${benchmark}_$suffix$USUFFIX
+        done
     fi
-    suffix=`echo $lock | sed -e "s/USE_//g" -e "s/_LOCK\?//g" | tr "[:upper:]" "[:lower:]"`;
-    mv bank bank_$suffix$USUFFIX;
-    mv bank_one bank_one_$suffix$USUFFIX;
-    mv bank_simple bank_simple_$suffix$USUFFIX;
-    mv stress_test stress_test_$suffix$USUFFIX;
-    mv stress_one stress_one_$suffix$USUFFIX;
-    mv stress_latency stress_latency_$suffix$USUFFIX;
-    mv test_correctness test_correctness_$suffix$USUFFIX;
-done;
+done
