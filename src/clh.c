@@ -37,7 +37,7 @@ int clh_trylock(clh_lock_t *the_locks, clh_local_params_t *local_params)
 void clh_lock(clh_lock_t *the_lock, clh_local_params_t *local_params)
 {
     local_params->qnode->done = 0;
-    local_params->qnode->pred = SWAP_PTR(the_lock->lock, local_params->qnode);
+    local_params->qnode->pred = SWAP_PTR(the_lock->lock, (void *)local_params->qnode);
 
     while (local_params->qnode->pred->done == 0)
         PAUSE;
