@@ -104,39 +104,18 @@ typedef struct hybridspin_lock_t
 /*
  *  Lock manipulation methods
  */
-
 void hybridspin_lock(hybridspin_lock_t *the_lock);
-
 int hybridspin_trylock(hybridspin_lock_t *the_locks);
-
 void hybridspin_unlock(hybridspin_lock_t *the_locks);
-
 int is_free_hybridspin(hybridspin_lock_t *the_lock);
-
 void set_blocking(hybridspin_lock_t *the_lock, int blocking);
-
-/*
- *  Some methods for easy lock array manipluation
- */
-
-hybridspin_lock_t *init_hybridspin_array_global(uint32_t num_locks);
-
-void init_hybridspin_array_local(uint32_t thread_num, uint32_t size);
-
-void end_hybridspin_array_local();
-
-void end_hybridspin_array_global(hybridspin_lock_t *the_locks);
 
 /*
  *  Methods for single lock manipulation
  */
-
 int init_hybridspin_global(hybridspin_lock_t *the_lock);
-
 int init_hybridspin_local(uint32_t thread_num);
-
 void end_hybridspin_local();
-
 void end_hybridspin_global();
 
 #endif

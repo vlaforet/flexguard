@@ -66,13 +66,6 @@ void futex_unlock(futex_lock_t *the_locks);
 int is_free_futex(futex_lock_t *the_lock);
 
 /*
- * Some methods for easy lock array manipluation
- */
-futex_lock_t *init_futex_array_global(uint32_t num_locks);
-void init_futex_array_local(uint32_t thread_num);
-void end_futex_array_global();
-
-/*
  * Methods for single lock manipulation
  */
 int init_futex_global(futex_lock_t *the_lock);

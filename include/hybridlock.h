@@ -146,10 +146,6 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
 int is_free_hybridlock(hybridlock_lock_t *the_lock);
 
 /*
- *  Some methods for easy lock array manipluation - NOT SUPPORTED FOR NOW
- */
-
-/*
  *  Methods for single lock manipulation
  */
 

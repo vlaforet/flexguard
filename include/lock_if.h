@@ -189,7 +189,7 @@ static inline void free_lock_local(lock_local_data local_d)
 #ifdef USE_MCS_LOCKS
     end_mcs_local(local_d);
 #elif defined(USE_SPINLOCK_LOCKS)
-    //    end_spinlock_array_local(local_d);
+    //    end_spinlock_local(local_d);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
     // end_hybridlock_local(local_d);
 #elif defined(USE_HYBRIDSPIN_LOCKS)

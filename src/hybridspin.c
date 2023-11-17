@@ -145,43 +145,6 @@ void set_blocking(hybridspin_lock_t *the_lock, int blocking)
     }
 }
 
-/*
-   Some methods for easy lock array manipulation
-   */
-
-hybridspin_lock_t *init_hybridspin_array_global(uint32_t num_locks)
-{
-    hybridspin_lock_t *the_locks;
-    the_locks = (hybridspin_lock_t *)malloc(num_locks * sizeof(hybridspin_lock_t));
-    uint32_t i;
-    for (i = 0; i < num_locks; i++)
-    {
-        the_locks[i].data.lock = UNLOCKED;
-        the_locks[i].data.spinning = 1;
-#ifdef HYBRIDLOCK_PTHREAD_MUTEX
-        pthread_mutex_init(&the_locks[i].data.mutex_lock, NULL);
-#endif
-    }
-
-    MEM_BARRIER;
-    return the_locks;
-}
-
-void init_hybridspin_array_local(uint32_t thread_num, uint32_t size)
-{
-    // assign the thread to the correct core
-    set_cpu(thread_num);
-}
-
-void end_hybridspin_array_local()
-{
-}
-
-void end_hybridspin_array_global(hybridspin_lock_t *the_locks)
-{
-    free(the_locks);
-}
-
 #ifdef BPF
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {

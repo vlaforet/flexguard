@@ -294,10 +294,6 @@ int is_free_hybridlock(hybridlock_lock_t *the_lock)
     return 0;
 }
 
-/*
- *  Some methods for easy lock array manipluation - NOT SUPPORTED FOR NOW
- */
-
 #ifdef BPF
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {

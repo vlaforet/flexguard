@@ -2,7 +2,7 @@
  * File: spinlock.h
  * Author: Tudor David <tudor.david@epfl.ch>
  *
- * Description: 
+ * Description:
  *      Implementation of a simple test-and-set spinlock
  *
  * The MIT License (MIT)
@@ -27,9 +27,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
-
-
 #ifndef _SPINLOCK_H_
 #define _SPINLOCK_H_
 
@@ -47,56 +44,31 @@
 typedef volatile uint32_t spinlock_index_t;
 typedef uint8_t spinlock_lock_data_t;
 
-typedef struct spinlock_lock_t 
+typedef struct spinlock_lock_t
 {
-    union 
-    {
-        spinlock_lock_data_t lock;
+  union
+  {
+    spinlock_lock_data_t lock;
 #ifdef ADD_PADDING
-        uint8_t padding[CACHE_LINE_SIZE];
-#else
-        uint8_t padding;
+    uint8_t padding[CACHE_LINE_SIZE];
 #endif
-    };
+  };
 } spinlock_lock_t;
-
 
 /*
  *  Lock manipulation methods
  */
-
-void spinlock_lock(spinlock_lock_t* the_lock, uint32_t* limits);
-
-int spinlock_trylock(spinlock_lock_t* the_locks, uint32_t* limits);
-
-void spinlock_unlock(spinlock_lock_t* the_locks);
-
-int is_free_spinlock(spinlock_lock_t * the_lock);
-
-/*
-   Some methods for easy lock array manipluation
-   */
-
-spinlock_lock_t* init_spinlock_array_global(uint32_t num_locks);
-
-uint32_t* init_spinlock_array_local(uint32_t thread_num, uint32_t size);
-
-void end_spinlock_array_local(uint32_t* limits);
-
-void end_spinlock_array_global(spinlock_lock_t* the_locks);
+void spinlock_lock(spinlock_lock_t *the_lock, uint32_t *limits);
+int spinlock_trylock(spinlock_lock_t *the_locks, uint32_t *limits);
+void spinlock_unlock(spinlock_lock_t *the_locks);
+int is_free_spinlock(spinlock_lock_t *the_lock);
 
 /*
  *  Methods for single lock manipulation
  */
-
-int init_spinlock_global(spinlock_lock_t* the_lock);
-
-int init_spinlock_local(uint32_t thread_num, uint32_t* limit);
-
+int init_spinlock_global(spinlock_lock_t *the_lock);
+int init_spinlock_local(uint32_t thread_num, uint32_t *limit);
 void end_spinlock_local();
-
 void end_spinlock_global();
 
 #endif
-
-

@@ -78,34 +78,6 @@ int is_free_futex(futex_lock_t *lock)
   return 0;
 }
 
-/*
- * Some methods for easy lock array manipulation
- */
-futex_lock_t *init_futex_array_global(uint32_t num_locks)
-{
-  futex_lock_t *the_locks;
-  the_locks = (futex_lock_t *)malloc(num_locks * sizeof(futex_lock_t));
-  uint32_t i;
-  for (i = 0; i < num_locks; i++)
-  {
-    the_locks[i].data = 0;
-  }
-
-  MEM_BARRIER;
-  return the_locks;
-}
-
-void init_futex_array_local(uint32_t thread_num)
-{
-  // assign the thread to the correct core
-  set_cpu(thread_num);
-}
-
-void end_futex_array_global(futex_lock_t *the_locks)
-{
-  free(the_locks);
-}
-
 int init_futex_global(futex_lock_t *the_lock)
 {
   the_lock->data = 0;
