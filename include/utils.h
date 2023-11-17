@@ -45,6 +45,10 @@
 #include <numa.h>
 #include <pthread.h>
 
+#ifdef DEBUG
+#include <assert.h>
+#endif
+
 #include "platform_defs.h"
 
 #ifdef __cplusplus
@@ -78,10 +82,10 @@ extern "C"
 // debugging functions
 #ifdef DEBUG
 #define DPRINT(args...) fprintf(stderr, args);
-#define DDPRINT(fmt, args...) printf("%s:%s:%d: " fmt, __FILE__, __FUNCTION__, __LINE__, args)
+#define DASSERT(args...) assert(args)
 #else
 #define DPRINT(...)
-#define DDPRINT(fmt, ...)
+#define DASSERT(...)
 #endif
 
     typedef uint64_t ticks;

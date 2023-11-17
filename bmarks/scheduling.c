@@ -27,7 +27,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <assert.h>
 #include <getopt.h>
 #include <limits.h>
 #include <pthread.h>
@@ -365,15 +364,15 @@ int main(int argc, char **argv)
         {
             DPRINT("Switching to FUTEX hybrid lock\n");
             __sync_val_compare_and_swap(the_lock.lock_state,
-                                        LOCK_STABLE(LOCK_TYPE_CLH),
-                                        LOCK_TRANSITION(LOCK_TYPE_CLH, LOCK_TYPE_FUTEX));
+                                        LOCK_STABLE(LOCK_TYPE_SPIN),
+                                        LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
         }
         else if (switch_thread_count > 0 && i == max_threads + 5)
         {
             DPRINT("Switching to CLH hybrid lock\n");
             __sync_val_compare_and_swap(the_lock.lock_state,
                                         LOCK_STABLE(LOCK_TYPE_FUTEX),
-                                        LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_CLH));
+                                        LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
         }
 #endif
 

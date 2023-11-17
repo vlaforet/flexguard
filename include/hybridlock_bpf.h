@@ -30,9 +30,8 @@
 #ifndef _HYBRIDLOCK_BPF_H_
 #define _HYBRIDLOCK_BPF_H_
 
-#define LOCK_TYPE_CLH (uint32_t)0
+#define LOCK_TYPE_SPIN (uint32_t)0
 #define LOCK_TYPE_FUTEX (uint32_t)1
-#define LOCK_TYPE_TICKET (uint32_t)2
 
 #define LOCK_LAST_TYPE(state) (uint32_t)(state >> 32)
 #define LOCK_CURR_TYPE(state) (uint32_t) state
@@ -43,26 +42,35 @@
 typedef uint32_t lock_type_t;
 typedef uint64_t lock_state_t;
 
-#ifdef HYBRID_TICKET
-
-#else
-typedef struct clh_qnode_t
+typedef struct hybrid_qnode_t
 {
   union
   {
-    volatile uint8_t done;
+    struct
+    {
+#ifdef HYBRID_TICKET
+      uint32_t ticket;
+#elif defined(HYBRID_CLH)
+      volatile uint8_t done;
+#endif
+
+      volatile uint8_t in_cs;
+    };
 #ifdef ADD_PADDING
     uint8_t padding1[CACHE_LINE_SIZE];
 #endif
   };
+
+#ifdef HYBRID_CLH
   union
   {
-    volatile struct clh_qnode_t *pred;
+    volatile struct hybrid_qnode_t *pred;
 #ifdef ADD_PADDING
     uint8_t padding2[CACHE_LINE_SIZE];
 #endif
   };
-} clh_qnode_t;
 #endif
+
+} hybrid_qnode_t;
 
 #endif

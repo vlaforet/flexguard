@@ -60,13 +60,7 @@
 #include "utils.h"
 #include "hybridlock_bpf.h"
 
-#ifdef HYBRID_TICKET
-#else
-typedef volatile clh_qnode_t *clh_qnode_ptr;
-typedef clh_qnode_ptr clh_lock_t;
-#endif
-
-typedef volatile int futex_lock_t;
+typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
 
 typedef struct hybridlock_lock_t
 {
@@ -85,7 +79,7 @@ typedef struct hybridlock_lock_t
 
   union
   {
-    futex_lock_t futex_lock;
+    volatile int futex_lock;
 #ifdef ADD_PADDING
     uint8_t padding2[CACHE_LINE_SIZE];
 #endif
@@ -99,8 +93,8 @@ typedef struct hybridlock_lock_t
       volatile uint32_t next;
       volatile uint32_t calling;
     } ticket_lock;
-#else
-    clh_lock_t *clh_lock;
+#elif defined(HYBRID_CLH)
+    hybrid_qnode_ptr *clh_lock;
 #endif
 
 #ifdef ADD_PADDING
@@ -113,13 +107,9 @@ typedef struct hybridlock_local_params_t
 {
   union
   {
-#ifdef HYBRID_TICKET
-    uint32_t ticket;
-#else
-    volatile clh_qnode_t *qnode;
-#endif
+    volatile hybrid_qnode_t *qnode;
 #ifdef ADD_PADDING
-    uint8_t padding2[CACHE_LINE_SIZE];
+    uint8_t padding[CACHE_LINE_SIZE];
 #endif
   };
 } hybridlock_local_params_t;
