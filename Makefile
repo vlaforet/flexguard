@@ -47,8 +47,6 @@ ifeq ($(CORE_NUM), )
 	CORE_NUM := 8
 endif
 DEFINED += -DCORE_NUM=${CORE_NUM}
-$(info ********************************** Using as a default number of cores: $(CORE_NUM) on 1 socket)
-$(info ********************************** Is this correct? If not, fix it in platform_defs.h)
 
 UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)
