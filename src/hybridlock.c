@@ -138,11 +138,13 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         while (local_params->qnode->pred->done == 0 && LOCK_CURR_TYPE(*the_lock->lock_state) == lock_type)
         {
             PAUSE;
+#ifdef BPF
             if (*the_lock->preempted_at + 500000 < get_nsecs())
             {
                 *the_lock->preempted_at = INT64_MAX;
                 __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
             }
+#endif
         }
 
         // Cannot abort properly. This only targets cases where every waiter aborts.
@@ -369,6 +371,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     // Set pointer to lock state
     the_lock->lock_state = &skel->bss->lock_state;
     the_lock->preempted_at = &skel->bss->preempted_at;
+    (*the_lock->preempted_at) = INT64_MAX;
 
 #ifdef HYBRID_TICKET
     skel->bss->ticket_calling = &the_lock->ticket_lock.next;
@@ -396,11 +399,9 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     }
 #else  // BPF } { NOBPF
     the_lock->lock_state = malloc(sizeof(lock_state_t));
-    the_lock->preempted_at = malloc(sizeof(uint64_t));
 #endif // NOBPF }
 
     (*the_lock->lock_state) = LOCK_STABLE(LOCK_TYPE_SPIN);
-    (*the_lock->preempted_at) = INT64_MAX;
 
 #if defined(HYBRID_CLH) || defined(HYBRID_MCS)
     the_lock->queue_lock = (hybrid_qnode_ptr *)malloc(sizeof(hybrid_qnode_ptr));
