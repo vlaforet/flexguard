@@ -173,6 +173,8 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
             if (local_params->qnode->waiting != 0 && __sync_val_compare_and_swap(&local_params->qnode->waiting, 1, 0) == 1)
                 return 0; // Aborted
         }
+#else
+#error "Unknown Hybrid Lock Version"
 #endif
 
         local_params->qnode->in_cs = 1;
