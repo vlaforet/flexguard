@@ -146,7 +146,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         }
 
         // Cannot abort properly. This only targets cases where every waiter aborts.
-        if (local_params->qnode->pred->done == 0)
+        if (LOCK_CURR_TYPE(*the_lock->lock_state) != lock_type)
         {
             volatile hybrid_qnode_t *pred = local_params->qnode->pred;
             local_params->qnode->done = 1;
