@@ -3,7 +3,7 @@
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Implementation of a CLH/Futex or Ticket/Futex hybrid lock
+ *      Implementation of a hybrid lock with MCS, CLH or Ticket spin locks.
  *
  * The MIT License (MIT)
  *
@@ -93,8 +93,8 @@ typedef struct hybridlock_lock_t
       volatile uint32_t next;
       volatile uint32_t calling;
     } ticket_lock;
-#elif defined(HYBRID_CLH)
-    hybrid_qnode_ptr *clh_lock;
+#elif defined(HYBRID_CLH) || defined(HYBRID_MCS)
+    hybrid_qnode_ptr *queue_lock;
 #endif
 
 #ifdef ADD_PADDING

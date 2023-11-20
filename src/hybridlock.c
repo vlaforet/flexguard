@@ -3,7 +3,7 @@
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Implementation of a CLH/Futex or Ticket/Futex hybrid lock
+ *      Implementation of a hybrid lock with MCS, CLH or Ticket spin locks.
  *
  * The MIT License (MIT)
  *
@@ -60,8 +60,12 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
         if (the_lock->ticket_lock.calling - the_lock->ticket_lock.next != 1)
             return 0; // Not free
 #elif defined(HYBRID_CLH)
-        DASSERT(the_lock->clh_lock != NULL);
-        if ((*the_lock->clh_lock)->done != 1)
+        DASSERT(the_lock->queue_lock != NULL);
+        if ((*the_lock->queue_lock)->done != 1)
+            return 0; // Not free
+#elif defined(HYBRID_MCS)
+        DASSERT(the_lock->queue_lock != NULL);
+        if ((*the_lock->queue_lock) != NULL)
             return 0; // Not free
 #endif
         break;
@@ -85,6 +89,8 @@ static inline int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 #ifdef HYBRID_TICKET
         return 1; // Fail, does not support trylock for the moment.
 #elif defined(HYBRID_CLH)
+        return 1; // Fail, does not support trylock for the moment.
+#elif defined(HYBRID_MCS)
         return 1; // Fail, does not support trylock for the moment.
 #endif
         break;
@@ -113,7 +119,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         {
             curr = the_lock->ticket_lock.calling;
             if (curr == local_params->qnode->ticket)
-                return 1; // Success
+                break; // Success
 
             distance = curr > local_params->qnode->ticket ? curr - local_params->qnode->ticket : local_params->qnode->ticket - curr;
             if (distance <= 1)
@@ -121,12 +127,13 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
             else
                 nop_rep(distance * 512);
         }
+
 #elif defined(HYBRID_CLH)
         DASSERT(local_params->qnode != NULL);
-        DASSERT(the_lock->clh_lock != NULL);
+        DASSERT(the_lock->queue_lock != NULL);
 
         local_params->qnode->done = 0;
-        local_params->qnode->pred = (hybrid_qnode_t *)SWAP_PTR(the_lock->clh_lock, (void *)local_params->qnode);
+        local_params->qnode->pred = (hybrid_qnode_t *)SWAP_PTR(the_lock->queue_lock, (void *)local_params->qnode);
 
         while (local_params->qnode->pred->done == 0 && LOCK_CURR_TYPE(*the_lock->lock_state) == lock_type)
         {
@@ -146,10 +153,30 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
             local_params->qnode = pred;
             return 0; // Aborted
         }
-        local_params->qnode->in_cs = 1;
 
-        return 1; // Success
+#elif defined(HYBRID_MCS)
+        DASSERT(local_params->qnode != NULL);
+        DASSERT(the_lock->queue_lock != NULL);
+        DASSERT(*the_lock->queue_lock != local_params->qnode);
+
+        local_params->qnode->next = NULL;
+        hybrid_qnode_ptr pred = (hybrid_qnode_t *)atomic_exchange(the_lock->queue_lock, local_params->qnode);
+        if (pred != NULL) /* lock was not free */
+        {
+            local_params->qnode->waiting = 1; // word on which to spin
+            MEM_BARRIER;
+            pred->next = local_params->qnode; // make pred point to me
+
+            while (local_params->qnode->waiting != 0 && LOCK_CURR_TYPE(*the_lock->lock_state) == lock_type)
+                PAUSE;
+
+            if (local_params->qnode->waiting != 0 && __sync_val_compare_and_swap(&local_params->qnode->waiting, 1, 0) == 1)
+                return 0; // Aborted
+        }
 #endif
+
+        local_params->qnode->in_cs = 1;
+        return 1; // Success
 
     case LOCK_TYPE_FUTEX:;
         int state;
@@ -177,16 +204,39 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
     switch (lock_type)
     {
     case LOCK_TYPE_SPIN:
+        local_params->qnode->in_cs = 0;
+
 #ifdef HYBRID_TICKET
         the_lock->ticket_lock.calling++;
 #elif defined(HYBRID_CLH)
         DASSERT(local_params->qnode != NULL);
-        DASSERT(the_lock->clh_lock != NULL);
+        DASSERT(the_lock->queue_lock != NULL);
         DASSERT(local_params->qnode->pred != NULL);
 
         volatile hybrid_qnode_t *pred = local_params->qnode->pred;
         local_params->qnode->done = 1;
         local_params->qnode = pred;
+#elif defined(HYBRID_MCS)
+        DASSERT(local_params->qnode != NULL);
+        DASSERT(the_lock->queue_lock != NULL);
+        hybrid_qnode_ptr curr = local_params->qnode, succ;
+        do
+        {
+            succ = curr->next;
+            if (!succ) /* I seem to have no succ. */
+            {
+                /* try to fix global pointer */
+                if (CAS_PTR(the_lock->queue_lock, curr, NULL) == curr)
+                    break;
+                do
+                {
+                    succ = curr->next;
+                    PAUSE;
+                } while (!succ); // wait for successor
+            }
+
+            curr = succ;
+        } while (__sync_val_compare_and_swap(&succ->waiting, 1, 0) != 1); // Spin over aborted nodes
 #endif
         break;
 
@@ -292,7 +342,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
     the_lock->futex_lock = 0;
 
-#ifdef BPF
+#ifdef BPF // { BPF
     struct hybridlock_bpf *skel;
     int err;
 
@@ -320,8 +370,6 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 
 #ifdef HYBRID_TICKET
     skel->bss->ticket_calling = &the_lock->ticket_lock.next;
-#elif defined(HYBRID_CLH)
-    the_lock->clh_lock = (hybrid_qnode_ptr *)&skel->bss->clh_lock;
 #endif
 
     // Load BPF skeleton
@@ -344,26 +392,27 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         hybridlock_bpf__destroy(skel);
         return 1;
     }
-#else
-
-#ifdef HYBRID_CLH
-    the_lock->clh_lock = (hybrid_qnode_ptr *)malloc(sizeof(hybrid_qnode_ptr));
-#endif
-
+#else  // BPF } { NOBPF
     the_lock->lock_state = malloc(sizeof(lock_state_t));
     the_lock->preempted_at = malloc(sizeof(uint64_t));
-#endif
+#endif // NOBPF }
 
     (*the_lock->lock_state) = LOCK_STABLE(LOCK_TYPE_SPIN);
     (*the_lock->preempted_at) = INT64_MAX;
+
+#if defined(HYBRID_CLH) || defined(HYBRID_MCS)
+    the_lock->queue_lock = (hybrid_qnode_ptr *)malloc(sizeof(hybrid_qnode_ptr));
+#endif
 
 #ifdef HYBRID_TICKET
     the_lock->ticket_lock.calling = 1;
     the_lock->ticket_lock.next = 0;
 #elif defined(HYBRID_CLH)
-    *(the_lock->clh_lock) = (hybrid_qnode_t *)malloc(sizeof(hybrid_qnode_t));
-    (*the_lock->clh_lock)->done = 1;
-    (*the_lock->clh_lock)->pred = NULL;
+    *(the_lock->queue_lock) = (hybrid_qnode_t *)malloc(sizeof(hybrid_qnode_t)); // CLH keeps an empty node
+    (*the_lock->queue_lock)->done = 1;
+    (*the_lock->queue_lock)->pred = NULL;
+#elif defined(HYBRID_MCS)
+    *(the_lock->queue_lock) = NULL;
 #endif
 
     MEM_BARRIER;
@@ -382,6 +431,9 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_
 #elif defined(HYBRID_CLH)
     local_params->qnode->done = 1;
     local_params->qnode->pred = NULL;
+#elif defined(HYBRID_MCS)
+    local_params->qnode->waiting = 0;
+    local_params->qnode->next = NULL;
 #endif
 
 #ifdef BPF

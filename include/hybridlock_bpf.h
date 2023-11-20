@@ -3,7 +3,8 @@
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Shared header between the BPF and userspace code for the CLH/Futex or Ticket/Futex hybrid lock.
+ *      Shared header between the BPF and userspace code for
+ *      the hybrid lock with MCS, CLH or Ticket spin locks.
  *
  * The MIT License (MIT)
  *
@@ -52,6 +53,9 @@ typedef struct hybrid_qnode_t
       uint32_t ticket;
 #elif defined(HYBRID_CLH)
       volatile uint8_t done;
+#elif defined(HYBRID_MCS)
+      volatile uint8_t waiting;
+      volatile struct hybrid_qnode_t *volatile next;
 #endif
 
       volatile uint8_t in_cs;

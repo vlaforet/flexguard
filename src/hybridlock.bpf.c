@@ -3,7 +3,8 @@
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
- *      Implementation of a CLH/futex hybrid lock - BPF preemptions detection
+ *      Implementation of a hybrid lock with MCS, CLH or Ticket spin locks.
+ * 			BPF preemptions detection
  *
  * The MIT License (MIT)
  *
@@ -39,17 +40,11 @@ uint64_t preempted_at;
 
 #ifdef HYBRID_TICKET
 uint32_t *ticket_calling;
-#else
-clh_qnode_t *clh_lock;
 #endif
 
 char _license[4] SEC("license") = "GPL";
 
-#ifdef HYBRID_TICKET
-typedef uint32_t *map_value;
-#else
-typedef clh_qnode_t *map_value;
-#endif
+typedef hybrid_qnode_t *map_value;
 
 struct
 {
