@@ -48,7 +48,8 @@
 
 uint64_t c[2] = {0, 0};
 
-#define XSTR(s) #s
+#define XSTR(s) STR(s)
+#define STR(s) #s
 
 // number of concurrent threads
 #define DEFAULT_NUM_THREADS 1
@@ -195,7 +196,7 @@ int main(int argc, char **argv)
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "h:d:n:", long_options, &i);
+        c = getopt_long(argc, argv, "hd:n:", long_options, &i);
 
         if (c == -1)
             break;
@@ -219,8 +220,8 @@ int main(int argc, char **argv)
                    "        Print this message\n"
                    "  -d, --duration <int>\n"
                    "        Test duration in milliseconds (0=infinite, default=" XSTR(DEFAULT_DURATION) ")\n"
-                                                                                                        "  -n, --num-threads <int>\n"
-                                                                                                        "        Number of threads (default=" XSTR(DEFAULT_NUM_THREADS) ")\n");
+                   "  -n, --num-threads <int>\n"
+                   "        Number of threads (default=" XSTR(DEFAULT_NUM_THREADS) ")\n");
             exit(0);
         case 'd':
             duration = atoi(optarg);
