@@ -122,7 +122,7 @@ typedef union
     uint32_t target;
   };
 #ifdef ADD_PADDING
-  uint8_t padding[48];
+  uint8_t padding[CACHE_LINE_SIZE];
 #endif
 } hybridlock_condvar_t;
 
