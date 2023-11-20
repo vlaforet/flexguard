@@ -163,7 +163,7 @@ scheduling: bmarks/scheduling.c $(OBJ_FILES)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) bmarks/scheduling.c -o scheduling $(LIBS)
 
 test_correctness: bmarks/test_correctness.c $(OBJ_FILES)
-	$(GCC) -D_GNU_SOURCE  $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) bmarks/test_correctness.c -o test_correctness $(LIBS)
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) bmarks/test_correctness.c -o test_correctness $(LIBS)
 
 clean:
 	rm -rf $(OUTPUT) *.o test_correctness scheduling libsync.a 
