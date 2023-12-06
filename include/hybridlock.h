@@ -70,6 +70,7 @@ typedef struct hybridlock_lock_t
     {
 #ifdef BPF
       uint64_t *preempted_at;
+      hybrid_addresses_t *addresses;
 #endif
 
       lock_state_t *lock_state;

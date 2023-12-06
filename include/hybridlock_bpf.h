@@ -31,6 +31,10 @@
 #ifndef _HYBRIDLOCK_BPF_H_
 #define _HYBRIDLOCK_BPF_H_
 
+#define HYBRID_FLAGS_IN_CS 1
+#define HYBRID_FLAGS_LOCK 2
+#define HYBRID_FLAGS_UNLOCK 4
+
 #define LOCK_TYPE_SPIN (uint32_t)0
 #define LOCK_TYPE_FUTEX (uint32_t)1
 
@@ -58,7 +62,9 @@ typedef struct hybrid_qnode_t
       volatile struct hybrid_qnode_t *volatile next;
 #endif
 
-      volatile uint8_t in_cs;
+#ifdef BPF
+      volatile uint8_t flags;
+#endif
     };
 #ifdef ADD_PADDING
     uint8_t padding1[CACHE_LINE_SIZE];
@@ -76,5 +82,28 @@ typedef struct hybrid_qnode_t
 #endif
 
 } hybrid_qnode_t;
+
+#ifdef BPF
+typedef struct hybrid_addresses_t
+{
+  union
+  {
+    struct
+    {
+      void *lock_check_rax_null;
+      void *lock_check_rax_null_end;
+      void *lock_spin;
+      void *lock_end;
+
+      void *unlock_check_zero_flag1;
+      void *unlock_check_zero_flag2;
+      void *unlock_end;
+    };
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#endif
+  };
+} hybrid_addresses_t;
+#endif
 
 #endif

@@ -34,9 +34,11 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
+#include <asm/processor-flags.h>
 
 lock_state_t lock_state;
 uint64_t preempted_at;
+hybrid_addresses_t addresses;
 
 #ifdef HYBRID_TICKET
 uint32_t *ticket_calling;
@@ -53,6 +55,9 @@ struct
 	__type(value, map_value);
 } nodes_map SEC(".maps");
 
+/*
+ * Store whether a thread is currently preempted.
+ */
 struct
 {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -60,76 +65,129 @@ struct
 	__type(value, u32);
 } preempted_map SEC(".maps");
 
+void preemption(u64 time, u32 tid)
+{
+	preempted_at = time;
+	long ret = bpf_map_update_elem(&preempted_map, &tid, &tid, BPF_NOEXIST);
+	if (ret < 0)
+		bpf_printk("Error on map update.");
+}
+
 SEC("tp_btf/sched_switch")
 int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
 {
-	u32 tid;
 	u64 time = bpf_ktime_get_ns();
+	struct pt_regs *regs;
+	u32 key;
+	hybrid_qnode_t **qnode;
 
-#ifdef HYBRID_TICKET
-	uint32_t **elem;
-
-	uint32_t calling;
-	long err;
-	if ((err = bpf_core_read_user(&calling, sizeof(calling), ticket_calling)) != 0)
+	/*
+	 * Clear preempted status of next thread.
+	 */
+	key = next->pid;
+	qnode = bpf_map_lookup_elem(&nodes_map, &key);
+	if (qnode != NULL && bpf_map_delete_elem(&preempted_map, &key) == 0)
 	{
-		bpf_printk("Failed to read ticket calling (%ld).", err);
-		return 0;
-	}
-
-#else
-	clh_qnode_t **elem;
-#endif
-
-	if (LOCK_CURR_TYPE(lock_state) == LOCK_TYPE_FUTEX)
-		return 0;
-
-	// Handling prev
-	tid = prev->pid;
-	elem = bpf_map_lookup_elem(&nodes_map, &tid);
-
-#ifdef HYBRID_TICKET
-	uint32_t ticket;
-	if (elem != NULL)
-		if (bpf_probe_read_user(&ticket, sizeof(ticket), *elem) != 0)
-		{
-			bpf_printk("Failed to read thread ticket.");
-			return 0;
-		}
-
-	if (elem != NULL && ticket == calling)
-#else
-	if (elem != NULL && BPF_PROBE_READ_USER(*elem, done) == 0 && BPF_PROBE_READ_USER(*elem, pred, done) == 1)
-#endif
-	{
-#if DEBUG == 1
-		bpf_printk("%s (%d) preempted by %s (%d) at %ld", prev->comm, prev->pid, next->comm, next->pid, time);
-#endif
-		preempted_at = time;
-		bpf_map_update_elem(&preempted_map, &tid, &tid, BPF_MAP_CREATE);
-	}
-
-	// Handling next
-	tid = next->pid;
-	elem = bpf_map_lookup_elem(&nodes_map, &tid);
-
-#ifdef HYBRID_TICKET
-	if (elem != NULL)
-		if (bpf_probe_read_user(&ticket, sizeof(ticket), *elem) != 0)
-		{
-			bpf_printk("Failed to read thread ticket.");
-			return 0;
-		}
-
-	if (elem != NULL && ticket == calling)
-#else
-	if (elem != NULL && bpf_map_delete_elem(&preempted_map, &tid) == 0)
-#endif
-	{
-#if DEBUG == 1
 		bpf_printk("%s (%d) rescheduled after %s (%d) at %ld", next->comm, next->pid, prev->comm, prev->pid, time);
-#endif
 		preempted_at = 116886717438980000; // INT64_MAX
+	}
+
+	/*
+	 * Optimization: No map lookup if prev is a kernel thread.
+	 */
+	if (prev->flags & 0x00200000) // PF_KTHREAD
+		return 0;
+
+	/*
+	 * Retrieve prev's qnode.
+	 */
+	key = prev->pid;
+	qnode = bpf_map_lookup_elem(&nodes_map, &key);
+	if (!qnode)
+		return 0;
+
+	uint8_t flags = BPF_PROBE_READ_USER(*qnode, flags);
+
+	/*
+	 * If prev was preempted in a critical section.
+	 */
+	if (flags & HYBRID_FLAGS_IN_CS)
+	{
+		bpf_printk("Preempted in CS.");
+		preemption(time, key);
+		return 0;
+	}
+
+	/*
+	 * Ignore preemption if not in CS, Lock or Unlock.
+	 */
+	if (!(flags & (HYBRID_FLAGS_LOCK | HYBRID_FLAGS_UNLOCK)))
+		return 0;
+
+	/*
+	 * Retrieve preemption address.
+	 */
+	u64 user_stack;
+	long user_stack_size = bpf_get_task_stack(prev, &user_stack, sizeof(u64), BPF_F_USER_STACK);
+	if (user_stack_size < 1)
+	{
+		bpf_printk("Error getting stack (%ld).", user_stack_size);
+		return 0;
+	}
+
+	/*
+	 * Handle preemption in lock function.
+	 */
+	if (flags & HYBRID_FLAGS_LOCK)
+	{
+		if ((u64)addresses.lock_check_rax_null <= user_stack && (u64)addresses.lock_check_rax_null_end > user_stack)
+		{
+			regs = (struct pt_regs *)bpf_task_pt_regs(prev);
+			if ((void *)regs->ax == NULL)
+			{
+				bpf_printk("Preempted at lock_check_rax_null.");
+				preemption(time, key);
+				return 0;
+			}
+		}
+
+		if ((u64)addresses.lock_spin <= user_stack && (u64)addresses.lock_end > user_stack && BPF_PROBE_READ_USER(*qnode, waiting) == 0)
+		{
+			bpf_printk("Preempted at spin. (%lld bytes away)", user_stack - (u64)addresses.lock_spin);
+			preemption(time, key);
+			return 0;
+		}
+
+		if ((u64)addresses.lock_end <= user_stack)
+		{
+			bpf_printk("Preempted at end.");
+			preemption(time, key);
+			return 0;
+		}
+	}
+
+	/*
+	 * Handle preemption in unlock function.
+	 */
+	if (flags & HYBRID_FLAGS_UNLOCK)
+	{
+		if ((u64)addresses.unlock_check_zero_flag1 == user_stack || (u64)addresses.unlock_check_zero_flag2 == user_stack)
+		{
+			regs = (struct pt_regs *)bpf_task_pt_regs(prev);
+			if (!(regs->flags & X86_EFLAGS_ZF))
+			{
+				bpf_printk("Preempted in check_zero_flag.");
+				preemption(time, key);
+				return 0;
+			}
+		}
+
+		if ((u64)addresses.unlock_end > user_stack)
+		{
+			bpf_printk("Preempted in unlock.");
+			preemption(time, key);
+			return 0;
+		}
 	}
 
 	return 0;
