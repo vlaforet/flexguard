@@ -15,6 +15,11 @@ ifneq ($(ADD_PADDING),0)
 	DEFINED += -DADD_PADDING
 endif
 
+# Produces a hybridlock.s file containing the compiled-unassembled code
+ifeq ($(HYBRID_ASSEMBLY),1) 
+	ASSEMBLY_DEFINE := -S -g -fverbose-asm
+endif
+
 # LOCK_VERSION in (SPINLOCK, HYBRIDLOCK, HYBRIDSPIN, MCS, CLH, TICKET, MUTEX, FUTEX)
 ifndef LOCK_VERSION
   LOCK_VERSION=HYBRIDLOCK
@@ -148,7 +153,7 @@ clh.o: src/clh.c
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/clh.c $(LIBS)
 
 hybridlock.o: src/hybridlock.c $(BPF_SKELETON)
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
+	$(GCC) $(ASSEMBLY_DEFINE) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
 
 hybridspin.o: src/hybridspin.c $(BPF_SKELETON)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridspin.c $(LIBS)
