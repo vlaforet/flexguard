@@ -234,6 +234,9 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
 
     case LOCK_TYPE_FUTEX:;
         int state;
+#ifdef BPF
+        atomic_store(&the_lock->last_waiter_at, get_nsecs());
+#endif
 
         if ((state = __sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1)) != 0)
         {
@@ -330,7 +333,6 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
         break;
 
     case LOCK_TYPE_FUTEX:
-        static int debouncer = 0;
         long ret = 0;
         if (__sync_fetch_and_sub(&the_lock->futex_lock, 1) != 1)
         {
@@ -338,11 +340,20 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
             ret = futex_wake((void *)&the_lock->futex_lock, 1);
         }
 
-        if (debouncer++ >= 40 && ret == 0)
+#ifdef BPF // If BPF is disabled, automatic switching is also disabled
+        if (ret == 0)
         {
-            debouncer = 0;
-            __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
+            unsigned long fa = atomic_load(&the_lock->last_waiter_at);
+            unsigned long age = get_nsecs() - fa;
+
+            if (age > 100000)
+            {
+                atomic_store(&the_lock->last_waiter_at, ULONG_MAX); // Prevent other threads from trying to CAS again
+                __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
+            }
         }
+#endif
+
         break;
     default:
         printf("Transition types cannot be unlocked.\n");
@@ -455,6 +466,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     the_lock->preempted_at = &skel->bss->preempted_at;
     (*the_lock->preempted_at) = INT64_MAX;
     the_lock->addresses = &skel->bss->addresses;
+    the_lock->last_waiter_at = ULONG_MAX;
 
 #ifdef HYBRID_TICKET
     skel->bss->ticket_calling = &the_lock->ticket_lock.next;
