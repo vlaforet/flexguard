@@ -146,20 +146,20 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         local_params->qnode->done = 0;
         local_params->qnode->pred = (hybrid_qnode_t *)SWAP_PTR(the_lock->queue_lock, (void *)local_params->qnode);
 
-        while (local_params->qnode->pred->done == 0 && LOCK_CURR_TYPE(*the_lock->lock_state) == lock_type)
+        while (local_params->qnode->pred->done == 0 && LOCK_CURR_TYPE(the_lock->lock_state) == lock_type)
         {
             PAUSE;
 #ifdef BPF
             if (*the_lock->preempted_at + 500000 < get_nsecs())
             {
                 *the_lock->preempted_at = INT64_MAX;
-                __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
+                __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
             }
 #endif
         }
 
         // Cannot abort properly. This only targets cases where every waiter aborts.
-        if (LOCK_CURR_TYPE(*the_lock->lock_state) != lock_type)
+        if (LOCK_CURR_TYPE(the_lock->lock_state) != lock_type)
         {
             volatile hybrid_qnode_t *pred = local_params->qnode->pred;
             local_params->qnode->done = 1;
@@ -208,11 +208,11 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
                 if (*the_lock->preempted_at + 500000 < get_nsecs())
                 {
                     *the_lock->preempted_at = INT64_MAX;
-                    __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
+                    __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
                 }
 #endif
 
-                if (LOCK_CURR_TYPE(*the_lock->lock_state) != lock_type && __sync_bool_compare_and_swap(&local_params->qnode->waiting, 1, 2))
+                if (LOCK_CURR_TYPE(the_lock->lock_state) != lock_type && __sync_bool_compare_and_swap(&local_params->qnode->waiting, 1, 2))
                 {
 #ifdef BPF
                     local_params->qnode->flags &= ~HYBRID_FLAGS_LOCK;
@@ -349,7 +349,7 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
             if (age > 100000)
             {
                 atomic_store(&the_lock->last_waiter_at, ULONG_MAX); // Prevent other threads from trying to CAS again
-                __sync_val_compare_and_swap(the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
+                __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
             }
         }
 #endif
@@ -369,16 +369,15 @@ int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
-    DASSERT(the_lock->lock_state != NULL);
     lock_state_t state;
     do
     {
-        state = *the_lock->lock_state;
+        state = the_lock->lock_state;
 
         if (!lock_type(the_lock, local_params, LOCK_CURR_TYPE(state)))
             continue;
 
-        if ((*the_lock->lock_state) == state)
+        if (the_lock->lock_state == state)
         {
             if (LOCK_CURR_TYPE(state) != LOCK_LAST_TYPE(state))
             { // Wait for the previous holder to exit its critical section
@@ -387,7 +386,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
 
                 DPRINT("[%d] Switched lock to %d\n", gettid(), LOCK_CURR_TYPE(state));
 
-                (*the_lock->lock_state) = LOCK_STABLE(LOCK_CURR_TYPE(state));
+                the_lock->lock_state = LOCK_STABLE(LOCK_CURR_TYPE(state));
             }
 
             break;
@@ -399,8 +398,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
-    DASSERT(the_lock->lock_state != NULL);
-    unlock_type(the_lock, local_params, LOCK_LAST_TYPE(*the_lock->lock_state));
+    unlock_type(the_lock, local_params, LOCK_LAST_TYPE(the_lock->lock_state));
 }
 
 int is_free_hybridlock(hybridlock_lock_t *the_lock)
@@ -461,12 +459,11 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     bpf_map__set_max_entries(skel->maps.nodes_map, max_pid);
     bpf_map__set_max_entries(skel->maps.preempted_map, max_pid);
 
-    // Set pointer to lock state
-    the_lock->lock_state = &skel->bss->lock_state;
     the_lock->preempted_at = &skel->bss->preempted_at;
     (*the_lock->preempted_at) = INT64_MAX;
-    the_lock->addresses = &skel->bss->addresses;
     the_lock->last_waiter_at = ULONG_MAX;
+
+    the_lock->addresses = &skel->bss->addresses;
 
 #ifdef HYBRID_TICKET
     skel->bss->ticket_calling = &the_lock->ticket_lock.next;
@@ -492,11 +489,9 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         hybridlock_bpf__destroy(skel);
         return 1;
     }
-#else  // BPF } { NOBPF
-    the_lock->lock_state = malloc(sizeof(lock_state_t));
-#endif // NOBPF }
+#endif // BPF }
 
-    (*the_lock->lock_state) = LOCK_STABLE(LOCK_TYPE_SPIN);
+    the_lock->lock_state = LOCK_STABLE(LOCK_TYPE_SPIN);
 
 #if defined(HYBRID_CLH) || defined(HYBRID_MCS)
     the_lock->queue_lock = (hybrid_qnode_ptr *)malloc(sizeof(hybrid_qnode_ptr));
@@ -570,7 +565,7 @@ int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_
 
     while (target > seq)
     {
-        if (LOCK_CURR_TYPE(*the_lock->lock_state) == LOCK_TYPE_FUTEX)
+        if (LOCK_CURR_TYPE(the_lock->lock_state) == LOCK_TYPE_FUTEX)
             futex_wait(&cond->seq, seq);
         else
             PAUSE;

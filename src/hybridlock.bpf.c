@@ -36,7 +36,6 @@
 #include <bpf/bpf_core_read.h>
 #include <asm/processor-flags.h>
 
-lock_state_t lock_state;
 uint64_t preempted_at;
 hybrid_addresses_t addresses;
 

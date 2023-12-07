@@ -35,18 +35,6 @@
 #define HYBRID_FLAGS_LOCK 2
 #define HYBRID_FLAGS_UNLOCK 4
 
-#define LOCK_TYPE_SPIN (uint32_t)0
-#define LOCK_TYPE_FUTEX (uint32_t)1
-
-#define LOCK_LAST_TYPE(state) (uint32_t)(state >> 32)
-#define LOCK_CURR_TYPE(state) (uint32_t) state
-
-#define LOCK_TRANSITION(last, curr) ((lock_state_t)curr | (lock_state_t)(last) << 32)
-#define LOCK_STABLE(type) LOCK_TRANSITION(type, type)
-
-typedef uint32_t lock_type_t;
-typedef uint64_t lock_state_t;
-
 typedef struct hybrid_qnode_t
 {
   union
