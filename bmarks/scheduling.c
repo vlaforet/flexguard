@@ -397,8 +397,6 @@ int main(int argc, char **argv)
 
         if (i >= base_threads - 1 && i < 2 * max_threads + 10 - base_threads)
         {
-            if (i >= max_threads)
-                continue;
             nanosleep(&step_timeout, NULL);
             measurement(data, max_threads);
         }
