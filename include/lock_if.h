@@ -259,7 +259,7 @@ static inline int acquire_trylock(lock_local_data *local_d, lock_global_data *gl
 #elif defined(USE_SPINLOCK_LOCKS)
     return spinlock_trylock(global_d, local_d);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    return hybridlock_trylock(global_d, local_d);
+    return 1; // Unsupported
 #elif defined(USE_HYBRIDSPIN_LOCKS)
     return hybridspin_trylock(global_d);
 #elif defined(USE_TICKET_LOCKS)

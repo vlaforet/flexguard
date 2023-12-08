@@ -148,9 +148,7 @@ typedef union
  */
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
-int hybridlock_trylock(hybridlock_lock_t *the_locks, hybridlock_local_params_t *local_params);
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
-int is_free_hybridlock(hybridlock_lock_t *the_lock);
 
 /*
  *  Methods for single lock manipulation

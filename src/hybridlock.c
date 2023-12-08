@@ -81,31 +81,6 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
     return 1; // Free
 }
 
-static inline int trylock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
-{
-    switch (lock_type)
-    {
-    case LOCK_TYPE_SPIN:
-#ifdef HYBRID_TICKET
-        return 1; // Fail, does not support trylock for the moment.
-#elif defined(HYBRID_CLH)
-        return 1; // Fail, does not support trylock for the moment.
-#elif defined(HYBRID_MCS)
-        return 1; // Fail, does not support trylock for the moment.
-#endif
-        break;
-
-    case LOCK_TYPE_FUTEX:
-        if (__sync_val_compare_and_swap(&the_lock->futex_lock, 0, 1) != 0)
-            return 1;
-        break;
-    default:
-        printf("Transition types cannot be locked.\n");
-        exit(1);
-    }
-    return 0; // Success
-}
-
 static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
@@ -361,12 +336,6 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
     }
 }
 
-int hybridlock_trylock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
-{
-    // will see
-    return 1;
-}
-
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
     lock_state_t state;
@@ -399,12 +368,6 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
     unlock_type(the_lock, local_params, LOCK_LAST_TYPE(the_lock->lock_state));
-}
-
-int is_free_hybridlock(hybridlock_lock_t *the_lock)
-{
-    // will see
-    return 0;
 }
 
 #ifdef BPF
