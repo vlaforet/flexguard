@@ -3,6 +3,8 @@
 *.csv
 *.png
 *.out
+*.s
+*.S
 
 /.output
 /#README.md#
