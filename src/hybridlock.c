@@ -31,7 +31,10 @@
 
 #ifdef BPF
 #include "hybridlock.skel.h"
-#endif
+
+#define NO_WAITER_DURATION_BACK_SPIN_NSECS 10000000
+#define CS_PREEMPTION_DURATION_TO_BLOCK_NSECS 500000
+#define MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS 1000000000
 
 static unsigned long get_nsecs()
 {
@@ -40,6 +43,7 @@ static unsigned long get_nsecs()
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec * 1000000000UL + ts.tv_nsec;
 }
+#endif
 
 static void futex_wait(void *addr, int val)
 {
@@ -80,6 +84,35 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
     }
     return 1; // Free
 }
+
+#ifdef BPF
+/*
+ * check_preemption is used in spin loops and triggers switches.
+ * It checks if the critical section has been preempted for more
+ * than CS_PREEMPTION_DURATION_TO_BLOCK_NSECS nsecs and switches
+ * accordingly to the blocking lock.
+ */
+void check_preemption(hybridlock_lock_t *the_lock)
+{
+    static __thread unsigned long lsa;
+    static __thread unsigned long now;
+    now = get_nsecs();
+    if (now - CS_PREEMPTION_DURATION_TO_BLOCK_NSECS > *the_lock->preempted_at)
+    {
+        *the_lock->preempted_at = ULONG_MAX;
+        lsa = atomic_load(&the_lock->last_switched_at);
+        if (now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > lsa)
+        {
+            if (__sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
+                atomic_store(&the_lock->last_switched_at, now);
+        }
+    }
+}
+
+#define CHECK_PREEMPTION_BPF(the_lock) check_preemption(the_lock)
+#else
+#define CHECK_PREEMPTION_BPF(the_lock)
+#endif
 
 static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
@@ -124,13 +157,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         while (local_params->qnode->pred->done == 0 && LOCK_CURR_TYPE(the_lock->lock_state) == lock_type)
         {
             PAUSE;
-#ifdef BPF
-            if (*the_lock->preempted_at + 500000 < get_nsecs())
-            {
-                *the_lock->preempted_at = INT64_MAX;
-                __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
-            }
-#endif
+            CHECK_PREEMPTION_BPF(the_lock);
         }
 
         // Cannot abort properly. This only targets cases where every waiter aborts.
@@ -179,13 +206,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
             while (local_params->qnode->waiting != 0)
             {
                 PAUSE;
-#ifdef BPF
-                if (*the_lock->preempted_at + 500000 < get_nsecs())
-                {
-                    *the_lock->preempted_at = INT64_MAX;
-                    __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
-                }
-#endif
+                CHECK_PREEMPTION_BPF(the_lock);
 
                 if (LOCK_CURR_TYPE(the_lock->lock_state) != lock_type && __sync_bool_compare_and_swap(&local_params->qnode->waiting, 1, 2))
                 {
@@ -308,23 +329,30 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
         break;
 
     case LOCK_TYPE_FUTEX:
+#ifdef BPF
         long ret = 0;
+#endif
         if (__sync_fetch_and_sub(&the_lock->futex_lock, 1) != 1)
         {
             the_lock->futex_lock = 0;
+#ifdef BPF
             ret = futex_wake((void *)&the_lock->futex_lock, 1);
+#else
+            futex_wake((void *)&the_lock->futex_lock, 1);
+#endif
         }
 
 #ifdef BPF // If BPF is disabled, automatic switching is also disabled
         if (ret == 0)
         {
             unsigned long fa = atomic_load(&the_lock->last_waiter_at);
-            unsigned long age = get_nsecs() - fa;
+            unsigned long lsa = atomic_load(&the_lock->last_switched_at);
+            unsigned long now = get_nsecs();
 
-            if (age > 100000)
+            if (now - NO_WAITER_DURATION_BACK_SPIN_NSECS > fa && now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > lsa)
             {
-                atomic_store(&the_lock->last_waiter_at, ULONG_MAX); // Prevent other threads from trying to CAS again
-                __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
+                if (__sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN)))
+                    atomic_store(&the_lock->last_switched_at, now);
             }
         }
 #endif
@@ -423,8 +451,9 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     bpf_map__set_max_entries(skel->maps.preempted_map, max_pid);
 
     the_lock->preempted_at = &skel->bss->preempted_at;
-    (*the_lock->preempted_at) = INT64_MAX;
+    (*the_lock->preempted_at) = ULONG_MAX;
     the_lock->last_waiter_at = ULONG_MAX;
+    the_lock->last_switched_at = 0;
 
     the_lock->addresses = &skel->bss->addresses;
 

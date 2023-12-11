@@ -36,7 +36,7 @@
 #include <bpf/bpf_core_read.h>
 #include <asm/processor-flags.h>
 
-uint64_t preempted_at;
+unsigned long preempted_at;
 hybrid_addresses_t addresses;
 
 #ifdef HYBRID_TICKET
@@ -88,7 +88,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (qnode != NULL && bpf_map_delete_elem(&preempted_map, &key) == 0)
 	{
 		bpf_printk("%s (%d) rescheduled after %s (%d) at %ld", next->comm, next->pid, prev->comm, prev->pid, time);
-		preempted_at = 116886717438980000; // INT64_MAX
+		preempted_at = 18446744073709551615UL; // ULONG_MAX
 	}
 
 	/*

@@ -81,8 +81,9 @@ typedef struct hybridlock_lock_t
     struct
     {
 #ifdef BPF
+      volatile _Atomic(unsigned long) last_switched_at;
       volatile _Atomic(unsigned long) last_waiter_at;
-      uint64_t *preempted_at;
+      unsigned long *preempted_at;
       hybrid_addresses_t *addresses;
 #endif
 
