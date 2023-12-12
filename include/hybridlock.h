@@ -82,7 +82,6 @@ typedef struct hybridlock_lock_t
     {
 #ifdef BPF
       volatile _Atomic(unsigned long) last_switched_at;
-      volatile _Atomic(unsigned long) last_waiter_at;
       unsigned long *preempted_at;
       hybrid_addresses_t *addresses;
 #endif
@@ -105,15 +104,20 @@ typedef struct hybridlock_lock_t
 
   union
   {
-#ifdef HYBRID_TICKET
-    struct ticketlock_t
+    struct
     {
-      volatile uint32_t next;
-      volatile uint32_t calling;
-    } ticket_lock;
+#ifdef HYBRID_TICKET
+      struct ticketlock_t
+      {
+        volatile uint32_t next;
+        volatile uint32_t calling;
+      } ticket_lock;
 #elif defined(HYBRID_CLH) || defined(HYBRID_MCS)
-    hybrid_qnode_ptr *queue_lock;
+      hybrid_qnode_ptr *queue_lock;
 #endif
+
+      volatile _Atomic(unsigned long) last_waiter_at;
+    };
 
 #ifdef ADD_PADDING
     uint8_t padding3[CACHE_LINE_SIZE];
