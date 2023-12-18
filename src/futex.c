@@ -29,9 +29,20 @@
 
 #include "futex.h"
 
-static void futex_wait(void *addr, int val)
+#define FUTEX_SKIP_SYSCALL_STATS 0
+
+static
+#if FUTEX_SKIP_SYSCALL_STATS == 1
+    long
+#else
+    void
+#endif
+    futex_wait(void *addr, int val)
 {
-  syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
+#if FUTEX_SKIP_SYSCALL_STATS == 1
+  return
+#endif
+      syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
 }
 
 static void futex_wake(void *addr, int nb_threads)
@@ -46,9 +57,20 @@ int futex_trylock(futex_lock_t *lock)
   return 0;   // Success
 }
 
+#if FUTEX_SKIP_SYSCALL_STATS == 1
+int counter = 0;
+int skip_counter = 0;
+int skip_counter2 = 0;
+int skip_counter3 = 0;
+#endif
 void futex_lock(futex_lock_t *lock)
 {
   int state;
+
+#if FUTEX_SKIP_SYSCALL_STATS == 1
+  int c = 0;
+  long ret;
+#endif
 
   if ((state = __sync_val_compare_and_swap(&lock->data, 0, 1)) != 0)
   {
@@ -56,14 +78,41 @@ void futex_lock(futex_lock_t *lock)
       state = __sync_lock_test_and_set(&lock->data, 2);
     while (state != 0)
     {
-      futex_wait((void *)&lock->data, 2);
+#if FUTEX_SKIP_SYSCALL_STATS == 1
+      c++;
+      ret =
+#endif
+          futex_wait((void *)&lock->data, 2);
+
+#if FUTEX_SKIP_SYSCALL_STATS == 1
+      if (ret == -EAGAIN)
+        skip_counter3++;
+#endif
+
       state = __sync_lock_test_and_set(&lock->data, 2);
     }
+
+#if FUTEX_SKIP_SYSCALL_STATS == 1
+    if (c == 0)
+      skip_counter2++;
+#endif
   }
+#if FUTEX_SKIP_SYSCALL_STATS == 1
+  else
+    skip_counter++;
+  counter++;
+#endif
 }
 
 void futex_unlock(futex_lock_t *lock)
 {
+#if FUTEX_SKIP_SYSCALL_STATS == 1
+  if (counter == 100000000)
+  {
+    printf("Counter: %d, skip1: %d, skip2: %d, skip3: %d\n", counter, skip_counter, skip_counter2, skip_counter3);
+  }
+#endif
+
   if (__sync_fetch_and_sub(&lock->data, 1) != 1)
   {
     lock->data = 0;
