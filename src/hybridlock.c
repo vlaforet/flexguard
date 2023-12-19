@@ -94,18 +94,26 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
  */
 void check_preemption(hybridlock_lock_t *the_lock)
 {
+#ifndef HYBRID_EPOCH
     static __thread unsigned long lsa;
+#endif
+
     static __thread unsigned long now;
     now = get_nsecs();
     if (now - CS_PREEMPTION_DURATION_TO_BLOCK_NSECS > *the_lock->preempted_at)
     {
         *the_lock->preempted_at = ULONG_MAX;
+
+#ifdef HYBRID_EPOCH
+        __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
+#else
         lsa = atomic_load(&the_lock->last_switched_at);
         if (now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > lsa)
         {
             if (__sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
                 atomic_store(&the_lock->last_switched_at, now);
         }
+#endif
     }
 }
 
@@ -329,20 +337,19 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
         break;
 
     case LOCK_TYPE_FUTEX:
-#ifdef BPF
+#if defined(BPF) && !defined(HYBRID_EPOCH)
         long ret = 0;
 #endif
         if (__sync_fetch_and_sub(&the_lock->futex_lock, 1) != 1)
         {
             the_lock->futex_lock = 0;
-#ifdef BPF
-            ret = futex_wake((void *)&the_lock->futex_lock, 1);
-#else
-            futex_wake((void *)&the_lock->futex_lock, 1);
+#if defined(BPF) && !defined(HYBRID_EPOCH)
+            ret =
 #endif
+                futex_wake((void *)&the_lock->futex_lock, 1);
         }
 
-#ifdef BPF // If BPF is disabled, automatic switching is also disabled
+#if defined(BPF) && !defined(HYBRID_EPOCH) // If BPF is disabled, automatic switching is also disabled
         if (ret == 0)
         {
             unsigned long fa = atomic_load(&the_lock->last_waiter_at);
@@ -366,10 +373,18 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
+#ifdef HYBRID_EPOCH
+    static volatile _Atomic(int) count = 0;
+#endif
     lock_state_t state;
     do
     {
         state = the_lock->lock_state;
+
+#ifdef HYBRID_EPOCH
+        if (LOCK_CURR_TYPE(state) == LOCK_TYPE_SPIN)
+            atomic_fetch_add(&count, 1);
+#endif
 
         if (!lock_type(the_lock, local_params, LOCK_CURR_TYPE(state)))
             continue;
@@ -386,11 +401,20 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
                 the_lock->lock_state = LOCK_STABLE(LOCK_CURR_TYPE(state));
             }
 
-            break;
+#ifdef HYBRID_EPOCH
+            if (atomic_load(&count) <= 1 && LOCK_CURR_TYPE(state) == LOCK_TYPE_FUTEX)
+            {
+                __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
+            }
+            else
+#endif
+                break;
         }
 
         unlock_type(the_lock, local_params, LOCK_CURR_TYPE(state));
     } while (1);
+
+    atomic_fetch_sub(&count, 1);
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
@@ -557,10 +581,14 @@ int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_
 
     while (target > seq)
     {
+#ifndef HYBRID_EPOCH
         if (LOCK_CURR_TYPE(the_lock->lock_state) == LOCK_TYPE_FUTEX)
+#endif
             futex_wait(&cond->seq, seq);
+#ifndef HYBRID_EPOCH
         else
             PAUSE;
+#endif
         seq = cond->seq;
     }
     hybridlock_lock(the_lock, local_params);

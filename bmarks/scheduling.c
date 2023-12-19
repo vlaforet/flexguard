@@ -367,6 +367,7 @@ int main(int argc, char **argv)
                                         LOCK_STABLE(LOCK_TYPE_SPIN),
                                         LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
         }
+#ifndef HYBRID_EPOCH
         else if (switch_thread_count > 0 && i == max_threads + 5)
         {
             DPRINT("Switching to CLH hybrid lock\n");
@@ -374,6 +375,7 @@ int main(int argc, char **argv)
                                         LOCK_STABLE(LOCK_TYPE_FUTEX),
                                         LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
         }
+#endif
 #endif
 
         if (i < max_threads)

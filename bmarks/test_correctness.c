@@ -151,13 +151,17 @@ void *switch_lock_type(void *data)
     {
         if (rand() % 2 == 0)
             __sync_val_compare_and_swap(&the_lock.lock_state,
-                                        LOCK_STABLE(LOCK_TYPE_FUTEX),
-                                        LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
-        else
-            __sync_val_compare_and_swap(&the_lock.lock_state,
                                         LOCK_STABLE(LOCK_TYPE_SPIN),
                                         LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
+#ifdef HYBRID_EPOCH
+        cpause(rand() % 1000);
+#else
+        else
+            __sync_val_compare_and_swap(&the_lock.lock_state,
+                                        LOCK_STABLE(LOCK_TYPE_FUTEX),
+                                        LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
         cpause(rand() % 10000);
+#endif
     }
 
     return NULL;
