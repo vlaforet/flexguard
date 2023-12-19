@@ -60,16 +60,16 @@
 #include "utils.h"
 #include "hybridlock_bpf.h"
 
-#define LOCK_TYPE_SPIN (uint32_t)0
-#define LOCK_TYPE_FUTEX (uint32_t)1
+#define LOCK_TYPE_SPIN (lock_type_t)0
+#define LOCK_TYPE_FUTEX (lock_type_t)1
+typedef uint32_t lock_type_t;
 
-#define LOCK_LAST_TYPE(state) (uint32_t)(state >> 32)
-#define LOCK_CURR_TYPE(state) (uint32_t) state
+#define LOCK_LAST_TYPE(state) (lock_type_t)(state >> 32)
+#define LOCK_CURR_TYPE(state) (lock_type_t) state
 
 #define LOCK_TRANSITION(last, curr) ((lock_state_t)curr | (lock_state_t)(last) << 32)
 #define LOCK_STABLE(type) LOCK_TRANSITION(type, type)
 
-typedef uint32_t lock_type_t;
 typedef uint64_t lock_state_t;
 
 typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
