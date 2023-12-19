@@ -370,7 +370,7 @@ int main(int argc, char **argv)
 #ifndef HYBRID_EPOCH
         else if (switch_thread_count > 0 && i == max_threads + 5)
         {
-            DPRINT("Switching to CLH hybrid lock\n");
+            DPRINT("Switching to spin hybrid lock\n");
             __sync_val_compare_and_swap(&the_lock.lock_state,
                                         LOCK_STABLE(LOCK_TYPE_FUTEX),
                                         LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
