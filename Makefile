@@ -89,7 +89,6 @@ ifeq ($(NOBPF), 0)
 	CLANG_BPF_SYS_INCLUDES = $(shell $(CLANG) -v -E - </dev/null 2>&1 \
 		| sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
 
-	OBJ_FILES += $(LIBBPF_OBJ)
 	LIBS += -lelf -lz
 endif
 
@@ -164,11 +163,11 @@ ticket.o: src/ticket.c
 mcs.o: src/mcs.c 
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/mcs.c $(LIBS)
 
-scheduling: bmarks/scheduling.c $(OBJ_FILES)
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) bmarks/scheduling.c -o scheduling $(LIBS)
+scheduling: bmarks/scheduling.c $(OBJ_FILES) $(LIBBPF_OBJ)
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/scheduling.c -o scheduling $(LIBS)
 
-test_correctness: bmarks/test_correctness.c $(OBJ_FILES)
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) bmarks/test_correctness.c -o test_correctness $(LIBS)
+test_correctness: bmarks/test_correctness.c $(OBJ_FILES) $(LIBBPF_OBJ)
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/test_correctness.c -o test_correctness $(LIBS)
 
 clean:
 	rm -rf $(OUTPUT) *.o test_correctness scheduling libsync.a 

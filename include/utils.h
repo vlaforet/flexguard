@@ -56,8 +56,6 @@ extern "C"
 {
 #endif
 
-#define ALIGNED(N) __attribute__((aligned(N)))
-
 #define PAUSE _mm_pause()
     static inline void pause_rep(uint32_t num_reps)
     {
