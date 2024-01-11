@@ -38,6 +38,10 @@ ifeq ($(LOCK_VERSION), HYBRIDLOCK)
 		DEFINED += -DHYBRID_GLOBAL_STATE
 	endif
 
+		ifeq ($(HYBRID_EPOCH), 1)
+		DEFINED += -DHYBRID_EPOCH
+	endif
+
 	ifndef NOBPF
 		NOBPF=0
 	endif

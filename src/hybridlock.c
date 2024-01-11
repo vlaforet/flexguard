@@ -32,6 +32,7 @@
 #ifdef BPF
 #include "hybridlock.skel.h"
 
+#ifndef HYBRID_EPOCH
 #define NO_WAITER_DURATION_BACK_SPIN_NSECS 10000000
 #define CS_PREEMPTION_DURATION_TO_BLOCK_NSECS 500000
 #define MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS 1000000000
@@ -43,6 +44,7 @@ static unsigned long get_nsecs()
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec * 1000000000UL + ts.tv_nsec;
 }
+#endif
 #endif
 
 static void futex_wait(void *addr, int val)
@@ -85,35 +87,29 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
     return 1; // Free
 }
 
-#ifdef BPF
+#if defined(BPF) && !defined(HYBRID_EPOCH)
 /*
  * check_preemption is used in spin loops and triggers switches.
  * It checks if the critical section has been preempted for more
  * than CS_PREEMPTION_DURATION_TO_BLOCK_NSECS nsecs and switches
  * accordingly to the blocking lock.
+ * check_preemption not used in the epoch version of the lock.
  */
 void check_preemption(hybridlock_lock_t *the_lock)
 {
-#ifndef HYBRID_EPOCH
     static __thread unsigned long lsa;
-#endif
-
     static __thread unsigned long now;
     now = get_nsecs();
     if (now - CS_PREEMPTION_DURATION_TO_BLOCK_NSECS > *the_lock->preempted_at)
     {
         *the_lock->preempted_at = ULONG_MAX;
 
-#ifdef HYBRID_EPOCH
-        __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
-#else
         lsa = atomic_load(&the_lock->last_switched_at);
         if (now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > lsa)
         {
             if (__sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
                 atomic_store(&the_lock->last_switched_at, now);
         }
-#endif
     }
 }
 
@@ -216,7 +212,13 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
                 PAUSE;
                 CHECK_PREEMPTION_BPF(the_lock);
 
-                if (LOCK_CURR_TYPE(the_lock->lock_state) != lock_type && __sync_bool_compare_and_swap(&local_params->qnode->waiting, 1, 2))
+                if (
+#ifdef HYBRID_EPOCH
+                    local_params->qnode->should_block == 1
+#else
+                    LOCK_CURR_TYPE(the_lock->lock_state) != lock_type
+#endif
+                    && __sync_bool_compare_and_swap(&local_params->qnode->waiting, 1, 2))
                 {
 #ifdef BPF
                     local_params->qnode->flags &= ~HYBRID_FLAGS_LOCK;
@@ -238,7 +240,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
 
     case LOCK_TYPE_FUTEX:;
         int state;
-#ifdef BPF
+#if defined(BPF) && !defined(HYBRID_EPOCH)
         atomic_store(&the_lock->last_waiter_at, get_nsecs());
 #endif
 
@@ -374,17 +376,19 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
 #ifdef HYBRID_EPOCH
-    static volatile _Atomic(int) count = 0;
-#endif
+    if (!lock_type(the_lock, local_params, LOCK_TYPE_SPIN))
+    {
+        lock_type(the_lock, local_params, LOCK_TYPE_FUTEX);
+        local_params->qnode->should_block = 2; // 2 = Futex should be released on unlock.
+
+        while (the_lock->dummy_params->qnode->waiting != 0)
+            PAUSE;
+    }
+#else
     lock_state_t state;
     do
     {
         state = the_lock->lock_state;
-
-#ifdef HYBRID_EPOCH
-        if (LOCK_CURR_TYPE(state) == LOCK_TYPE_SPIN)
-            atomic_fetch_add(&count, 1);
-#endif
 
         if (!lock_type(the_lock, local_params, LOCK_CURR_TYPE(state)))
             continue;
@@ -400,26 +404,38 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
 
                 the_lock->lock_state = LOCK_STABLE(LOCK_CURR_TYPE(state));
             }
-
-#ifdef HYBRID_EPOCH
-            if (atomic_load(&count) <= 1 && LOCK_CURR_TYPE(state) == LOCK_TYPE_FUTEX)
-            {
-                __sync_val_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
-            }
-            else
-#endif
-                break;
+            break;
         }
 
         unlock_type(the_lock, local_params, LOCK_CURR_TYPE(state));
     } while (1);
-
-    atomic_fetch_sub(&count, 1);
+#endif
 }
 
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
+#ifdef HYBRID_EPOCH
+    if (local_params->qnode->should_block == 1)
+    {
+        DPRINT("Thread should have blocked but did not. Decreasing blocking_nodes.\n");
+        __sync_fetch_and_sub(the_lock->blocking_nodes, 1);
+    }
+    else if (local_params->qnode->should_block == 2)
+    {
+        if (__sync_fetch_and_sub(the_lock->blocking_nodes, 1) == 1)
+        {
+            unlock_type(the_lock, the_lock->dummy_params, LOCK_TYPE_SPIN);
+            __sync_val_compare_and_swap(the_lock->dummy_node_enqueued, 1, 0);
+        }
+        unlock_type(the_lock, local_params, LOCK_TYPE_FUTEX);
+
+        local_params->qnode->should_block = 0;
+    }
+    else
+        unlock_type(the_lock, local_params, LOCK_TYPE_SPIN);
+#else
     unlock_type(the_lock, local_params, LOCK_LAST_TYPE(the_lock->lock_state));
+#endif
 }
 
 #ifdef BPF
@@ -472,17 +488,41 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         return 1;
     }
     bpf_map__set_max_entries(skel->maps.nodes_map, max_pid);
+
+#ifndef HYBRID_EPOCH
     bpf_map__set_max_entries(skel->maps.preempted_map, max_pid);
 
     the_lock->preempted_at = &skel->bss->preempted_at;
     (*the_lock->preempted_at) = ULONG_MAX;
     the_lock->last_waiter_at = ULONG_MAX;
     the_lock->last_switched_at = 0;
+#endif
 
     the_lock->addresses = &skel->bss->addresses;
 
 #ifdef HYBRID_TICKET
     skel->bss->ticket_calling = &the_lock->ticket_lock.next;
+#elif defined(HYBRID_MCS)
+#ifdef HYBRID_EPOCH
+    the_lock->dummy_params = (hybridlock_local_params_t *)malloc(sizeof(hybridlock_local_params_t));
+
+    the_lock->dummy_params->qnode = &skel->bss->dummy_node;
+    skel->bss->dummy_pointer = &skel->bss->dummy_node;
+
+    the_lock->dummy_params->qnode->waiting = 0;
+    the_lock->dummy_params->qnode->next = NULL;
+    the_lock->dummy_params->qnode->flags = 0;
+    the_lock->dummy_params->qnode->should_block = 0;
+
+    the_lock->dummy_node_enqueued = &skel->bss->dummy_node_enqueued;
+    the_lock->blocking_nodes = &skel->bss->blocking_nodes;
+#endif
+#endif
+
+#if defined(HYBRID_CLH) || defined(HYBRID_MCS)
+#ifdef HYBRID_EPOCH
+    the_lock->queue_lock = (volatile hybrid_qnode_t **)&skel->bss->queue_lock;
+#endif
 #endif
 
     // Load BPF skeleton
@@ -507,10 +547,14 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     }
 #endif // BPF }
 
-    the_lock->lock_state = LOCK_STABLE(LOCK_TYPE_SPIN);
-
+#if !defined(HYBRID_EPOCH) || !defined(BPF)
 #if defined(HYBRID_CLH) || defined(HYBRID_MCS)
     the_lock->queue_lock = (hybrid_qnode_ptr *)malloc(sizeof(hybrid_qnode_ptr));
+#endif
+#endif
+
+#ifndef HYBRID_EPOCH
+    the_lock->lock_state = LOCK_STABLE(LOCK_TYPE_SPIN);
 #endif
 
 #ifdef HYBRID_TICKET
@@ -533,6 +577,10 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_
     set_cpu(thread_num);
 
     local_params->qnode = (hybrid_qnode_t *)malloc(sizeof(hybrid_qnode_t));
+
+#ifdef HYBRID_EPOCH
+    local_params->qnode->should_block = 0;
+#endif
 
 #ifdef HYBRID_TICKET
     local_params->qnode->ticket = 0;

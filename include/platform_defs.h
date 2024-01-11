@@ -35,6 +35,10 @@ extern "C"
 {
 #endif
 
+#ifndef CORE_NUM
+#define CORE_NUM 8
+#endif
+
 /*
  * For each machine that is used, one needs to define
  *  NUMBER_OF_SOCKETS: the number of sockets the machine has

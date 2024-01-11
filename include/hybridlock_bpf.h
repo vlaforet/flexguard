@@ -50,6 +50,10 @@ typedef struct hybrid_qnode_t
       volatile struct hybrid_qnode_t *volatile next;
 #endif
 
+#ifdef HYBRID_EPOCH
+      uint8_t should_block;
+#endif
+
 #ifdef BPF
       volatile uint8_t flags;
 #endif

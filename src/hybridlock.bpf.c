@@ -36,11 +36,25 @@
 #include <bpf/bpf_core_read.h>
 #include <asm/processor-flags.h>
 
+#ifndef HYBRID_EPOCH
 unsigned long preempted_at;
+#endif
+
 hybrid_addresses_t addresses;
 
 #ifdef HYBRID_TICKET
 uint32_t *ticket_calling;
+#elif defined(HYBRID_MCS)
+#ifdef HYBRID_EPOCH
+hybrid_qnode_t dummy_node;
+
+// Filled by the lock init function with the user space pointer to dummy_node.
+hybrid_qnode_t *dummy_pointer;
+
+uint64_t dummy_node_enqueued = 0;
+uint64_t blocking_nodes = 0;
+hybrid_qnode_t *queue_lock;
+#endif
 #endif
 
 char _license[4] SEC("license") = "GPL";
@@ -54,6 +68,7 @@ struct
 	__type(value, map_value);
 } nodes_map SEC(".maps");
 
+#ifndef HYBRID_EPOCH
 /*
  * Store whether a thread is currently preempted.
  */
@@ -63,13 +78,93 @@ struct
 	__type(key, u32);
 	__type(value, u32);
 } preempted_map SEC(".maps");
+#endif
 
-void preemption(u64 time, u32 tid)
+static int preemption(u64 time, u32 tid)
 {
+#ifdef HYBRID_EPOCH
+	// Prevent 2nd preemption of the same thread to re-enqueue the dummy_node.
+	if (__sync_val_compare_and_swap(&dummy_node_enqueued, 0, 1) != 0)
+	{
+#ifdef DEBUG
+		bpf_printk("Dummy_node already enqueued.");
+#endif
+		return 1;
+	}
+
+	hybrid_qnode_t **holder = bpf_map_lookup_elem(&nodes_map, &tid);
+	if (!holder || !*holder)
+	{
+		bpf_printk("Error: Unexpected error while retrieving node");
+		return 1;
+	}
+
+	hybrid_qnode_t *curr = (hybrid_qnode_t *)BPF_PROBE_READ_USER((*holder), next);
+	if (!curr)
+	{
+		// Can happen if system is over-subscribed by other apps or other locks. Nothing to do.
+		bpf_printk("Holder has no next");
+		return 1;
+	}
+
+	dummy_node.next = NULL;
+	hybrid_qnode_t *pred = (hybrid_qnode_t *)__sync_lock_test_and_set(&queue_lock, dummy_pointer);
+	if (pred == NULL)
+	{
+		bpf_printk("Error: Queue is empty. Holder should at least be in the queue.");
+		return 1;
+	}
+
+	dummy_node.waiting = 1;
+
+	long ret = bpf_probe_write_user(&pred->next, &dummy_pointer, sizeof(dummy_pointer));
+	if (ret)
+	{
+		bpf_printk("Error: Unexpected error while setting dummy_node as next for pred.");
+		return 1;
+	}
+
+	int i;
+	uint8_t value_1 = 1;
+	for (i = 0; i < 10 * CORE_NUM; i++)
+	{
+		if (BPF_PROBE_READ_USER(curr, waiting) != 1)
+		{
+			bpf_printk("Error: Thread was not waiting");
+			return 1;
+		}
+
+		ret = bpf_probe_write_user(&curr->should_block, &value_1, sizeof(value_1));
+		if (ret)
+		{
+			bpf_printk("Error: Unexpected error while writing should_block %ld after %d iterations", ret, i);
+			return 1;
+		}
+
+		curr = BPF_PROBE_READ_USER(curr, next);
+
+		if (!curr)
+		{
+			bpf_printk("Error: No dummy node.");
+			return 1;
+		}
+
+		if (curr == dummy_pointer)
+			break;
+	}
+
+	__sync_fetch_and_add(&blocking_nodes, i + 1);
+#ifdef DEBUG
+	bpf_printk("Walked %d nodes", i + 1);
+#endif
+
+#else
 	preempted_at = time;
 	long ret = bpf_map_update_elem(&preempted_map, &tid, &tid, BPF_NOEXIST);
 	if (ret < 0)
 		bpf_printk("Error on map update.");
+#endif
+	return 0;
 }
 
 SEC("tp_btf/sched_switch")
@@ -80,6 +175,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	u32 key;
 	hybrid_qnode_t **qnode;
 
+#ifndef HYBRID_EPOCH
 	/*
 	 * Clear preempted status of next thread.
 	 */
@@ -90,6 +186,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		bpf_printk("%s (%d) rescheduled after %s (%d) at %ld", next->comm, next->pid, prev->comm, prev->pid, time);
 		preempted_at = 18446744073709551615UL; // ULONG_MAX
 	}
+#endif
 
 	/*
 	 * Optimization: No map lookup if prev is a kernel thread.

@@ -143,7 +143,7 @@ void *test_correctness(void *data)
     return NULL;
 }
 
-#ifdef USE_HYBRIDLOCK_LOCKS
+#if defined(USE_HYBRIDLOCK_LOCKS) && !defined(HYBRID_EPOCH)
 void *switch_lock_type(void *data)
 {
     srand(time(NULL));
@@ -153,15 +153,11 @@ void *switch_lock_type(void *data)
             __sync_val_compare_and_swap(&the_lock.lock_state,
                                         LOCK_STABLE(LOCK_TYPE_SPIN),
                                         LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
-#ifdef HYBRID_EPOCH
-        cpause(rand() % 1000);
-#else
         else
             __sync_val_compare_and_swap(&the_lock.lock_state,
                                         LOCK_STABLE(LOCK_TYPE_FUTEX),
                                         LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
         cpause(rand() % 10000);
-#endif
     }
 
     return NULL;
@@ -287,7 +283,7 @@ int main(int argc, char **argv)
         }
     }
 
-#ifdef USE_HYBRIDLOCK_LOCKS
+#if defined(USE_HYBRIDLOCK_LOCKS) && !defined(HYBRID_EPOCH)
     pthread_t switch_thread;
 
     if (pthread_create(&switch_thread, &attr, switch_lock_type, NULL) != 0)
@@ -334,7 +330,7 @@ int main(int argc, char **argv)
         }
     }
 
-#ifdef USE_HYBRIDLOCK_LOCKS
+#if defined(USE_HYBRIDLOCK_LOCKS) && !defined(HYBRID_EPOCH)
     if (pthread_join(switch_thread, NULL) != 0)
     {
         fprintf(stderr, "Error waiting for switch thread completion\n");

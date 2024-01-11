@@ -359,7 +359,7 @@ int main(int argc, char **argv)
 
     for (i = 0; i < 2 * max_threads + 10; i++)
     {
-#ifdef USE_HYBRIDLOCK_LOCKS
+#if defined(USE_HYBRIDLOCK_LOCKS) && !defined(HYBRID_EPOCH)
         if (i == switch_thread_count)
         {
             DPRINT("Switching to FUTEX hybrid lock\n");
@@ -367,7 +367,6 @@ int main(int argc, char **argv)
                                         LOCK_STABLE(LOCK_TYPE_SPIN),
                                         LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
         }
-#ifndef HYBRID_EPOCH
         else if (switch_thread_count > 0 && i == max_threads + 5)
         {
             DPRINT("Switching to spin hybrid lock\n");
@@ -375,7 +374,6 @@ int main(int argc, char **argv)
                                         LOCK_STABLE(LOCK_TYPE_FUTEX),
                                         LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
         }
-#endif
 #endif
 
         if (i < max_threads)

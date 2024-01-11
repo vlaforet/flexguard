@@ -74,6 +74,17 @@ typedef uint64_t lock_state_t;
 
 typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
 
+typedef struct hybridlock_local_params_t
+{
+  union
+  {
+    volatile hybrid_qnode_t *qnode;
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#endif
+  };
+} hybridlock_local_params_t;
+
 typedef struct hybridlock_lock_t
 {
   union
@@ -81,12 +92,22 @@ typedef struct hybridlock_lock_t
     struct
     {
 #ifdef BPF
+#ifndef HYBRID_EPOCH
       volatile _Atomic(unsigned long) last_switched_at;
       unsigned long *preempted_at;
+#endif
+
       hybrid_addresses_t *addresses;
 #endif
 
+#ifdef HYBRID_EPOCH
+      hybridlock_local_params_t *dummy_params;
+      uint64_t *dummy_node_enqueued;
+      uint64_t *blocking_nodes;
+#else
       lock_state_t lock_state;
+#endif
+
       struct bpf_map *nodes_map;
     };
 #ifdef ADD_PADDING
@@ -116,7 +137,9 @@ typedef struct hybridlock_lock_t
       hybrid_qnode_ptr *queue_lock;
 #endif
 
+#ifndef HYBRID_EPOCH
       volatile _Atomic(unsigned long) last_waiter_at;
+#endif
     };
 
 #ifdef ADD_PADDING
@@ -124,17 +147,6 @@ typedef struct hybridlock_lock_t
 #endif
   };
 } hybridlock_lock_t;
-
-typedef struct hybridlock_local_params_t
-{
-  union
-  {
-    volatile hybrid_qnode_t *qnode;
-#ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE];
-#endif
-  };
-} hybridlock_local_params_t;
 
 typedef union
 {
