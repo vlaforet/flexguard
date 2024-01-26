@@ -73,16 +73,14 @@ unsigned long preempted_at;
 
 hybrid_addresses_t addresses;
 volatile hybrid_qnode_t qnode_allocation_array[MAX_NUMBER_THREADS];
-hybrid_qnode_ptr qnode_allocation_starting_address;
+hybrid_qnode_ptr qnode_allocation_starting_address; // Filled by the lock init function with user-space pointer to qnode_allocation_array.
 
 #ifdef HYBRID_TICKET
 uint32_t *ticket_calling;
 #elif defined(HYBRID_MCS)
 #ifdef HYBRID_EPOCH
 volatile hybrid_qnode_t dummy_node;
-
-// Filled by the lock init function with the user space pointer to dummy_node.
-hybrid_qnode_ptr dummy_pointer;
+hybrid_qnode_ptr dummy_pointer; // Filled by the lock init function with user-space pointer to dummy_node.
 
 uint64_t dummy_node_enqueued = 0;
 uint64_t blocking_nodes = 0;
