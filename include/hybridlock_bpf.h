@@ -75,6 +75,7 @@ typedef struct hybrid_qnode_t
 #endif
 
 } hybrid_qnode_t;
+typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
 
 #ifdef BPF
 typedef struct hybrid_addresses_t

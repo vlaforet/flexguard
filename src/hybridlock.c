@@ -156,7 +156,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         DASSERT(the_lock->queue_lock != NULL);
 
         local_params->qnode->done = 0;
-        local_params->qnode->pred = (hybrid_qnode_t *)SWAP_PTR(the_lock->queue_lock, (void *)local_params->qnode);
+        local_params->qnode->pred = (hybrid_qnode_ptr)SWAP_PTR(the_lock->queue_lock, (void *)local_params->qnode);
 
         while (local_params->qnode->pred->done == 0 && LOCK_CURR_TYPE(the_lock->lock_state) == lock_type)
         {
@@ -167,7 +167,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         // Cannot abort properly. This only targets cases where every waiter aborts.
         if (LOCK_CURR_TYPE(the_lock->lock_state) != lock_type)
         {
-            volatile hybrid_qnode_t *pred = local_params->qnode->pred;
+            hybrid_qnode_ptr pred = local_params->qnode->pred;
             local_params->qnode->done = 1;
             local_params->qnode = pred;
             return 0; // Aborted
@@ -279,7 +279,7 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
         DASSERT(the_lock->queue_lock != NULL);
         DASSERT(local_params->qnode->pred != NULL);
 
-        volatile hybrid_qnode_t *pred = local_params->qnode->pred;
+        hybrid_qnode_ptr pred = local_params->qnode->pred;
         local_params->qnode->done = 1;
         local_params->qnode = pred;
 #elif defined(HYBRID_MCS)
@@ -499,7 +499,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 
 #if defined(HYBRID_CLH) || defined(HYBRID_MCS)
 #ifdef HYBRID_EPOCH
-    the_lock->queue_lock = (volatile hybrid_qnode_t **)&skel->bss->queue_lock;
+    the_lock->queue_lock = (hybrid_qnode_ptr *)&skel->bss->queue_lock;
 #endif
     the_lock->qnode_allocation_array = skel->bss->qnode_allocation_array;
     skel->bss->qnode_allocation_starting_address = the_lock->qnode_allocation_array;
@@ -541,7 +541,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     the_lock->ticket_lock.calling = 1;
     the_lock->ticket_lock.next = 0;
 #elif defined(HYBRID_CLH)
-    *(the_lock->queue_lock) = (hybrid_qnode_t *)malloc(sizeof(hybrid_qnode_t)); // CLH keeps an empty node
+    *(the_lock->queue_lock) = (hybrid_qnode_ptr)malloc(sizeof(hybrid_qnode_t)); // CLH keeps an empty node
     (*the_lock->queue_lock)->done = 1;
     (*the_lock->queue_lock)->pred = NULL;
 #elif defined(HYBRID_MCS)
@@ -566,7 +566,7 @@ int init_hybridlock_local(uint32_t pin_on_cpu, hybridlock_local_params_t *local_
 #ifdef BPF
     local_params->qnode = &the_lock->qnode_allocation_array[thread_num];
 #else
-    local_params->qnode = (hybrid_qnode_t *)malloc(sizeof(hybrid_qnode_t));
+    local_params->qnode = (hybrid_qnode_ptr)malloc(sizeof(hybrid_qnode_t));
 #endif
 
 #ifdef HYBRID_EPOCH
@@ -589,7 +589,7 @@ int init_hybridlock_local(uint32_t pin_on_cpu, hybridlock_local_params_t *local_
 
     // Register thread in BPF map
     __u32 tid = gettid();
-    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), &local_params->qnode, sizeof(hybrid_qnode_t *), BPF_ANY);
+    int err = bpf_map__update_elem(the_lock->nodes_map, &tid, sizeof(tid), &local_params->qnode, sizeof(hybrid_qnode_ptr), BPF_ANY);
     if (err)
     {
         fprintf(stderr, "Failed to register thread with BPF: %d\n", err);

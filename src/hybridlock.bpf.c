@@ -51,7 +51,7 @@
  * Example:
  * ```
  * int id;
- * volatile hybrid_qnode_t *kern;
+ * hybrid_qnode_ptr kern;
  *
  * // Inline
  * return QNODE_USER_TO_KERNEL(user, id, kern) ? kern->waiting : 0;
@@ -73,7 +73,7 @@ unsigned long preempted_at;
 
 hybrid_addresses_t addresses;
 volatile hybrid_qnode_t qnode_allocation_array[MAX_NUMBER_THREADS];
-volatile hybrid_qnode_t *qnode_allocation_starting_address;
+hybrid_qnode_ptr qnode_allocation_starting_address;
 
 #ifdef HYBRID_TICKET
 uint32_t *ticket_calling;
@@ -82,17 +82,17 @@ uint32_t *ticket_calling;
 volatile hybrid_qnode_t dummy_node;
 
 // Filled by the lock init function with the user space pointer to dummy_node.
-volatile hybrid_qnode_t *dummy_pointer;
+hybrid_qnode_ptr dummy_pointer;
 
 uint64_t dummy_node_enqueued = 0;
 uint64_t blocking_nodes = 0;
-volatile hybrid_qnode_t *queue_lock;
+hybrid_qnode_ptr queue_lock;
 #endif
 #endif
 
 char _license[4] SEC("license") = "GPL";
 
-typedef volatile hybrid_qnode_t *map_value;
+typedef hybrid_qnode_ptr map_value;
 
 struct
 {
@@ -126,7 +126,7 @@ static int on_preemption(u64 time, u32 tid)
 	}
 
 	int id;
-	volatile hybrid_qnode_t **holder, *curr, *temp;
+	hybrid_qnode_ptr *holder, curr, temp;
 
 	holder = bpf_map_lookup_elem(&nodes_map, &tid);
 	if (!holder || !QNODE_USER_TO_KERNEL(*holder, id, temp))
@@ -146,7 +146,7 @@ static int on_preemption(u64 time, u32 tid)
 
 	// <LOCK_DUMMY_NODE>
 	dummy_node.next = NULL;
-	volatile hybrid_qnode_t *pred = (hybrid_qnode_t *)__sync_lock_test_and_set(&queue_lock, dummy_pointer);
+	hybrid_qnode_ptr pred = (hybrid_qnode_ptr)__sync_lock_test_and_set(&queue_lock, dummy_pointer);
 	if (pred == NULL)
 	{
 		bpf_printk("Error: Queue is empty. Holder should at least be in the queue.");
@@ -202,7 +202,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	struct pt_regs *regs;
 	u32 key;
 	int id;
-	volatile hybrid_qnode_t **temp, *qnode;
+	hybrid_qnode_ptr *temp, qnode;
 
 	/*
 	 * Clear preempted status of next thread.

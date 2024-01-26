@@ -72,13 +72,11 @@ typedef uint32_t lock_type_t;
 
 typedef uint64_t lock_state_t;
 
-typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
-
 typedef struct hybridlock_local_params_t
 {
   union
   {
-    volatile hybrid_qnode_t *qnode;
+    hybrid_qnode_ptr qnode;
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
 #endif
@@ -99,7 +97,7 @@ typedef struct hybridlock_lock_t
 
       hybrid_addresses_t *addresses;
       struct bpf_map *nodes_map;
-      hybrid_qnode_t *qnode_allocation_array;
+      hybrid_qnode_ptr qnode_allocation_array;
 #endif
 
 #ifdef HYBRID_EPOCH
