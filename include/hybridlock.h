@@ -98,6 +98,8 @@ typedef struct hybridlock_lock_t
 #endif
 
       hybrid_addresses_t *addresses;
+      struct bpf_map *nodes_map;
+      hybrid_qnode_t *qnode_allocation_array;
 #endif
 
 #ifdef HYBRID_EPOCH
@@ -108,7 +110,7 @@ typedef struct hybridlock_lock_t
       lock_state_t lock_state;
 #endif
 
-      struct bpf_map *nodes_map;
+      _Atomic(int) thread_count;
     };
 #ifdef ADD_PADDING
     uint8_t padding1[CACHE_LINE_SIZE];

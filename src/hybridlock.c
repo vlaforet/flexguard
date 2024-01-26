@@ -312,6 +312,10 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 
             curr = succ;
 
+            // TODO: Do something with that information
+            /*if (!succ->is_running)
+                printf("Should block\n");*/
+
             /*
              *  Try to give the lock to the next waiter (and break if CAS succeeds).
              *  Store the pointer to the waiting flag and new value (0) in registers.
@@ -376,6 +380,7 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
 #ifdef HYBRID_EPOCH
+    local_params->qnode->should_block = 0;
     if (!lock_type(the_lock, local_params, LOCK_TYPE_SPIN))
     {
         lock_type(the_lock, local_params, LOCK_TYPE_FUTEX);
@@ -415,24 +420,21 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
 void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
 #ifdef HYBRID_EPOCH
-    if (local_params->qnode->should_block == 1)
-    {
-        DPRINT("Thread should have blocked but did not. Decreasing blocking_nodes.\n");
-        __sync_fetch_and_sub(the_lock->blocking_nodes, 1);
-    }
-    else if (local_params->qnode->should_block == 2)
+    if (local_params->qnode->should_block != 0)
     {
         if (__sync_fetch_and_sub(the_lock->blocking_nodes, 1) == 1)
         {
             unlock_type(the_lock, the_lock->dummy_params, LOCK_TYPE_SPIN);
             __sync_val_compare_and_swap(the_lock->dummy_node_enqueued, 1, 0);
         }
-        unlock_type(the_lock, local_params, LOCK_TYPE_FUTEX);
 
-        local_params->qnode->should_block = 0;
+#ifdef DEBUG
+        if (local_params->qnode->should_block == 1)
+            DPRINT("Not a bug: Thread should have blocked but did not.\n");
+#endif
     }
-    else
-        unlock_type(the_lock, local_params, LOCK_TYPE_SPIN);
+
+    unlock_type(the_lock, local_params, local_params->qnode->should_block == 2 ? LOCK_TYPE_FUTEX : LOCK_TYPE_SPIN);
 #else
     unlock_type(the_lock, local_params, LOCK_LAST_TYPE(the_lock->lock_state));
 #endif
@@ -447,25 +449,12 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
     return 0;
 #endif
 }
-
-static int get_max_pid()
-{
-    int max_pid;
-    FILE *f;
-
-    f = fopen("/proc/sys/kernel/pid_max", "r");
-    if (!f)
-        return -1;
-    if (fscanf(f, "%d\n", &max_pid) != 1)
-        max_pid = -1;
-    fclose(f);
-    return max_pid;
-}
 #endif
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
     the_lock->futex_lock = 0;
+    the_lock->thread_count = 0;
 
 #ifdef BPF // { BPF
     struct hybridlock_bpf *skel;
@@ -480,18 +469,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         return 1;
     }
 
-    // Set max size of map to max pid
-    int max_pid = get_max_pid();
-    if (max_pid < 0)
-    {
-        fprintf(stderr, "Failed to get max_pid\n");
-        return 1;
-    }
-    bpf_map__set_max_entries(skel->maps.nodes_map, max_pid);
-
 #ifndef HYBRID_EPOCH
-    bpf_map__set_max_entries(skel->maps.preempted_map, max_pid);
-
     the_lock->preempted_at = &skel->bss->preempted_at;
     (*the_lock->preempted_at) = ULONG_MAX;
     the_lock->last_waiter_at = ULONG_MAX;
@@ -523,13 +501,15 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 #ifdef HYBRID_EPOCH
     the_lock->queue_lock = (volatile hybrid_qnode_t **)&skel->bss->queue_lock;
 #endif
+    the_lock->qnode_allocation_array = skel->bss->qnode_allocation_array;
+    skel->bss->qnode_allocation_starting_address = the_lock->qnode_allocation_array;
 #endif
 
     // Load BPF skeleton
     err = hybridlock_bpf__load(skel);
     if (err)
     {
-        fprintf(stderr, "Failed to load and verify BPF skeleton\n");
+        fprintf(stderr, "Failed to load and verify BPF skeleton (%d)\n", err);
         hybridlock_bpf__destroy(skel);
         return 1;
     }
@@ -541,7 +521,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     err = hybridlock_bpf__attach(skel);
     if (err)
     {
-        fprintf(stderr, "Failed to attach BPF skeleton\n");
+        fprintf(stderr, "Failed to attach BPF skeleton (%d)\n", err);
         hybridlock_bpf__destroy(skel);
         return 1;
     }
@@ -572,11 +552,22 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     return 0;
 }
 
-int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
+int init_hybridlock_local(uint32_t pin_on_cpu, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
 {
-    set_cpu(thread_num);
+    set_cpu(pin_on_cpu);
 
+    int thread_num = atomic_fetch_add(&the_lock->thread_count, 1);
+    if (thread_num > MAX_NUMBER_THREADS)
+    {
+        perror("Too many threads. Increase MAX_NUMBER_THREADS in platform_defs.h.");
+        exit(1);
+    }
+
+#ifdef BPF
+    local_params->qnode = &the_lock->qnode_allocation_array[thread_num];
+#else
     local_params->qnode = (hybrid_qnode_t *)malloc(sizeof(hybrid_qnode_t));
+#endif
 
 #ifdef HYBRID_EPOCH
     local_params->qnode->should_block = 0;
@@ -594,6 +585,7 @@ int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_
 
 #ifdef BPF
     local_params->qnode->flags = 0;
+    local_params->qnode->is_running = 1;
 
     // Register thread in BPF map
     __u32 tid = gettid();

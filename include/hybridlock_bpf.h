@@ -56,6 +56,7 @@ typedef struct hybrid_qnode_t
 
 #ifdef BPF
       volatile uint8_t flags;
+      volatile uint8_t is_running;
 #endif
     };
 #ifdef ADD_PADDING
