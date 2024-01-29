@@ -77,6 +77,34 @@ extern "C"
         }
     }
 
+    /*
+     * Retrieves current TSC frequency.
+     * Calls are cached.
+     */
+    static inline unsigned long get_tsc_frequency()
+    {
+        static unsigned long frequency = 0;
+        if (!frequency)
+        {
+            FILE *file;
+            char text[32];
+            file = popen("sudo bpftrace -e 'BEGIN { printf(\"%u\", *kaddr(\"tsc_khz\")); exit(); }' | sed -n 2p", "r");
+            if (file == NULL)
+            {
+                fprintf(stderr, "popen frequency");
+                exit(1);
+            }
+
+            fgets(text, 32, file);
+            if (!(frequency = atoi(text)))
+            {
+                fprintf(stderr, "unable to retrieve TSC frequency, check that bpftrace is properly installed");
+                exit(1);
+            }
+        }
+        return frequency;
+    }
+
 // debugging functions
 #ifdef DEBUG
 #define DPRINT(args...) fprintf(stderr, args);

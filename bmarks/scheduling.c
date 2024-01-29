@@ -57,16 +57,12 @@
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
-#define FREQUENCY_CMD "sudo bpftrace -e 'BEGIN { printf(\"%u\", *kaddr(\"tsc_khz\")); exit(); }' | sed -n 2p"
-
 /* ################################################################### *
  * GLOBALS
  * ################################################################### */
 
 int contention = DEFAULT_CONTENTION;
 int dummy_array_size = DEFAULT_DUMMY_ARRAY_SIZE;
-
-long unsigned int frequency;
 
 lock_global_data the_lock;
 __attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
@@ -171,7 +167,7 @@ void measurement(thread_data_t *data, int len)
         }
     }
 
-    printf("%d, %d, %f\n", id++, thread_count, thread_count == 0 ? .0 : sum / thread_count / frequency);
+    printf("%d, %d, %f\n", id++, thread_count, thread_count == 0 ? .0 : sum / thread_count / get_tsc_frequency());
 }
 
 /* ################################################################### *
@@ -278,6 +274,7 @@ int main(int argc, char **argv)
 #ifdef USE_HYBRIDLOCK_LOCKS
     printf("Switch thread count: %d\n", switch_thread_count);
 #endif
+    printf("TSC frequency: %ld\n", get_tsc_frequency());
 
     thread_data_t *data;
     pthread_t *threads;
@@ -318,24 +315,6 @@ int main(int argc, char **argv)
         }
     }
     arr->next = dummy_array;
-
-    // Retrieve current frequency
-    FILE *file;
-    char text[32];
-    file = popen(FREQUENCY_CMD, "r");
-    if (file == NULL)
-    {
-        fprintf(stderr, "popen frequency");
-        exit(1);
-    }
-
-    fgets(text, 32, file);
-    if (!(frequency = atoi(text)))
-    {
-        fprintf(stderr, "unable to retrieve TSC frequency, check that bpftrace is properly installed");
-        exit(1);
-    }
-    printf("Frequency: %ld\n", frequency);
 
     /* Init locks */
     DPRINT("Initializing locks\n");

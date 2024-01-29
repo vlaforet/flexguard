@@ -51,13 +51,9 @@
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
-#define FREQUENCY_CMD "sudo bpftrace -e 'BEGIN { printf(\"%u\", *kaddr(\"tsc_khz\")); exit(); }' | sed -n 2p"
-
 /* ################################################################### *
  * GLOBALS
  * ################################################################### */
-
-long unsigned int frequency;
 
 int bucket_count = DEFAULT_BUCKET_COUNT;
 int max_value = DEFAULT_MAX_VALUE;
@@ -225,7 +221,7 @@ void measurement(thread_data_t *data, int len)
         }
     }
 
-    printf("%d, %d, %f\n", id++, thread_count, thread_count == 0 ? .0 : sum / thread_count / frequency);
+    printf("%d, %d, %f\n", id++, thread_count, thread_count == 0 ? .0 : sum / thread_count / get_tsc_frequency());
 }
 
 /* ################################################################### *
@@ -305,6 +301,7 @@ int main(int argc, char **argv)
     printf("Base nb threads: %d\n", base_threads);
     printf("Max nb threads: %d\n", max_threads);
     printf("Step duration: %d\n", step_duration);
+    printf("TSC frequency: %ld\n", get_tsc_frequency());
 
     thread_data_t *data;
     pthread_t *threads;
@@ -340,24 +337,6 @@ int main(int argc, char **argv)
         }
         buckets[i].usage = 0;
     }
-
-    // Retrieve current frequency
-    FILE *file;
-    char text[32];
-    file = popen(FREQUENCY_CMD, "r");
-    if (file == NULL)
-    {
-        fprintf(stderr, "popen frequency");
-        exit(1);
-    }
-
-    fgets(text, 32, file);
-    if (!(frequency = atoi(text)))
-    {
-        fprintf(stderr, "unable to retrieve TSC frequency, check that bpftrace is properly installed");
-        exit(1);
-    }
-    printf("Frequency: %ld\n", frequency);
 
     for (i = 0; i < max_threads; i++)
     {
