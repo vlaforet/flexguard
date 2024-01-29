@@ -100,7 +100,7 @@ SRCPATH := $(abspath ./src/)
 MAININCLUDE := $(abspath ./include/)
 INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
 
-all: scheduling test_correctness libsync.a
+all: scheduling test_correctness buckets libsync.a
 	@echo "############### Used lock:" $(LOCK_VERSION)
 
 ifeq ($(NOBPF), 0)
@@ -170,9 +170,12 @@ mcs.o: src/mcs.c
 scheduling: bmarks/scheduling.c $(OBJ_FILES) $(LIBBPF_OBJ)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/scheduling.c -o scheduling $(LIBS)
 
+buckets: bmarks/buckets.c $(OBJ_FILES) $(LIBBPF_OBJ)
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) src/hash_map.c bmarks/buckets.c -o buckets -lm $(LIBS)
+
 test_correctness: bmarks/test_correctness.c $(OBJ_FILES) $(LIBBPF_OBJ)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/test_correctness.c -o test_correctness $(LIBS)
 
 clean:
-	rm -rf $(OUTPUT) *.o test_correctness scheduling libsync.a 
+	rm -rf $(OUTPUT) *.o test_correctness scheduling buckets libsync.a 
 	$(MAKE) -C litl/ clean
