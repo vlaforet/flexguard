@@ -161,22 +161,10 @@ extern "C"
         }
     }
 
-#if defined(__i386__)
     static inline ticks getticks(void)
     {
-        ticks ret;
-
-        __asm__ __volatile__("rdtsc" : "=A"(ret));
-        return ret;
+        return __builtin_ia32_rdtsc();
     }
-#elif defined(__x86_64__)
-static inline ticks getticks(void)
-{
-    unsigned hi, lo;
-    __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
-    return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
-}
-#endif
 
     static inline void cdelay(ticks cycles)
     {
@@ -201,30 +189,11 @@ static inline ticks getticks(void)
             ;
     }
 
-    // getticks needs to have a correction because the call itself takes a
-    // significant number of cycles and skewes the measurement
-    static inline ticks getticks_correction_calc()
-    {
-#define GETTICKS_CALC_REPS 5000000
-        ticks t_dur = 0;
-        uint32_t i;
-        for (i = 0; i < GETTICKS_CALC_REPS; i++)
-        {
-            ticks t_start = getticks();
-            ticks t_end = getticks();
-            t_dur += t_end - t_start;
-        }
-        //    printf("corr in float %f\n", (t_dur / (double) GETTICKS_CALC_REPS));
-        ticks getticks_correction = (ticks)(t_dur / (double)GETTICKS_CALC_REPS);
-        return getticks_correction;
-    }
-
     static inline ticks get_noop_duration()
     {
 #define NOOP_CALC_REPS 1000000
         ticks noop_dur = 0;
         uint32_t i;
-        ticks corr = getticks_correction_calc();
         ticks start;
         ticks end;
         start = getticks();
@@ -233,7 +202,7 @@ static inline ticks getticks(void)
             __asm__ __volatile__("nop");
         }
         end = getticks();
-        noop_dur = (ticks)((end - start - corr) / (double)NOOP_CALC_REPS);
+        noop_dur = (ticks)((end - start) / (double)NOOP_CALC_REPS);
         return noop_dur;
     }
 
