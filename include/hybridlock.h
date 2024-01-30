@@ -45,9 +45,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <sys/syscall.h>
-#include <sys/resource.h>
-#include <linux/futex.h>
 
 #include <fcntl.h>
 #include <pthread.h>

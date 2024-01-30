@@ -44,6 +44,8 @@
 #include <xmmintrin.h>
 #include <numa.h>
 #include <pthread.h>
+#include <linux/futex.h>
+#include <sys/syscall.h>
 
 #ifdef DEBUG
 #include <assert.h>
@@ -103,6 +105,26 @@ extern "C"
             }
         }
         return frequency;
+    }
+
+    /*
+     * FUTEX_WAIT_PRIVATE syscall.
+     * addr: Address to wait on.
+     * val: value that addr should point to.
+     */
+    static inline long futex_wait(void *addr, int val)
+    {
+        return syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
+    }
+
+    /*
+     * FUTEX_WAKE_PRIVATE syscall.
+     * addr: Address waiters are waiting on.
+     * nb_threads: number of threads to wake up.
+     */
+    static inline long futex_wake(void *addr, int nb_threads)
+    {
+        return syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
     }
 
 // debugging functions

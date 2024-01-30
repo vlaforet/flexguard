@@ -31,25 +31,6 @@
 
 #define FUTEX_SKIP_SYSCALL_STATS 0
 
-static
-#if FUTEX_SKIP_SYSCALL_STATS == 1
-    long
-#else
-    void
-#endif
-    futex_wait(void *addr, int val)
-{
-#if FUTEX_SKIP_SYSCALL_STATS == 1
-  return
-#endif
-      syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
-}
-
-static void futex_wake(void *addr, int nb_threads)
-{
-  syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
-}
-
 int futex_trylock(futex_lock_t *lock)
 {
   if (__sync_val_compare_and_swap(&lock->data, 0, 1) != 0)

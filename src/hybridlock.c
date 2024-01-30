@@ -47,16 +47,6 @@ static unsigned long get_nsecs()
 #endif
 #endif
 
-static void futex_wait(void *addr, int val)
-{
-    syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, NULL, NULL, 0); /* Wait if *addr == val. */
-}
-
-static long futex_wake(void *addr, int nb_threads)
-{
-    return syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, nb_threads, NULL, NULL, 0);
-}
-
 static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
 {
     switch (lock_type)
