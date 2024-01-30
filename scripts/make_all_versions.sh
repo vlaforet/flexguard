@@ -1,7 +1,7 @@
 #!/bin/sh
 
 LOCKS="SPINLOCK HYBRIDLOCK HYBRIDSPIN MCS CLH TICKET MUTEX FUTEX"
-BENCHMARKS="scheduling test_correctness"
+BENCHMARKS="scheduling test_correctness buckets"
 
 MAKE="make"
 
@@ -23,8 +23,10 @@ while getopts "hs:vdl:" OPTION; do
         exit 1
         ;;
     s)
-        USUFFIX="_$OPTARG"
-        echo "Using suffix: $USUFFIX"
+        if [ -n "$OPTARG" ]; then
+            USUFFIX="_$OPTARG"
+            echo "Using suffix: $USUFFIX"
+        fi
         ;;
     v)
         VERBOSE=1
