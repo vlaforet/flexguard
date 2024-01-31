@@ -65,7 +65,7 @@ def load(filename):
 
 
 fig, ax = plt.subplots(layout="constrained")
-ax.set_yscale("log")
+#ax.set_yscale("log")
 
 csv = load(args.input_file)
 csv = np.sort(csv, order="lock")
