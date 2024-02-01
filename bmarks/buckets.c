@@ -47,6 +47,7 @@
 #define DEFAULT_DURATION_MS 10000;
 #define DEFAULT_MAX_VALUE 100000
 #define DEFAULT_BUCKET_COUNT 100
+#define DEFAULT_OFFSET_CHANGES 40
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -176,9 +177,6 @@ void *test(void *data)
         DASSERT(bucket_id < bucket_count);
         i = rand();
 
-        if (i % 1000000 == 0)
-            value_offset = rand() % max_value;
-
         t1 = getticks();
         acquire_lock(&(buckets[bucket_id].local_th_data[d->id]), &buckets[bucket_id].lock);
 
@@ -216,6 +214,7 @@ int main(int argc, char **argv)
 
     int max_threads = DEFAULT_MAX_THREADS;
     int duration = DEFAULT_DURATION_MS;
+    int offset_changes = DEFAULT_OFFSET_CHANGES;
 
     struct option long_options[] = {
         {"help", no_argument, NULL, 'h'},
@@ -223,12 +222,13 @@ int main(int argc, char **argv)
         {"num-threads", required_argument, NULL, 'n'},
         {"buckets", required_argument, NULL, 'b'},
         {"max-value", required_argument, NULL, 'm'},
+        {"offset-changes", required_argument, NULL, 'o'},
         {NULL, 0, NULL, 0}};
 
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hd:n:b:m:", long_options, &i);
+        c = getopt_long(argc, argv, "hd:n:b:m:o:", long_options, &i);
 
         if (c == -1)
             break;
@@ -258,6 +258,8 @@ int main(int argc, char **argv)
             printf("        Number of buckets (default=" XSTR(DEFAULT_BUCKET_COUNT) ")\n");
             printf("  -m, --max-value <int>\n");
             printf("        Maximum value (default=" XSTR(DEFAULT_MAX_VALUE) ")\n");
+            printf("  -o, --offset-changes <int>\n");
+            printf("        Number of time to change the offset (default=" XSTR(DEFAULT_OFFSET_CHANGES) ")\n");
             exit(0);
         case 'd':
             duration = atoi(optarg);
@@ -271,6 +273,9 @@ int main(int argc, char **argv)
         case 'm':
             max_value = atoi(optarg);
             break;
+        case 'o':
+            offset_changes = atoi(optarg);
+            break;
         case '?':
             printf("Use -h or --help for help\n");
             exit(0);
@@ -283,6 +288,7 @@ int main(int argc, char **argv)
     printf("Max nb threads: %d\n", max_threads);
     printf("Bucket count: %d\n", bucket_count);
     printf("Max value: %d\n", max_value);
+    printf("Offset changes: %d\n", offset_changes);
     printf("TSC frequency: %ld\n", get_tsc_frequency());
 
     thread_data_t *data;
@@ -350,11 +356,16 @@ int main(int argc, char **argv)
     }
 
     nanosleep((const struct timespec[]){{1, 0L}}, NULL); // Wait for all threads to be ready.
+    const struct timespec timeout = {duration / offset_changes / 1000, (duration / offset_changes % 1000) * 1000000L};
 
     DPRINT("Starting experiment\n");
     start = true;
 
-    nanosleep((const struct timespec[]){{duration / 1000, (duration % 1000) * 1000000L}}, NULL);
+    for (i = 0; i < offset_changes; i++)
+    {
+        value_offset = rand() % max_value;
+        nanosleep(&timeout, NULL);
+    }
 
     stop = true;
     DPRINT("Stopped experiment\n");
