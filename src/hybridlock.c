@@ -373,6 +373,10 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
     local_params->qnode->should_block = 0;
     if (!lock_type(the_lock, local_params, LOCK_TYPE_SPIN))
     {
+#ifdef TRACING
+        if (the_lock->tracing_fn)
+            the_lock->tracing_fn(getticks(), TRACING_EVENT_SWITCH_BLOCK, NULL, the_lock->tracing_fn_data);
+#endif
         lock_type(the_lock, local_params, LOCK_TYPE_FUTEX);
         local_params->qnode->should_block = 2; // 2 = Futex should be released on unlock.
 
