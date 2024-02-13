@@ -74,7 +74,7 @@ for lock in $LOCKS; do
     echo "Benchmarking on lock ${suffix} with ${cores} threads"
 
     res="$(./buckets_$suffix$USUFFIX -n ${cores} ${ARGS})"
-    throughput="$(echo "$res" | grep "Throughput" | awk '{print $2}')"
+    throughput="$(echo "$res" | grep "#Throughput" | awk '{print $2}')"
 
     echo "${lock},${cores},${throughput}" >>$OUTPUT
 

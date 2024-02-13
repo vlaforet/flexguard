@@ -15,6 +15,10 @@ ifneq ($(ADD_PADDING),0)
 	DEFINED += -DADD_PADDING
 endif
 
+ifeq ($(TRACING),1)
+	DEFINED += -DTRACING
+endif
+
 # Produces a hybridlock.s file containing the compiled-unassembled code
 ifeq ($(HYBRID_ASSEMBLY),1) 
 	ASSEMBLY_DEFINE := -S -g -fverbose-asm

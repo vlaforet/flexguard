@@ -395,6 +395,11 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
                 while (!isfree_type(the_lock, LOCK_LAST_TYPE(state)))
                     PAUSE;
 
+#ifdef TRACING
+                if (the_lock->tracing_fn)
+                    the_lock->tracing_fn(getticks(), LOCK_CURR_TYPE(state) == LOCK_TYPE_SPIN ? TRACING_EVENT_SWITCH_SPIN : TRACING_EVENT_SWITCH_BLOCK, NULL, the_lock->tracing_fn_data);
+#endif
+
                 DPRINT("[%d] Switched lock to %d\n", gettid(), LOCK_CURR_TYPE(state));
 
                 the_lock->lock_state = LOCK_STABLE(LOCK_CURR_TYPE(state));
@@ -590,6 +595,14 @@ int init_hybridlock_local(uint32_t pin_on_cpu, hybridlock_local_params_t *local_
     MEM_BARRIER;
     return 0;
 }
+
+#ifdef TRACING
+void set_tracing_fn(hybridlock_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data)
+{
+    the_lock->tracing_fn_data = tracing_fn_data;
+    the_lock->tracing_fn = tracing_fn;
+}
+#endif
 
 /*
  *  Condition Variables

@@ -57,6 +57,11 @@
 #include "utils.h"
 #include "hybridlock_bpf.h"
 
+#ifdef TRACING
+#define TRACING_EVENT_SWITCH_BLOCK 0
+#define TRACING_EVENT_SWITCH_SPIN 1
+#endif
+
 #define LOCK_TYPE_SPIN (lock_type_t)0
 #define LOCK_TYPE_FUTEX (lock_type_t)1
 typedef uint32_t lock_type_t;
@@ -103,6 +108,11 @@ typedef struct hybridlock_lock_t
       uint64_t *blocking_nodes;
 #else
       lock_state_t lock_state;
+#endif
+
+#ifdef TRACING
+      void *tracing_fn_data;
+      void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data);
 #endif
 
       _Atomic(int) thread_count;
@@ -170,6 +180,10 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock);
 int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock);
+
+#ifdef TRACING
+void set_tracing_fn(hybridlock_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data);
+#endif
 
 /*
  *  Condition Variables

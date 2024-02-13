@@ -42,12 +42,16 @@
 #include "utils.h"
 #include "lock_if.h"
 #include "hash_map.h"
+#ifdef USE_HYBRIDLOCK_LOCKS
+#include "hybridlock.h"
+#endif
 
 #define DEFAULT_MAX_THREADS 10
 #define DEFAULT_DURATION_MS 10000;
 #define DEFAULT_MAX_VALUE 100000
 #define DEFAULT_BUCKET_COUNT 100
 #define DEFAULT_OFFSET_CHANGES 40
+#define DEFAULT_TRACING false
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -59,9 +63,11 @@
 int bucket_count = DEFAULT_BUCKET_COUNT;
 int max_value = DEFAULT_MAX_VALUE;
 int value_offset = 0;
+bool tracing = false;
 
 typedef struct bucket_t
 {
+    int id;
     lock_global_data lock;
     __attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
     hash_map map;
@@ -136,6 +142,19 @@ bool eq_fn(void *p1, void *p2)
     return hash_fn(p1) == hash_fn(p2);
 }
 
+#ifdef TRACING
+void lock_tracing_fn(ticks rtsp, int event_type, void *event_data, void *fn_data)
+{
+#ifdef USE_HYBRIDLOCK_LOCKS
+    if (event_type == TRACING_EVENT_SWITCH_SPIN || event_type == TRACING_EVENT_SWITCH_BLOCK)
+    {
+        bucket_t *bucket = (bucket_t *)fn_data;
+        printf("%s, %ld, %d\n", event_type == TRACING_EVENT_SWITCH_SPIN ? "switch_spin" : "switch_block", rtsp, bucket->id);
+    }
+#endif
+}
+#endif
+
 /* ################################################################### *
  * STRESS TEST
  * ################################################################### */
@@ -199,6 +218,9 @@ void *test(void *data)
         release_lock(&(buckets[bucket_id].local_th_data[d->id]), &buckets[bucket_id].lock);
         d->cs_ticks += getticks() - t1;
         d->cs_count++;
+
+        if (tracing)
+            printf("accessed_value, %ld, %d\n", t1, *value);
     }
 
     return NULL;
@@ -223,12 +245,13 @@ int main(int argc, char **argv)
         {"buckets", required_argument, NULL, 'b'},
         {"max-value", required_argument, NULL, 'm'},
         {"offset-changes", required_argument, NULL, 'o'},
+        {"trace", no_argument, NULL, 't'},
         {NULL, 0, NULL, 0}};
 
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hd:n:b:m:o:", long_options, &i);
+        c = getopt_long(argc, argv, "hd:n:b:m:o:t", long_options, &i);
 
         if (c == -1)
             break;
@@ -260,6 +283,12 @@ int main(int argc, char **argv)
             printf("        Maximum value (default=" XSTR(DEFAULT_MAX_VALUE) ")\n");
             printf("  -o, --offset-changes <int>\n");
             printf("        Number of time to change the offset (default=" XSTR(DEFAULT_OFFSET_CHANGES) ")\n");
+            printf("  -t, --trace\n");
+            printf("        Enable tracing (default=" XSTR(DEFAULT_TRACING) ")\n");
+#ifndef TRACING
+            printf("        Lock tracing is disabled. If you use that option only the benchmark will be traced.\n");
+            printf("        Recompile with TRACING=1 to enable lock tracing.\n");
+#endif
             exit(0);
         case 'd':
             duration = atoi(optarg);
@@ -276,6 +305,13 @@ int main(int argc, char **argv)
         case 'o':
             offset_changes = atoi(optarg);
             break;
+        case 't':
+            tracing = true;
+#ifndef TRACING
+            printf("#Warning: Lock tracing is disabled. Only the benchmark will be traced.\n");
+            printf("#         Recompile with TRACING=1 to enable lock tracing.\n\n");
+#endif
+            break;
         case '?':
             printf("Use -h or --help for help\n");
             exit(0);
@@ -284,12 +320,13 @@ int main(int argc, char **argv)
         }
     }
 
-    printf("Duration: %dms\n", duration);
-    printf("Max nb threads: %d\n", max_threads);
-    printf("Bucket count: %d\n", bucket_count);
-    printf("Max value: %d\n", max_value);
-    printf("Offset changes: %d\n", offset_changes);
-    printf("TSC frequency: %ld\n", get_tsc_frequency());
+    printf("#Duration: %dms\n", duration);
+    printf("#Threads: %d\n", max_threads);
+    printf("#Buckets: %d\n", bucket_count);
+    printf("#Max value: %d\n", max_value);
+    printf("#Offset changes: %d\n", offset_changes);
+    printf("#Tracing: %s\n", tracing ? "enabled" : "disabled");
+    printf("#TSC frequency: %ld\n", get_tsc_frequency());
 
     thread_data_t *data;
     pthread_t *threads;
@@ -306,18 +343,25 @@ int main(int argc, char **argv)
     }
 
     // Initialize zipf
-    printf("Zipf: %d\n", zipf(1.4, max_value - 1));
+    zipf(1.4, max_value - 1);
 
     // Initialize buckets
     buckets = malloc(sizeof(bucket_t) * bucket_count);
     for (i = 0; i < bucket_count; i++)
     {
+        buckets[i].id = i;
         init_lock_global(&buckets[i].lock);
         if ((buckets[i].local_th_data = (lock_local_data *)malloc(max_threads * sizeof(lock_local_data))) == NULL)
         {
             perror("malloc local_th_data");
             exit(1);
         }
+
+#if defined(TRACING) && defined(USE_HYBRIDLOCK_LOCKS)
+        if (tracing)
+            set_tracing_fn(&buckets[i].lock, &lock_tracing_fn, &buckets[i]);
+#endif
+
         if (hash_map_init(&buckets[i].map, &hash_fn, &eq_fn, max_value / bucket_count, 0.75))
         {
             perror("hash_map_init");
@@ -384,7 +428,7 @@ int main(int argc, char **argv)
     }
 
     for (i = 0; i < bucket_count; i++)
-        printf("Bucket %4d: %10d / %11d successful reads, %11d writes\n",
+        printf("#Bucket %4d: %10d / %11d successful reads, %11d writes\n",
                i, buckets[i].successful_reads, buckets[i].reads, buckets[i].writes);
 
     double sum = 0;
@@ -394,12 +438,12 @@ int main(int argc, char **argv)
         local_result = (double)data[i].cs_ticks / (double)data[i].cs_count;
         sum += local_result;
 
-        printf("Local result for Thread %3d: %10f CS/s (%d iterations)\n", i,
+        printf("#Local result for Thread %3d: %10f CS/s (%d iterations)\n", i,
                ((double)1000 * get_tsc_frequency()) / local_result, data[i].cs_count);
     }
 
     double result = max_threads * (((double)1000 * get_tsc_frequency()) / sum);
-    printf("Throughput %f CS/s\n", result);
+    printf("#Throughput: %f CS/s\n", result);
 
     return EXIT_SUCCESS;
 }
