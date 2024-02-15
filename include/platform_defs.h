@@ -44,14 +44,16 @@ extern "C"
  *  NUMBER_OF_SOCKETS: the number of sockets the machine has
  *  CORES_PER_SOCKET: the number of cores per socket
  *  CACHE_LINE_SIZE
- *  MAX_NUMBER_THREADS: maximum number of threads allowed per-lock
+ *  MAX_NUMBER_THREADS: maximum number of threads allowed per-lock (account for the dummy node, add 1)
+ *  MAX_NUMBER_LOCKS: maximum number of locks allowed
  *  the_cores - a mapping from the core ids as configured in the OS to physical cores (the OS might not alwas be configured corrrectly)
  *  get_cluster - a function that given a core id returns the socket number ot belongs to
  */
 #define NUMBER_OF_SOCKETS 1
 #define CORES_PER_SOCKET CORE_NUM
 #define CACHE_LINE_SIZE 128
-#define MAX_NUMBER_THREADS 10 * CORE_NUM
+#define MAX_NUMBER_THREADS (10 * CORE_NUM + 1)
+#define MAX_NUMBER_LOCKS 1000
 
     static uint8_t __attribute__((unused)) the_cores[] = {
         0, 1, 2, 3, 4, 5, 6, 7,

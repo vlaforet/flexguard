@@ -91,15 +91,13 @@ typedef struct hybridlock_lock_t
   {
     struct
     {
+      int id;
+
 #ifdef BPF
 #ifndef HYBRID_EPOCH
       volatile _Atomic(unsigned long) last_switched_at;
       unsigned long *preempted_at;
 #endif
-
-      hybrid_addresses_t *addresses;
-      struct bpf_map *nodes_map;
-      hybrid_qnode_ptr qnode_allocation_array;
 #endif
 
 #ifdef HYBRID_EPOCH

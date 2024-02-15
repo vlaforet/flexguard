@@ -65,26 +65,21 @@
  * ```
  */
 #define QNODE_USER_TO_KERNEL(user_qnode, id, kern_qnode) \
-	((id = (user_qnode - qnode_allocation_starting_address)) >= 0 && id < MAX_NUMBER_THREADS && (kern_qnode = &qnode_allocation_array[id]))
+	((id = (user_qnode - qnode_allocation_starting_address)) >= 0 && id < (MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS) && (kern_qnode = &qnode_allocation_array[id]))
 
 #ifndef HYBRID_EPOCH
-unsigned long preempted_at;
+unsigned long preempted_at[MAX_NUMBER_LOCKS];
 #endif
 
 hybrid_addresses_t addresses;
-volatile hybrid_qnode_t qnode_allocation_array[MAX_NUMBER_THREADS];
+volatile hybrid_qnode_t qnode_allocation_array[MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS];
 hybrid_qnode_ptr qnode_allocation_starting_address; // Filled by the lock init function with user-space pointer to qnode_allocation_array.
 
-#ifdef HYBRID_TICKET
-uint32_t *ticket_calling;
-#elif defined(HYBRID_MCS)
+#ifdef HYBRID_MCS
+hybrid_qnode_ptr queue_lock[MAX_NUMBER_LOCKS];
 #ifdef HYBRID_EPOCH
-volatile hybrid_qnode_t dummy_node;
-hybrid_qnode_ptr dummy_pointer; // Filled by the lock init function with user-space pointer to dummy_node.
-
-uint64_t dummy_node_enqueued = 0;
-uint64_t blocking_nodes = 0;
-hybrid_qnode_ptr queue_lock;
+uint64_t dummy_node_enqueued[MAX_NUMBER_LOCKS];
+uint64_t blocking_nodes[MAX_NUMBER_LOCKS];
 #endif
 #endif
 
@@ -97,7 +92,7 @@ struct
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, u32);
 	__type(value, map_value);
-	__uint(max_entries, MAX_NUMBER_THREADS);
+	__uint(max_entries, (MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS));
 } nodes_map SEC(".maps");
 
 #ifndef HYBRID_EPOCH
@@ -109,49 +104,47 @@ struct
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, u32);
 	__type(value, u32);
-	__uint(max_entries, MAX_NUMBER_THREADS);
+	__uint(max_entries, (MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS));
 } preempted_map SEC(".maps");
 #endif
 
-static int on_preemption(u64 time, u32 tid)
+static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 {
+	int lock_id = holder->lock_id;
+	if (!(lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)) // Weird negative to please the verifier
+		return 1;																				 // Should never happen
+
 #ifdef HYBRID_EPOCH
 	// Prevent 2nd preemption of the same thread to re-enqueue the dummy_node.
-	if (__sync_val_compare_and_swap(&dummy_node_enqueued, 0, 1) != 0)
+	if (__sync_val_compare_and_swap(&dummy_node_enqueued[lock_id], 0, 1) != 0)
 	{
 		DPRINT("Dummy_node already enqueued.");
 		return 1;
 	}
 
 	int id;
-	hybrid_qnode_ptr *holder, curr, temp;
+	hybrid_qnode_ptr curr, temp;
+	hybrid_qnode_ptr dummy_node = &qnode_allocation_array[lock_id * MAX_NUMBER_THREADS];
+	hybrid_qnode_ptr dummy_pointer = qnode_allocation_starting_address + lock_id * MAX_NUMBER_THREADS;
 
-	holder = bpf_map_lookup_elem(&nodes_map, &tid);
-	if (!holder || !QNODE_USER_TO_KERNEL(*holder, id, temp))
-	{
-		bpf_printk("Error: Unexpected error while retrieving node");
-		__sync_lock_test_and_set(&dummy_node_enqueued, 0);
-		return 1;
-	}
-
-	curr = temp->next;
+	curr = holder->next;
 	if (!curr)
 	{ // Can happen if system is over-subscribed by other apps or other locks. Nothing to do.
 		DPRINT("Holder has no next");
-		__sync_lock_test_and_set(&dummy_node_enqueued, 0);
+		__sync_lock_test_and_set(&dummy_node_enqueued[lock_id], 0);
 		return 1;
 	}
 
 	// <LOCK_DUMMY_NODE>
-	dummy_node.next = NULL;
-	hybrid_qnode_ptr pred = (hybrid_qnode_ptr)__sync_lock_test_and_set(&queue_lock, dummy_pointer);
+	dummy_node->next = NULL;
+	hybrid_qnode_ptr pred = (hybrid_qnode_ptr)__sync_lock_test_and_set(&queue_lock[lock_id], dummy_pointer);
 	if (pred == NULL)
 	{
 		bpf_printk("Error: Queue is empty. Holder should at least be in the queue.");
 		return 1;
 	}
 
-	dummy_node.waiting = 1;
+	dummy_node->waiting = 1;
 	if (QNODE_USER_TO_KERNEL(pred, id, temp))
 		temp->next = dummy_pointer;
 	// </LOCK_DUMMY_NODE>
@@ -181,11 +174,11 @@ static int on_preemption(u64 time, u32 tid)
 			break;
 	}
 
-	__sync_fetch_and_add(&blocking_nodes, i + 1);
+	__sync_fetch_and_add(&blocking_nodes[lock_id], i + 1);
 	DPRINT("Walked %d nodes", i + 1);
 
 #else
-	preempted_at = time;
+	preempted_at[lock_id] = time;
 	long ret = bpf_map_update_elem(&preempted_map, &tid, &tid, BPF_NOEXIST);
 	if (ret < 0)
 		bpf_printk("Error on map update.");
@@ -215,7 +208,10 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		if (bpf_map_delete_elem(&preempted_map, &key) == 0)
 		{
 			bpf_printk("%s (%d) rescheduled after %s (%d) at %ld", next->comm, next->pid, prev->comm, prev->pid, time);
-			preempted_at = 18446744073709551615UL; // ULONG_MAX
+			id = qnode->lock_id;
+			if (!(id >= 0 && id < MAX_NUMBER_LOCKS))	 // Weird negative to please the verifier
+				return 1;																 // Should never happen
+			preempted_at[id] = 18446744073709551615UL; // ULONG_MAX
 		}
 #endif
 	}
@@ -243,7 +239,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (flags & HYBRID_FLAGS_IN_CS)
 	{
 		DPRINT("Preempted in CS.");
-		return on_preemption(time, key);
+		return on_preemption(time, key, qnode);
 	}
 
 	/*
@@ -274,7 +270,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 			if ((void *)regs->ax == NULL)
 			{
 				DPRINT("Preempted at lock_check_rax_null.");
-				return on_preemption(time, key);
+				return on_preemption(time, key, qnode);
 			}
 			return 0;
 		}
@@ -282,13 +278,13 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		if ((u64)addresses.lock_spin <= user_stack && (u64)addresses.lock_end > user_stack && qnode->waiting == 0)
 		{
 			DPRINT("Preempted at spin. (%lld bytes away)", user_stack - (u64)addresses.lock_spin);
-			return on_preemption(time, key);
+			return on_preemption(time, key, qnode);
 		}
 
 		if ((u64)addresses.lock_end <= user_stack)
 		{
 			DPRINT("Preempted at lock_end.");
-			return on_preemption(time, key);
+			return on_preemption(time, key, qnode);
 		}
 	}
 
@@ -303,7 +299,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 			if (!(regs->flags & X86_EFLAGS_ZF))
 			{
 				DPRINT("Preempted in check_zero_flag.");
-				return on_preemption(time, key);
+				return on_preemption(time, key, qnode);
 			}
 			return 0;
 		}
@@ -311,7 +307,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		if ((u64)addresses.unlock_end > user_stack)
 		{
 			DPRINT("Preempted in unlock.");
-			return on_preemption(time, key);
+			return on_preemption(time, key, qnode);
 		}
 	}
 

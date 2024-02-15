@@ -41,6 +41,8 @@ typedef struct hybrid_qnode_t
   {
     struct
     {
+      int lock_id;
+
 #ifdef HYBRID_TICKET
       uint32_t ticket;
 #elif defined(HYBRID_CLH)
