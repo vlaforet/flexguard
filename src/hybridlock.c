@@ -103,13 +103,11 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
  */
 static inline void check_preemption(hybridlock_lock_t *the_lock)
 {
-    static __thread unsigned long lsa;
     static __thread unsigned long now;
     now = get_nsecs();
     if (now - CS_PREEMPTION_DURATION_TO_BLOCK_NSECS > *the_lock->preempted_at)
     {
-        lsa = atomic_load(&the_lock->last_switched_at);
-        if (now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > lsa)
+        if (now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > (unsigned long)atomic_load(&the_lock->last_switched_at))
         {
             if (__sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
             {
