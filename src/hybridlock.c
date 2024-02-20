@@ -93,36 +93,6 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
     return 1; // Free
 }
 
-#if defined(BPF) && !defined(HYBRID_EPOCH)
-/*
- * check_preemption is used in spin loops and triggers switches.
- * It checks if the critical section has been preempted for more
- * than CS_PREEMPTION_DURATION_TO_BLOCK_NSECS nsecs and switches
- * accordingly to the blocking lock.
- * check_preemption not used in the epoch version of the lock.
- */
-static inline void check_preemption(hybridlock_lock_t *the_lock)
-{
-    static __thread unsigned long now;
-    now = get_nsecs();
-    if (now - CS_PREEMPTION_DURATION_TO_BLOCK_NSECS > *the_lock->preempted_at)
-    {
-        if (now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > (unsigned long)atomic_load(&the_lock->last_switched_at))
-        {
-            if (__sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
-            {
-                *the_lock->preempted_at = ULONG_MAX;
-                atomic_store(&the_lock->last_switched_at, now);
-            }
-        }
-    }
-}
-
-#define CHECK_PREEMPTION_BPF(the_lock) check_preemption(the_lock)
-#else
-#define CHECK_PREEMPTION_BPF(the_lock)
-#endif
-
 static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
@@ -163,10 +133,24 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         local_params->qnode->done = 0;
         local_params->qnode->pred = (hybrid_qnode_ptr)SWAP_PTR(the_lock->queue_lock, (void *)local_params->qnode);
 
+#if defined(BPF) && !defined(HYBRID_EPOCH)
+        unsigned long now;
+#endif
         while (local_params->qnode->pred->done == 0 && LOCK_CURR_TYPE(the_lock->lock_state) == lock_type)
         {
             PAUSE;
-            CHECK_PREEMPTION_BPF(the_lock);
+
+#if defined(BPF) && !defined(HYBRID_EPOCH)
+            now = get_nsecs();
+            if (
+                now - CS_PREEMPTION_DURATION_TO_BLOCK_NSECS > *the_lock->preempted_at &&
+                now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > (unsigned long)atomic_load(&the_lock->last_switched_at) &&
+                __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
+            {
+                *the_lock->preempted_at = ULONG_MAX;
+                atomic_store(&the_lock->last_switched_at, now);
+            }
+#endif
         }
 
         // Cannot abort properly. This only targets cases where every waiter aborts.
@@ -212,10 +196,24 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
 #ifdef BPF
         lock_spin:
 #endif
+#if defined(BPF) && !defined(HYBRID_EPOCH)
+            unsigned long now;
+#endif
             while (local_params->qnode->waiting != 0)
             {
                 PAUSE;
-                CHECK_PREEMPTION_BPF(the_lock);
+
+#if defined(BPF) && !defined(HYBRID_EPOCH)
+                now = get_nsecs();
+                if (
+                    now - CS_PREEMPTION_DURATION_TO_BLOCK_NSECS > *the_lock->preempted_at &&
+                    now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > (unsigned long)atomic_load(&the_lock->last_switched_at) &&
+                    __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
+                {
+                    *the_lock->preempted_at = ULONG_MAX;
+                    atomic_store(&the_lock->last_switched_at, now);
+                }
+#endif
 
                 if (
 #ifdef HYBRID_EPOCH
