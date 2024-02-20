@@ -421,7 +421,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
                     the_lock->tracing_fn(getticks(), LOCK_CURR_TYPE(state) == LOCK_TYPE_SPIN ? TRACING_EVENT_SWITCH_SPIN : TRACING_EVENT_SWITCH_BLOCK, NULL, the_lock->tracing_fn_data);
 #endif
 
-                DPRINT("[%d] Switched lock to %d\n", gettid(), LOCK_CURR_TYPE(state));
+                DPRINT("[%d] Switched lock #%d to %d\n", gettid(), the_lock->id, LOCK_CURR_TYPE(state));
 
                 the_lock->lock_state = LOCK_STABLE(LOCK_CURR_TYPE(state));
             }
