@@ -511,7 +511,7 @@ static void deploy_bpf_code()
 int init_hybridlock_global(hybridlock_lock_t *the_lock)
 {
     the_lock->id = atomic_fetch_add(&lock_count, 1);
-    if (the_lock->id > MAX_NUMBER_LOCKS)
+    if (the_lock->id >= MAX_NUMBER_LOCKS)
     {
         perror("Too many locks. Increase MAX_NUMBER_LOCKS in platform_defs.h.");
         exit(1);
@@ -583,13 +583,13 @@ int init_hybridlock_local(uint32_t pin_on_cpu, hybridlock_local_params_t *local_
     set_cpu(pin_on_cpu);
 
     int thread_num = atomic_fetch_add(&the_lock->thread_count, 1);
-    if (thread_num > MAX_NUMBER_THREADS)
+    if (thread_num >= MAX_NUMBER_THREADS - 1)
     {
         perror("Too many threads. Increase MAX_NUMBER_THREADS in platform_defs.h.");
         exit(1);
     }
 
-    local_params->qnode = &qnode_allocation_array[(thread_num + 1) * MAX_NUMBER_THREADS];
+    local_params->qnode = &qnode_allocation_array[thread_num + 1 + the_lock->id * MAX_NUMBER_THREADS];
     local_params->qnode->lock_id = the_lock->id;
 
 #ifdef HYBRID_EPOCH
