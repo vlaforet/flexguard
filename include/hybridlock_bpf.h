@@ -57,7 +57,7 @@ typedef struct hybrid_qnode_t
 #endif
 
 #ifdef BPF
-      volatile uint8_t flags;
+      volatile uint8_t is_locking;
       volatile uint8_t is_running;
 #endif
     };
@@ -86,14 +86,14 @@ typedef struct hybrid_addresses_t
   {
     struct
     {
-      void *lock_check_rax_null;
-      void *lock_check_rax_null_end;
+      void *lock;
       void *lock_spin;
       void *lock_end;
 
       void *unlock_check_zero_flag1;
       void *unlock_check_zero_flag2;
       void *unlock_end;
+      void *unlock_end_b;
     };
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];

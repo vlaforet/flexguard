@@ -42,6 +42,8 @@
 #define DPRINT(...)
 #endif
 
+#define MAX_STACK_TRACE_DEPTH 8
+
 /*
  * Translate a user-space qnode pointer to a kernel-space qnode pointer.
  * Should be used as a condition to quiet the eBPF verifier.
@@ -207,7 +209,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 #ifndef HYBRID_EPOCH
 		if (bpf_map_delete_elem(&preempted_map, &key) == 0)
 		{
-			bpf_printk("%s (%d) rescheduled after %s (%d) at %ld", next->comm, next->pid, prev->comm, prev->pid, time);
+			DPRINT("%s (%d) rescheduled after %s (%d) at %ld", next->comm, next->pid, prev->comm, prev->pid, time);
 			id = qnode->lock_id;
 			if (!(id >= 0 && id < MAX_NUMBER_LOCKS))	 // Weird negative to please the verifier
 				return 1;																 // Should never happen
@@ -231,85 +233,84 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		return 0;
 
 	qnode->is_running = 0;
-	uint8_t flags = qnode->flags;
 
 	/*
-	 * If prev was preempted in a critical section.
+	 * Ignore preemption if the thread was not locking.
 	 */
-	if (flags & HYBRID_FLAGS_IN_CS)
-	{
-		DPRINT("Preempted in CS.");
-		return on_preemption(time, key, qnode);
-	}
-
-	/*
-	 * Ignore preemption if not in CS, Lock or Unlock.
-	 */
-	if (!(flags & (HYBRID_FLAGS_LOCK | HYBRID_FLAGS_UNLOCK)))
+	if (!qnode->is_locking)
 		return 0;
 
 	/*
 	 * Retrieve preemption address.
 	 */
-	u64 user_stack;
-	long user_stack_size = bpf_get_task_stack(prev, &user_stack, sizeof(u64), BPF_F_USER_STACK);
-	if (user_stack_size < 1)
+	u64 user_stack[MAX_STACK_TRACE_DEPTH];
+	long user_stack_size = bpf_get_task_stack(prev, user_stack, MAX_STACK_TRACE_DEPTH * sizeof(u64), BPF_F_USER_STACK);
+	if (user_stack_size < 0)
 	{
 		DPRINT("Error getting stack (%ld).", user_stack_size);
 		return 0;
 	}
 
-	/*
-	 * Handle preemption in lock function.
-	 */
-	if (flags & HYBRID_FLAGS_LOCK)
+	int i;
+	for (i = 0; i < user_stack_size / sizeof(u64); i++)
 	{
-		if ((u64)addresses.lock_check_rax_null <= user_stack && (u64)addresses.lock_check_rax_null_end > user_stack)
+		/*
+		 * Ignore preemptions before enqueue.
+		 */
+		if ((u64)addresses.lock <= user_stack[i] && user_stack[i] < (u64)addresses.lock_spin)
 		{
-			regs = (struct pt_regs *)bpf_task_pt_regs(prev);
-			if ((void *)regs->ax == NULL)
-			{
-				DPRINT("Preempted at lock_check_rax_null.");
-				return on_preemption(time, key, qnode);
-			}
+			DPRINT("[%d] Ignored not enqueued", i);
 			return 0;
 		}
 
-		if ((u64)addresses.lock_spin <= user_stack && (u64)addresses.lock_end > user_stack && qnode->waiting == 0)
+		/*
+		 * Ignore preemptions after lock release.
+		 */
+		if ((u64)addresses.unlock_end <= user_stack[i] && user_stack[i] < (u64)addresses.unlock_end_b)
 		{
-			DPRINT("Preempted at spin. (%lld bytes away)", user_stack - (u64)addresses.lock_spin);
-			return on_preemption(time, key, qnode);
-		}
-
-		if ((u64)addresses.lock_end <= user_stack)
-		{
-			DPRINT("Preempted at lock_end.");
-			return on_preemption(time, key, qnode);
-		}
-	}
-
-	/*
-	 * Handle preemption in unlock function.
-	 */
-	if (flags & HYBRID_FLAGS_UNLOCK)
-	{
-		if ((u64)addresses.unlock_check_zero_flag1 == user_stack || (u64)addresses.unlock_check_zero_flag2 == user_stack)
-		{
-			regs = (struct pt_regs *)bpf_task_pt_regs(prev);
-			if (!(regs->flags & X86_EFLAGS_ZF))
-			{
-				DPRINT("Preempted in check_zero_flag.");
-				return on_preemption(time, key, qnode);
-			}
+			DPRINT("[%d] Ignored after release", i);
 			return 0;
 		}
 
-		if ((u64)addresses.unlock_end > user_stack)
+		/*
+		 * No need to check registers if preemption happened deeper
+		 * than the lock/unlock functions.
+		 */
+		if (i == 0)
+			regs = (struct pt_regs *)bpf_task_pt_regs(prev);
+
+		/*
+		 * Ignore preemptions while spinning if
+		 * 		- lock was not free (prev != NULL) and
+		 *    - previous node did not release lock (waiting != 0)
+		 */
+		if ((u64)addresses.lock_spin <= user_stack[i] && user_stack[i] < (u64)addresses.lock_end &&
+				(i != 0 || (void *)regs->ax != NULL) && qnode->waiting != 0)
 		{
-			DPRINT("Preempted in unlock.");
-			return on_preemption(time, key, qnode);
+			DPRINT("[%d] Ignored while spinning", i);
+			return 0;
+		}
+
+		/*
+		 * Ignore preemptions in unlock atomic operations if successful.
+		 * Only if preemption happened in unlock function.
+		 */
+		if ((u64)addresses.unlock_check_zero_flag1 == user_stack[i] || (u64)addresses.unlock_check_zero_flag2 == user_stack[i])
+		{
+			if (i != 0)
+			{
+				bpf_printk("Error: unlock atomic operation found %d deep in stack.", i);
+				return 0;
+			}
+
+			if (regs->flags & X86_EFLAGS_ZF)
+			{
+				DPRINT("Ignored while in unlock atomic operation");
+				return 0;
+			}
 		}
 	}
 
-	return 0;
+	DPRINT("%s (%d) preempted to %s (%d) at %ld", prev->comm, prev->pid, next->comm, next->pid, time);
+	return on_preemption(time, key, qnode);
 }

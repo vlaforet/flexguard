@@ -101,12 +101,13 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
 #ifdef BPF
         if (addresses->lock_end == NULL)
         {
-            addresses->lock_check_rax_null = &&lock_check_rax_null;
-            addresses->lock_check_rax_null_end = &&lock_check_rax_null_end;
+            addresses->lock = &&lock;
             addresses->lock_spin = &&lock_spin;
             addresses->lock_end = &&lock_end;
         }
-        local_params->qnode->flags |= HYBRID_FLAGS_LOCK;
+    lock:
+        local_params->qnode->is_locking = true;
+        MEM_BARRIER;
 #endif
 
 #ifdef HYBRID_TICKET
@@ -168,6 +169,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         DASSERT(*the_lock->queue_lock != local_params->qnode);
 
         local_params->qnode->next = NULL;
+        local_params->qnode->waiting = 1; // word on which to spin
 
         // Register rax stores the current qnode and will contain the previous value of
         // the queue_lock after the xchgq operation.
@@ -181,21 +183,13 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         asm volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(the_lock->queue_lock) : "memory");
 
 #ifdef BPF
-    lock_check_rax_null:
+    lock_spin:
 #endif
         if (pred != NULL) /* lock was not free */
         {
-#ifdef BPF
-        lock_check_rax_null_end:
-#endif
-
-            local_params->qnode->waiting = 1; // word on which to spin
             MEM_BARRIER;
             pred->next = local_params->qnode; // make pred point to me
 
-#ifdef BPF
-        lock_spin:
-#endif
 #if defined(BPF) && !defined(HYBRID_EPOCH)
             unsigned long now;
 #endif
@@ -224,7 +218,8 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
                     && __sync_bool_compare_and_swap(&local_params->qnode->waiting, 1, 2))
                 {
 #ifdef BPF
-                    local_params->qnode->flags &= ~HYBRID_FLAGS_LOCK;
+                    MEM_BARRIER;
+                    local_params->qnode->is_locking = false;
 #endif
                     return 0; // Aborted
                 }
@@ -236,8 +231,6 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
 
 #ifdef BPF
     lock_end:
-        local_params->qnode->flags |= HYBRID_FLAGS_IN_CS;
-        local_params->qnode->flags &= ~HYBRID_FLAGS_LOCK;
 #endif
         return 1; // Success
 
@@ -270,11 +263,6 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
     switch (lock_type)
     {
     case LOCK_TYPE_SPIN:
-#ifdef BPF
-        local_params->qnode->flags |= HYBRID_FLAGS_UNLOCK;
-        local_params->qnode->flags &= ~HYBRID_FLAGS_IN_CS;
-#endif
-
 #ifdef HYBRID_TICKET
         the_lock->ticket_lock.calling++;
 #elif defined(HYBRID_CLH)
@@ -334,13 +322,16 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
 
     unlock_end:
 #ifdef BPF
-        local_params->qnode->flags &= ~HYBRID_FLAGS_UNLOCK;
+        MEM_BARRIER;
+        local_params->qnode->is_locking = false;
+    unlock_end_b:
 
         if (addresses->unlock_end == NULL)
         {
             addresses->unlock_check_zero_flag1 = &&unlock_check_zero_flag1;
             addresses->unlock_check_zero_flag2 = &&unlock_check_zero_flag2;
             addresses->unlock_end = &&unlock_end;
+            addresses->unlock_end_b = &&unlock_end_b;
         }
 #endif
         break;
@@ -551,7 +542,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 
     the_lock->dummy_params->qnode->waiting = 0;
     the_lock->dummy_params->qnode->next = NULL;
-    the_lock->dummy_params->qnode->flags = 0;
+    the_lock->dummy_params->qnode->is_locking = false;
     the_lock->dummy_params->qnode->should_block = 0;
     the_lock->dummy_params->qnode->is_running = 1;
 #endif
@@ -616,7 +607,7 @@ int init_hybridlock_local(uint32_t pin_on_cpu, hybridlock_local_params_t *local_
 #endif
 
 #ifdef BPF
-    local_params->qnode->flags = 0;
+    local_params->qnode->is_locking = false;
     local_params->qnode->is_running = 1;
 
     // Register thread in BPF map
