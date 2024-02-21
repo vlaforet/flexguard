@@ -169,8 +169,8 @@ typedef struct thread_data
             ticks cs_ticks;
             int cs_count;
 
-            bool *stop;
-            bool *start;
+            volatile bool *stop;
+            volatile bool *start;
         };
         uint8_t padding[CACHE_LINE_SIZE];
     };
@@ -186,7 +186,7 @@ void *test(void *data)
         init_lock_local(INT_MAX, &buckets[i].lock, &(buckets[i].local_th_data[d->id]));
 
     while (!*d->start)
-        futex_wait(d->start, false);
+        futex_wait((void *)d->start, false);
 
     while (!*d->stop)
     {
@@ -372,8 +372,8 @@ int main(int argc, char **argv)
         buckets[i].successful_reads = 0;
     }
 
-    bool start = false;
-    bool stop = false;
+    volatile bool start = false;
+    volatile bool stop = false;
 
     for (i = 0; i < max_threads; i++)
     {
@@ -400,10 +400,11 @@ int main(int argc, char **argv)
     }
 
     nanosleep((const struct timespec[]){{1, 0L}}, NULL); // Wait for all threads to be ready.
-    const struct timespec timeout = {duration / offset_changes / 1000, (duration / offset_changes % 1000) * 1000000L};
+    const struct timespec timeout = {duration / offset_changes / 1000, ((duration / offset_changes) % 1000) * 1000000L};
 
     DPRINT("Starting experiment\n");
     start = true;
+    futex_wake((void *)&start, INT_MAX);
 
     for (i = 0; i < offset_changes; i++)
     {
