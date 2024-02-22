@@ -87,6 +87,7 @@ typedef struct hybrid_addresses_t
     struct
     {
       void *lock;
+      void *lock_check_rax_null;
       void *lock_spin;
       void *lock_end;
 

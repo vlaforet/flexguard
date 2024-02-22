@@ -102,6 +102,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         if (addresses->lock_end == NULL)
         {
             addresses->lock = &&lock;
+            addresses->lock_check_rax_null = &&lock_check_rax_null;
             addresses->lock_spin = &&lock_spin;
             addresses->lock_end = &&lock_end;
         }
@@ -183,10 +184,13 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
         asm volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(the_lock->queue_lock) : "memory");
 
 #ifdef BPF
-    lock_spin:
+    lock_check_rax_null:
 #endif
         if (pred != NULL) /* lock was not free */
         {
+#ifdef BPF
+        lock_spin:
+#endif
             MEM_BARRIER;
             pred->next = local_params->qnode; // make pred point to me
 

@@ -280,12 +280,22 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 			regs = (struct pt_regs *)bpf_task_pt_regs(prev);
 
 		/*
+		 * Ignore preemptions if lock was not free (prev != NULL)
+		 * Only needs to be checked on first stack address.
+		 */
+		if (i == 0 && (u64)addresses.lock_check_rax_null <= user_stack[i] && user_stack[i] < (u64)addresses.lock_spin &&
+				(void *)regs->ax != NULL)
+		{
+			DPRINT("[%d] Ignored pred != NULL", i);
+			return 0;
+		}
+
+		/*
 		 * Ignore preemptions while spinning if
-		 * 		- lock was not free (prev != NULL) and
-		 *    - previous node did not release lock (waiting != 0)
+		 * previous node did not release lock (waiting != 0)
 		 */
 		if ((u64)addresses.lock_spin <= user_stack[i] && user_stack[i] < (u64)addresses.lock_end &&
-				(i != 0 || (void *)regs->ax != NULL) && qnode->waiting != 0)
+				qnode->waiting != 0)
 		{
 			DPRINT("[%d] Ignored while spinning", i);
 			return 0;
