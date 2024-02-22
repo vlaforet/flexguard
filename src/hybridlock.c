@@ -436,8 +436,8 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
         }
 
 #ifdef DEBUG
-        if (local_params->qnode->should_block == 1)
-            DPRINT("Not a bug: Thread should have blocked but did not.\n");
+        /*if (local_params->qnode->should_block == 1)
+            DPRINT("Not a bug: Thread should have blocked but did not.\n");*/
 #endif
     }
 
