@@ -125,8 +125,9 @@ void *test_correctness(void *data)
 {
     thread_data_t *d = (thread_data_t *)data;
     phys_id = the_cores[d->id];
+    set_cpu(phys_id);
 
-    init_lock_local(phys_id, &the_lock, &(local_th_data[d->id]));
+    init_lock_local(&the_lock, &(local_th_data[d->id]));
 
     barrier_cross(d->barrier);
 

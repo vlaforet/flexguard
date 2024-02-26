@@ -67,7 +67,7 @@ int is_free_spinlock(spinlock_lock_t *the_lock);
  *  Methods for single lock manipulation
  */
 int init_spinlock_global(spinlock_lock_t *the_lock);
-int init_spinlock_local(uint32_t thread_num, uint32_t *limit);
+int init_spinlock_local(uint32_t *limit);
 void end_spinlock_local();
 void end_spinlock_global();
 

@@ -94,6 +94,6 @@ int is_free_clh(clh_lock_t *the_lock);
  * Methods for single lock manipulation
  */
 int init_clh_global(clh_lock_t *the_lock);
-int init_clh_local(uint32_t thread_num, clh_local_params_t *local_params, clh_lock_t *the_lock);
+int init_clh_local(clh_local_params_t *local_params, clh_lock_t *the_lock);
 
 #endif

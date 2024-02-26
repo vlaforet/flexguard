@@ -114,7 +114,6 @@ void set_blocking(hybridspin_lock_t *the_lock, int blocking);
  *  Methods for single lock manipulation
  */
 int init_hybridspin_global(hybridspin_lock_t *the_lock);
-int init_hybridspin_local(uint32_t thread_num);
 void end_hybridspin_local();
 void end_hybridspin_global();
 

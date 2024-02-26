@@ -147,9 +147,6 @@ extern "C"
 
     static inline void set_cpu(int cpu)
     {
-        // INT_MAX cpu id disables cpu pinning (Useful for some benchmarks)
-        if (cpu >= INT_MAX)
-            return;
         cpu_set_t mask;
         CPU_ZERO(&mask);
         CPU_SET(cpu, &mask);

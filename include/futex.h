@@ -69,6 +69,5 @@ int is_free_futex(futex_lock_t *the_lock);
  * Methods for single lock manipulation
  */
 int init_futex_global(futex_lock_t *the_lock);
-int init_futex_local(uint32_t thread_nums);
 
 #endif

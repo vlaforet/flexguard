@@ -86,10 +86,8 @@ int init_mcs_global(mcs_global_params *the_lock)
     return 0;
 }
 
-int init_mcs_local(uint32_t thread_num, mcs_qnode **the_qnode)
+int init_mcs_local(mcs_qnode **the_qnode)
 {
-    set_cpu(thread_num);
-
     (*the_qnode) = (mcs_qnode *)malloc(sizeof(mcs_qnode));
 
     MEM_BARRIER;

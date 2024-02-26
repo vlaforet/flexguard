@@ -177,7 +177,7 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
  */
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock);
-int init_hybridlock_local(uint32_t thread_num, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock);
+int init_hybridlock_local(hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock);
 
 #ifdef TRACING
 void set_tracing_fn(hybridlock_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data);

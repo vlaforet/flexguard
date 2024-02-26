@@ -69,10 +69,8 @@ int init_spinlock_global(spinlock_lock_t *the_lock)
     return 0;
 }
 
-int init_spinlock_local(uint32_t thread_num, uint32_t *limit)
+int init_spinlock_local(uint32_t *limit)
 {
-    // assign the thread to the correct core
-    set_cpu(thread_num);
     *limit = 1;
     spinlock_seeds = seed_rand();
     MEM_BARRIER;

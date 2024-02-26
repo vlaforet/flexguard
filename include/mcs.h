@@ -70,7 +70,7 @@ typedef struct mcs_global_params
  * Methods for single lock manipulation
  */
 int init_mcs_global(mcs_global_params *the_lock);
-int init_mcs_local(uint32_t thread_num, mcs_qnode **the_qnode);
+int init_mcs_local(mcs_qnode **the_qnode);
 void end_mcs_local(mcs_qnode *the_qnodes);
 void end_mcs_global(mcs_global_params the_locks);
 

@@ -114,10 +114,3 @@ int init_futex_global(futex_lock_t *the_lock)
   MEM_BARRIER;
   return 0;
 }
-
-int init_futex_local(uint32_t thread_num)
-{
-  // assign the thread to the correct core
-  set_cpu(thread_num);
-  return 0;
-}

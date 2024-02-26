@@ -66,10 +66,8 @@ int init_clh_global(clh_lock_t *the_lock)
     return 0;
 }
 
-int init_clh_local(uint32_t thread_num, clh_local_params_t *local_params, clh_lock_t *the_lock)
+int init_clh_local(clh_local_params_t *local_params, clh_lock_t *the_lock)
 {
-    set_cpu(thread_num);
-
     local_params->qnode = (clh_qnode_t *)malloc(sizeof(clh_qnode_t));
     local_params->qnode->done = 1;
     local_params->qnode->pred = NULL;

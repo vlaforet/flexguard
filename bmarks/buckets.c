@@ -183,7 +183,7 @@ void *test(void *data)
     thread_data_t *d = (thread_data_t *)data;
 
     for (i = 0; i < bucket_count; i++)
-        init_lock_local(INT_MAX, &buckets[i].lock, &(buckets[i].local_th_data[d->id]));
+        init_lock_local(&buckets[i].lock, &(buckets[i].local_th_data[d->id]));
 
     while (!*d->start)
         futex_wait((void *)d->start, false);

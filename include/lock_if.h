@@ -102,8 +102,8 @@ static inline int acquire_trylock(lock_local_data *local_d, lock_global_data *gl
 static inline void release_lock(lock_local_data *local_d, lock_global_data *global_d);
 static inline void release_trylock(lock_local_data *local_d, lock_global_data *global_d);
 
-// initialization of local data for a lock; core_to_pin is the core on which the thread is executing,
-static inline int init_lock_local(int core_to_pin, lock_global_data *the_locks, lock_local_data *the_data);
+// initialization of local data for a lock.
+static inline int init_lock_local(lock_global_data *the_locks, lock_local_data *the_data);
 
 // initialization of global data for a lock
 static inline int init_lock_global(lock_global_data *the_locks);
@@ -158,29 +158,25 @@ static inline void release_lock(lock_local_data *local_d, lock_global_data *glob
     clh_unlock(global_d, local_d);
 #endif
 }
-static inline void set_cpu(int);
 
-static inline int init_lock_local(int core_to_pin, lock_global_data *the_lock, lock_local_data *local_data)
+static inline int init_lock_local(lock_global_data *the_lock, lock_local_data *local_data)
 {
 #ifdef USE_MCS_LOCKS
-    return init_mcs_local(core_to_pin, local_data);
+    return init_mcs_local(local_data);
 #elif defined(USE_SPINLOCK_LOCKS)
-    return init_spinlock_local(core_to_pin, local_data);
+    return init_spinlock_local(local_data);
 #elif defined(USE_HYBRIDLOCK_LOCKS)
-    return init_hybridlock_local(core_to_pin, local_data, the_lock);
+    return init_hybridlock_local(local_data, the_lock);
 #elif defined(USE_HYBRIDSPIN_LOCKS)
-    return init_hybridspin_local(core_to_pin);
+    return 0;
 #elif defined(USE_TICKET_LOCKS)
-    init_thread_ticketlocks(core_to_pin);
     return 0;
 #elif defined(USE_MUTEX_LOCKS)
-    // assign the thread to the correct core
-    set_cpu(core_to_pin);
     return 0;
 #elif defined(USE_FUTEX_LOCKS)
-    return init_futex_local(core_to_pin);
+    return 0;
 #elif defined(USE_CLH_LOCKS)
-    return init_clh_local(core_to_pin, local_data, the_lock);
+    return init_clh_local(local_data, the_lock);
 #endif
 }
 

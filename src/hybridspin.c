@@ -183,14 +183,6 @@ int init_hybridspin_global(hybridspin_lock_t *the_lock)
     return 0;
 }
 
-int init_hybridspin_local(uint32_t thread_num)
-{
-    // assign the thread to the correct core
-    set_cpu(thread_num);
-    MEM_BARRIER;
-    return 0;
-}
-
 void end_hybridspin_local()
 {
     // function not needed

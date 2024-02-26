@@ -582,10 +582,8 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     return 0;
 }
 
-int init_hybridlock_local(uint32_t pin_on_cpu, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
+int init_hybridlock_local(hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
 {
-    set_cpu(pin_on_cpu);
-
     int thread_num = atomic_fetch_add(&the_lock->thread_count, 1);
     if (thread_num >= MAX_NUMBER_THREADS - 1)
     {

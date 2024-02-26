@@ -87,11 +87,6 @@ int is_free_ticket(ticketlock_t *t)
   return 0;
 }
 
-void init_thread_ticketlocks(uint32_t thread_num)
-{
-  set_cpu(thread_num);
-}
-
 ticketlock_t *init_ticketlocks(uint32_t num_locks)
 {
   ticketlock_t *the_locks;

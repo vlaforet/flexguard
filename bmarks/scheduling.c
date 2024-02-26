@@ -107,7 +107,7 @@ void *test(void *data)
     dummy_array_t *arr = &dummy_array[rand() % dummy_array_size];
 
     thread_data_t *d = (thread_data_t *)data;
-    init_lock_local(INT_MAX, &the_lock, &(local_th_data[d->id]));
+    init_lock_local(&the_lock, &(local_th_data[d->id]));
 
     while (!d->stop)
     {
