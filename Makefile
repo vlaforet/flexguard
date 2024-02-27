@@ -19,11 +19,6 @@ ifeq ($(TRACING),1)
 	DEFINED += -DTRACING
 endif
 
-# Produces a hybridlock.s file containing the compiled-unassembled code
-ifeq ($(HYBRID_ASSEMBLY),1) 
-	ASSEMBLY_DEFINE := -S -g -fverbose-asm
-endif
-
 # LOCK_VERSION in (SPINLOCK, HYBRIDLOCK, HYBRIDSPIN, MCS, CLH, TICKET, MUTEX, FUTEX)
 ifndef LOCK_VERSION
   LOCK_VERSION=HYBRIDLOCK
@@ -160,7 +155,10 @@ clh.o: src/clh.c
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/clh.c $(LIBS)
 
 hybridlock.o: src/hybridlock.c $(BPF_SKELETON)
-	$(GCC) $(ASSEMBLY_DEFINE) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
+ifeq ($(HYBRID_ASSEMBLY),1) # Produces a hybridlock.s file containing the compiled-unassembled code
+	$(GCC) -S -fverbose-asm -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
+endif
 
 hybridspin.o: src/hybridspin.c $(BPF_SKELETON)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridspin.c $(LIBS)
