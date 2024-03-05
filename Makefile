@@ -158,6 +158,7 @@ hybridlock.o: src/hybridlock.c $(BPF_SKELETON)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
 ifeq ($(HYBRID_ASSEMBLY),1) # Produces a hybridlock.s file containing the compiled-unassembled code
 	$(GCC) -S -fverbose-asm -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
+	objdump -d hybridlock.o > hybridlock.odump
 endif
 
 hybridspin.o: src/hybridspin.c $(BPF_SKELETON)
@@ -179,5 +180,5 @@ test_correctness: bmarks/test_correctness.c $(OBJ_FILES) $(LIBBPF_OBJ)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/test_correctness.c -o test_correctness $(LIBS)
 
 clean:
-	rm -rf $(OUTPUT) *.o test_correctness scheduling buckets libsync.a 
+	rm -rf $(OUTPUT) *.o *.s *.odump test_correctness scheduling buckets libsync.a
 	$(MAKE) -C litl/ clean

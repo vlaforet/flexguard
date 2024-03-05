@@ -5,6 +5,7 @@
 *.out
 *.s
 *.S
+*.odump
 
 /.output
 /#README.md#
