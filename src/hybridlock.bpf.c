@@ -253,7 +253,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	long user_stack_size = bpf_get_task_stack(prev, user_stack, MAX_STACK_TRACE_DEPTH * sizeof(u64), BPF_F_USER_STACK);
 	if (user_stack_size < 0)
 	{
-		DPRINT("Error getting stack (%ld).", user_stack_size);
+		bpf_printk("Error getting stack (%ld).", user_stack_size);
 		return 0;
 	}
 
