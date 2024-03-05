@@ -121,7 +121,7 @@ static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 	if (__sync_val_compare_and_swap(&dummy_node_enqueued[lock_id], 0, 1) != 0)
 	{
 		DPRINT("Dummy_node already enqueued.");
-		return 1;
+		return 0;
 	}
 
 	int id;
@@ -134,7 +134,7 @@ static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 	{ // Can happen if system is over-subscribed by other apps or other locks. Nothing to do.
 		DPRINT("Holder has no next");
 		__sync_lock_test_and_set(&dummy_node_enqueued[lock_id], 0);
-		return 1;
+		return 0;
 	}
 
 	// <LOCK_DUMMY_NODE>
@@ -164,12 +164,18 @@ static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 
 			temp->should_block = 1;
 			curr = temp->next;
+
+			if (!curr && queue_lock[lock_id] == temp)
+			{
+				bpf_printk("Error: No dummy node after %d nodes.", i);
+				return 1;
+			}
 		}
 
 		if (!curr)
 		{
-			bpf_printk("Error: No dummy node.");
-			return 1;
+			DPRINT("Node is enqueuing.");
+			break;
 		}
 
 		if (curr == dummy_pointer)
@@ -283,8 +289,8 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		 * Ignore preemptions if lock was not free (prev != NULL)
 		 * Only needs to be checked on first stack address.
 		 */
-		if (i == 0 && (u64)addresses.lock_check_rax_null <= user_stack[i] && user_stack[i] < (u64)addresses.lock_spin &&
-				(void *)regs->ax != NULL)
+		if (i == 0 && (u64)addresses.lock_check_rcx_null <= user_stack[i] && user_stack[i] < (u64)addresses.lock_spin &&
+				(void *)regs->cx != NULL)
 		{
 			DPRINT("[%d] Ignored pred != NULL", i);
 			return 0;
@@ -321,6 +327,10 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		}
 	}
 
-	DPRINT("%s (%d) preempted to %s (%d) at %ld", prev->comm, prev->pid, next->comm, next->pid, time);
-	return on_preemption(time, key, qnode);
+	DPRINT("%s (%d) preempted to %s (%d): %lld B away from bhl_lock", prev->comm, prev->pid, next->comm, next->pid, (long long)user_stack[0] - (long long)addresses.lock);
+
+	if (on_preemption(time, key, qnode) != 0 && 0 < user_stack_size / sizeof(u64))
+		bpf_printk("Failed to handle preemption %lld (0x%x) B away from bhl_lock", (long long)user_stack[0] - (long long)addresses.lock, (long long)user_stack[0] - (long long)addresses.lock);
+
+	return 0;
 }

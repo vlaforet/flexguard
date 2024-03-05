@@ -93,20 +93,13 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
     return 1; // Free
 }
 
-static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+__attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
     case LOCK_TYPE_SPIN:
 #ifdef BPF
-        if (addresses->lock_end == NULL)
-        {
-            addresses->lock = &&lock;
-            addresses->lock_check_rax_null = &&lock_check_rax_null;
-            addresses->lock_spin = &&lock_spin;
-            addresses->lock_end = &&lock_end;
-        }
-    lock:
+        asm volatile("bhl_lock:" ::: "memory");
         local_params->qnode->is_locking = true;
         MEM_BARRIER;
 #endif
@@ -174,22 +167,22 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
 
         // Register rax stores the current qnode and will contain the previous value of
         // the queue_lock after the xchgq operation.
-        register hybrid_qnode_ptr pred asm("rax") = local_params->qnode;
+        register hybrid_qnode_ptr pred asm("rcx") = local_params->qnode;
 
         /*
-         *  Exchange rax and rdx
+         *  Exchange pred (rcx) and queue head.
          *  Store the pointer to the queue head in a register.
          *  Uses the value in rax (pred) as an exchange parameter.
          */
         asm volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(the_lock->queue_lock) : "memory");
 
 #ifdef BPF
-    lock_check_rax_null:
+        asm volatile("bhl_lock_check_rcx_null:" ::: "memory");
 #endif
         if (pred != NULL) /* lock was not free */
         {
 #ifdef BPF
-        lock_spin:
+            asm volatile("bhl_lock_spin:" ::: "memory");
 #endif
             MEM_BARRIER;
             pred->next = local_params->qnode; // make pred point to me
@@ -234,7 +227,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
 #endif
 
 #ifdef BPF
-    lock_end:
+        asm volatile("bhl_lock_end:" ::: "memory");
 #endif
         return 1; // Success
 
@@ -262,7 +255,7 @@ static inline int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params
     return 0;
 }
 
-static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+__attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -293,10 +286,7 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
                  *  Store the compare value (curr) in the accumulator register.
                  */
                 asm volatile("lock cmpxchgq %2, (%0)" : : "r"(the_lock->queue_lock), "a"(curr), "r"(NULL) : "memory");
-#ifdef BPF
-            unlock_check_zero_flag1: // Single operation
-#endif
-                asm goto("je %l[unlock_end]" : : : : unlock_end); // Do a jump to break here.
+                asm goto("bhl_unlock_check_zero_flag1: je %l[unlock_end]" : : : : unlock_end); // Do a jump to break here.
 
                 do
                 {
@@ -317,26 +307,16 @@ static inline void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_par
              *  Store the compare value (1) in the accumulator register.
              */
             asm volatile("lock cmpxchgb %2, (%0)" : : "r"(&succ->waiting), "a"((uint8_t)1), "r"((uint8_t)0) : "memory");
-#ifdef BPF
-        unlock_check_zero_flag2: // Single operation
-#endif
-            asm goto("je %l[unlock_end]" : : : : unlock_end); // Do a jump to break here.
+            asm goto("bhl_unlock_check_zero_flag2: je %l[unlock_end]" : : : : unlock_end); // Do a jump to break here.
         }
 #endif
 
     unlock_end:
+        asm volatile("bhl_unlock_end:" ::: "memory");
 #ifdef BPF
         MEM_BARRIER;
         local_params->qnode->is_locking = false;
-    unlock_end_b:
-
-        if (addresses->unlock_end == NULL)
-        {
-            addresses->unlock_check_zero_flag1 = &&unlock_check_zero_flag1;
-            addresses->unlock_check_zero_flag2 = &&unlock_check_zero_flag2;
-            addresses->unlock_end = &&unlock_end;
-            addresses->unlock_end_b = &&unlock_end_b;
-        }
+        asm volatile("bhl_unlock_end_b:" ::: "memory");
 #endif
         break;
 
@@ -474,6 +454,28 @@ static void deploy_bpf_code()
     }
 
     addresses = &skel->bss->addresses;
+#ifdef HYBRID_MCS
+    extern char bhl_lock;
+    extern char bhl_lock_check_rcx_null;
+    extern char bhl_lock_spin;
+    extern char bhl_lock_end;
+
+    extern char bhl_unlock_check_zero_flag1;
+    extern char bhl_unlock_check_zero_flag2;
+    extern char bhl_unlock_end;
+    extern char bhl_unlock_end_b;
+
+    addresses->lock = &bhl_lock;
+    addresses->lock_check_rcx_null = &bhl_lock_check_rcx_null;
+    addresses->lock_spin = &bhl_lock_spin;
+    addresses->lock_end = &bhl_lock_end;
+
+    addresses->unlock_check_zero_flag1 = &bhl_unlock_check_zero_flag1;
+    addresses->unlock_check_zero_flag2 = &bhl_unlock_check_zero_flag2;
+    addresses->unlock_end = &bhl_unlock_end;
+    addresses->unlock_end_b = &bhl_unlock_end_b;
+#endif
+
     qnode_allocation_array = skel->bss->qnode_allocation_array;
     skel->bss->qnode_allocation_starting_address = skel->bss->qnode_allocation_array;
 
