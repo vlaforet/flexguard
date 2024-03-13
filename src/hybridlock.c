@@ -47,6 +47,7 @@ static unsigned long get_nsecs()
 #endif
 #endif
 
+_Atomic(int) thread_count = 1;
 _Atomic(int) lock_count = 0;
 hybrid_qnode_ptr qnode_allocation_array;
 hybrid_qnode_ptr *queue_lock;
@@ -54,6 +55,9 @@ hybrid_qnode_ptr *queue_lock;
 #ifdef BPF
 hybrid_addresses_t *addresses;
 struct bpf_map *nodes_map;
+
+hybrid_thread_info_t *thread_info;
+__thread int thread_id = -1;
 
 #ifdef HYBRID_EPOCH
 uint64_t *dummy_node_enqueued;
@@ -100,7 +104,7 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
     case LOCK_TYPE_SPIN:
 #ifdef BPF
         asm volatile("bhl_lock:" ::: "memory");
-        local_params->qnode->is_locking = true;
+        thread_info[thread_id].locking_id = the_lock->id;
         MEM_BARRIER;
 #endif
 
@@ -216,7 +220,7 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
                 {
 #ifdef BPF
                     MEM_BARRIER;
-                    local_params->qnode->is_locking = false;
+                    thread_info[thread_id].locking_id = -1;
 #endif
                     return 0; // Aborted
                 }
@@ -315,7 +319,7 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
         asm volatile("bhl_unlock_end:" ::: "memory");
 #ifdef BPF
         MEM_BARRIER;
-        local_params->qnode->is_locking = false;
+        thread_info[thread_id].locking_id = -1;
         asm volatile("bhl_unlock_end_b:" ::: "memory");
 #endif
         break;
@@ -476,6 +480,7 @@ static void deploy_bpf_code()
     addresses->unlock_end_b = &bhl_unlock_end_b;
 #endif
 
+    thread_info = skel->bss->thread_info;
     qnode_allocation_array = skel->bss->qnode_allocation_array;
     skel->bss->qnode_allocation_starting_address = skel->bss->qnode_allocation_array;
 
@@ -548,15 +553,12 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 
     the_lock->dummy_params->qnode->waiting = 0;
     the_lock->dummy_params->qnode->next = NULL;
-    the_lock->dummy_params->qnode->is_locking = false;
     the_lock->dummy_params->qnode->should_block = 0;
-    the_lock->dummy_params->qnode->is_running = 1;
 #endif
 #endif
 #endif
 
     the_lock->futex_lock = 0;
-    the_lock->thread_count = 0;
 
 #if defined(BPF) && !defined(HYBRID_EPOCH)
     the_lock->preempted_at = &preempted_at[the_lock->id];
@@ -586,14 +588,19 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
 
 int init_hybridlock_local(hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
 {
-    int thread_num = atomic_fetch_add(&the_lock->thread_count, 1);
-    if (thread_num >= MAX_NUMBER_THREADS - 1)
+    if (thread_id == -1)
+    {
+        thread_id = atomic_fetch_add(&thread_count, 1);
+        thread_info[thread_id].locking_id = -1;
+    }
+
+    if (thread_id >= MAX_NUMBER_THREADS - 1)
     {
         perror("Too many threads. Increase MAX_NUMBER_THREADS in platform_defs.h.");
         exit(1);
     }
 
-    local_params->qnode = &qnode_allocation_array[thread_num + 1 + the_lock->id * MAX_NUMBER_THREADS];
+    local_params->qnode = &qnode_allocation_array[thread_id + the_lock->id * MAX_NUMBER_THREADS];
     local_params->qnode->lock_id = the_lock->id;
 
 #ifdef HYBRID_EPOCH
@@ -611,12 +618,9 @@ int init_hybridlock_local(hybridlock_local_params_t *local_params, hybridlock_lo
 #endif
 
 #ifdef BPF
-    local_params->qnode->is_locking = false;
-    local_params->qnode->is_running = 1;
-
     // Register thread in BPF map
     __u32 tid = gettid();
-    int err = bpf_map__update_elem(nodes_map, &tid, sizeof(tid), &local_params->qnode, sizeof(hybrid_qnode_ptr), BPF_ANY);
+    int err = bpf_map__update_elem(nodes_map, &tid, sizeof(tid), &thread_id, sizeof(thread_id), BPF_ANY);
     if (err)
     {
         fprintf(stderr, "Failed to register thread with BPF: %d\n", err);

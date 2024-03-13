@@ -55,11 +55,6 @@ typedef struct hybrid_qnode_t
 #ifdef HYBRID_EPOCH
       uint8_t should_block;
 #endif
-
-#ifdef BPF
-      volatile uint8_t is_locking;
-      volatile uint8_t is_running;
-#endif
     };
 #ifdef ADD_PADDING
     uint8_t padding1[CACHE_LINE_SIZE];
@@ -103,4 +98,33 @@ typedef struct hybrid_addresses_t
 } hybrid_addresses_t;
 #endif
 
+typedef struct hybrid_thread_info_t
+{
+  union
+  {
+    struct
+    {
+      volatile int locking_id;
+      volatile uint8_t is_running;
+    };
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#endif
+  };
+} hybrid_thread_info_t;
+
+typedef struct hybrid_lock_info_t
+{
+  union
+  {
+    struct
+    {
+      volatile int locking_id;
+      volatile uint8_t is_running;
+    };
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#endif
+  };
+} hybrid_lock_info_t;
 #endif

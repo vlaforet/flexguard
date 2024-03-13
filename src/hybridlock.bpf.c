@@ -69,6 +69,12 @@
 #define QNODE_USER_TO_KERNEL(user_qnode, id, kern_qnode) \
 	((id = (user_qnode - qnode_allocation_starting_address)) >= 0 && id < (MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS) && (kern_qnode = &qnode_allocation_array[id]))
 
+#define QNODE_FROM_THREAD_LOCK_ID(thread_id, lock_id, dest) \
+	(thread_id >= 0 && thread_id < MAX_NUMBER_THREADS && lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && (dest = &qnode_allocation_array[lock_id * MAX_NUMBER_THREADS + thread_id]))
+
+#define THREAD_INFO_FROM_ID(thread_id, dest) \
+	(thread_id >= 0 && thread_id < MAX_NUMBER_THREADS && (dest = &thread_info[thread_id]))
+
 #ifndef HYBRID_EPOCH
 unsigned long preempted_at[MAX_NUMBER_LOCKS];
 #endif
@@ -85,16 +91,16 @@ uint64_t blocking_nodes[MAX_NUMBER_LOCKS];
 #endif
 #endif
 
-char _license[4] SEC("license") = "GPL";
+volatile hybrid_thread_info_t thread_info[MAX_NUMBER_THREADS];
 
-typedef hybrid_qnode_ptr map_value;
+char _license[4] SEC("license") = "GPL";
 
 struct
 {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, u32);
-	__type(value, map_value);
-	__uint(max_entries, (MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS));
+	__type(value, int);
+	__uint(max_entries, MAX_NUMBER_THREADS);
 } nodes_map SEC(".maps");
 
 #ifndef HYBRID_EPOCH
@@ -200,26 +206,27 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	u64 time = bpf_ktime_get_ns();
 	struct pt_regs *regs;
 	u32 key;
-	int id;
-	hybrid_qnode_ptr *temp, qnode;
+	hybrid_qnode_ptr qnode;
+	int lock_id;
+	volatile hybrid_thread_info_t *tinfo;
 
 	/*
 	 * Clear preempted status of next thread.
 	 */
 	key = next->pid;
-	temp = bpf_map_lookup_elem(&nodes_map, &key);
-	if (temp && QNODE_USER_TO_KERNEL(*temp, id, qnode))
+	int *thread_id;
+	thread_id = bpf_map_lookup_elem(&nodes_map, &key);
+	if (thread_id && THREAD_INFO_FROM_ID(*thread_id, tinfo))
 	{
-		qnode->is_running = 1;
+		tinfo->is_running = 1;
 
 #ifndef HYBRID_EPOCH
-		if (bpf_map_delete_elem(&preempted_map, &key) == 0)
+		lock_id = tinfo->locking_id;
+		if (lock_id != -1 && bpf_map_delete_elem(&preempted_map, &key) == 0)
 		{
-			DPRINT("%s (%d) rescheduled after %s (%d) at %ld", next->comm, next->pid, prev->comm, prev->pid, time);
-			id = qnode->lock_id;
-			if (!(id >= 0 && id < MAX_NUMBER_LOCKS))	 // Weird negative to please the verifier
-				return 1;																 // Should never happen
-			preempted_at[id] = 18446744073709551615UL; // ULONG_MAX
+			DPRINT("%s (%d) rescheduled after %s (%d)", next->comm, next->pid, prev->comm, prev->pid);
+			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)
+				preempted_at[lock_id] = 18446744073709551615UL; // ULONG_MAX
 		}
 #endif
 	}
@@ -234,16 +241,20 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	 * Retrieve prev's qnode.
 	 */
 	key = prev->pid;
-	temp = bpf_map_lookup_elem(&nodes_map, &key);
-	if (!temp || !QNODE_USER_TO_KERNEL(*temp, id, qnode))
+	thread_id = bpf_map_lookup_elem(&nodes_map, &key);
+	if (!thread_id || !THREAD_INFO_FROM_ID(*thread_id, tinfo))
 		return 0;
 
-	qnode->is_running = 0;
+	tinfo->is_running = 0;
+	lock_id = tinfo->locking_id;
 
 	/*
 	 * Ignore preemption if the thread was not locking.
 	 */
-	if (!qnode->is_locking)
+	if (!(lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS))
+		return 0;
+
+	if (!QNODE_FROM_THREAD_LOCK_ID(*thread_id, lock_id, qnode))
 		return 0;
 
 	/*
@@ -254,7 +265,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (user_stack_size < 0)
 	{
 		bpf_printk("Error getting stack (%ld).", user_stack_size);
-		return 0;
+		return 1;
 	}
 
 	int i;

@@ -112,8 +112,6 @@ typedef struct hybridlock_lock_t
       void *tracing_fn_data;
       void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data);
 #endif
-
-      _Atomic(int) thread_count;
     };
 #ifdef ADD_PADDING
     uint8_t padding1[CACHE_LINE_SIZE];
