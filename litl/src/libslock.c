@@ -47,7 +47,7 @@ extern __thread unsigned int cur_thread_id;
 
 void try_to_initialize_me(libslock_mutex_t *impl, libslock_context_t *me) {
     if (!me->init) {
-        init_lock_local(INT_MAX, &impl->lock, &me->me);
+        init_lock_local(&impl->lock, &me->me);
         me->init = 1;
     }
 }
