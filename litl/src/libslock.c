@@ -57,36 +57,63 @@ libslock_mutex_t *libslock_mutex_create(const pthread_mutexattr_t *attr) {
         (libslock_mutex_t *)alloc_cache_align(sizeof(libslock_mutex_t));
     init_lock_global(&impl->lock);
 
+#if COND_VAR && !LIBSLOCK_COND_VAR
+    REAL(pthread_mutex_init)(&impl->posix_lock, attr);
+#endif
+
     return impl;
 }
 
 int libslock_mutex_lock(libslock_mutex_t *impl, libslock_context_t *me) {
     try_to_initialize_me(impl, me);
     acquire_lock(&me->me, &impl->lock);
+
+#if COND_VAR && !LIBSLOCK_COND_VAR
+    assert(REAL(pthread_mutex_lock)(&impl->posix_lock) == 0);
+#endif
     return 0;
 }
 
 int libslock_mutex_trylock(libslock_mutex_t *impl, libslock_context_t *me) {
     try_to_initialize_me(impl, me);
-    if (acquire_trylock(&me->me, &impl->lock) == 0)
+    if (acquire_trylock(&me->me, &impl->lock) == 0) {
+#if COND_VAR && !LIBSLOCK_COND_VAR
+        assert(REAL(pthread_mutex_lock)(&impl->posix_lock) == 0);
+#endif
+
         return 0;
+    }
 
     return EBUSY;
 }
 
 void libslock_mutex_unlock(libslock_mutex_t *impl, libslock_context_t *me) {
     try_to_initialize_me(impl, me);
+
+#if COND_VAR && !LIBSLOCK_COND_VAR
+    assert(REAL(pthread_mutex_unlock)(&impl->posix_lock) == 0);
+#endif
+
     release_lock(&me->me, &impl->lock);
 }
 
 int libslock_mutex_destroy(libslock_mutex_t *impl) {
     free_lock_global(impl->lock);
+
+#if COND_VAR && !LIBSLOCK_COND_VAR
+    REAL(pthread_mutex_destroy)(&impl->posix_lock);
+#endif
+
     return 0;
 }
 
 int libslock_cond_init(libslock_cond_t *cond, const pthread_condattr_t *attr) {
 #if COND_VAR
+#if LIBSLOCK_COND_VAR
     return condvar_init(cond);
+#else
+    return REAL(pthread_cond_init)(cond, attr);
+#endif
 #else
     fprintf(stderr, "Error cond_var not supported.");
     assert(0);
@@ -95,9 +122,16 @@ int libslock_cond_init(libslock_cond_t *cond, const pthread_condattr_t *attr) {
 
 int libslock_cond_wait(libslock_cond_t *cond, libslock_mutex_t *impl,
                        libslock_context_t *me) {
-    try_to_initialize_me(impl, me);
 #if COND_VAR
+    try_to_initialize_me(impl, me);
+#if LIBSLOCK_COND_VAR
     return condvar_wait(cond, &me->me, &impl->lock);
+#else
+    release_lock(&me->me, &impl->lock);
+    int res = REAL(pthread_cond_wait)(cond, &impl->posix_lock);
+    acquire_lock(&me->me, &impl->lock);
+    return res;
+#endif
 #else
     fprintf(stderr, "Error cond_var not supported.");
     assert(0);
@@ -106,9 +140,16 @@ int libslock_cond_wait(libslock_cond_t *cond, libslock_mutex_t *impl,
 
 int libslock_cond_timedwait(libslock_cond_t *cond, libslock_mutex_t *impl,
                             libslock_context_t *me, const struct timespec *ts) {
-    try_to_initialize_me(impl, me);
 #if COND_VAR
+    try_to_initialize_me(impl, me);
+#if LIBSLOCK_COND_VAR
     return condvar_timedwait(cond, &me->me, &impl->lock, ts);
+#else
+    release_lock(&me->me, &impl->lock);
+    int res = REAL(pthread_cond_timedwait)(cond, &impl->posix_lock, ts);
+    acquire_lock(&me->me, &impl->lock);
+    return res;
+#endif
 #else
     fprintf(stderr, "Error cond_var not supported.");
     assert(0);
@@ -117,7 +158,11 @@ int libslock_cond_timedwait(libslock_cond_t *cond, libslock_mutex_t *impl,
 
 int libslock_cond_signal(libslock_cond_t *cond) {
 #if COND_VAR
+#if LIBSLOCK_COND_VAR
     return condvar_signal(cond);
+#else
+    return REAL(pthread_cond_signal)(cond);
+#endif
 #else
     fprintf(stderr, "Error cond_var not supported.");
     assert(0);
@@ -126,7 +171,11 @@ int libslock_cond_signal(libslock_cond_t *cond) {
 
 int libslock_cond_broadcast(libslock_cond_t *cond) {
 #if COND_VAR
+#if LIBSLOCK_COND_VAR
     return condvar_broadcast(cond);
+#else
+    return REAL(pthread_cond_broadcast)(cond);
+#endif
 #else
     fprintf(stderr, "Error cond_var not supported.");
     assert(0);
@@ -135,7 +184,11 @@ int libslock_cond_broadcast(libslock_cond_t *cond) {
 
 int libslock_cond_destroy(libslock_cond_t *cond) {
 #if COND_VAR
+#if LIBSLOCK_COND_VAR
     return condvar_destroy(cond);
+#else
+    return REAL(pthread_cond_destroy)(cond);
+#endif
 #else
     fprintf(stderr, "Error cond_var not supported.");
     assert(0);

@@ -38,9 +38,10 @@
 #define LOCK_ALGORITHM "LIBSLOCK"
 #define NEED_CONTEXT 1
 #define SUPPORT_WAITING 0
+#define LIBSLOCK_COND_VAR 0
 
 typedef struct libslock_mutex_t {
-#if COND_VAR
+#if COND_VAR && !LIBSLOCK_COND_VAR
     pthread_mutex_t posix_lock;
     char __pad[pad_to_cache_line(sizeof(pthread_mutex_t))];
 #endif
@@ -52,7 +53,11 @@ typedef struct libslock_context_t {
     lock_local_data me __attribute__((aligned(CACHE_LINE_SIZE)));
 } libslock_context_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
+#if LIBSLOCK_COND_VAR
 typedef lock_condvar_t libslock_cond_t;
+#else
+typedef pthread_cond_t libslock_cond_t;
+#endif
 
 libslock_mutex_t *libslock_mutex_create(const pthread_mutexattr_t *attr);
 int libslock_mutex_lock(libslock_mutex_t *impl, libslock_context_t *me);
