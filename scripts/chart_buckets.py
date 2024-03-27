@@ -89,5 +89,5 @@ for key, threads in enumerate(threads):
     ax.bar_label(rects, padding=3)
 
 ax.set_ylabel("Throughput (CS/s)")
-ax.legend(loc="upper center", ncols=50, bbox_to_anchor=(0.4, -0.05))
+ax.legend(loc="upper center", ncols=4, bbox_to_anchor=(0.4, -0.05))
 plt.savefig(args.output_file, dpi=600, bbox_inches="tight")

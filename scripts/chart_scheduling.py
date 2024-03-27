@@ -111,5 +111,5 @@ for contention in args.contention:
                 ax,
             )
 
-fig.legend(loc="upper center", ncols=5, bbox_to_anchor=(0.4, -0.05))
+fig.legend(loc="upper center", ncols=2, bbox_to_anchor=(0.5, 0))
 plt.savefig(args.output_file, dpi=600, bbox_inches="tight")
