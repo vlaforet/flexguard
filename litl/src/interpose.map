@@ -14,15 +14,6 @@ GLIBC_2.2.5 {
       pthread_spin_lock;
       pthread_spin_trylock;
       pthread_spin_unlock;
-      pthread_rwlock_init;
-      pthread_rwlock_destroy;
-      pthread_rwlock_rdlock;
-      pthread_rwlock_wrlock;
-      pthread_rwlock_timedrdlock;
-      pthread_rwlock_timedwrlock;
-      pthread_rwlock_tryrdlock;
-      pthread_rwlock_trywrlock;
-      pthread_rwlock_unlock;
    local: *;
 };
 
@@ -39,4 +30,13 @@ GLIBC_2.3.2 {
 GLIBC_2.34 {
    global:
       pthread_create;
+      pthread_rwlock_init;
+      pthread_rwlock_destroy;
+      pthread_rwlock_rdlock;
+      pthread_rwlock_wrlock;
+      pthread_rwlock_timedrdlock;
+      pthread_rwlock_timedwrlock;
+      pthread_rwlock_tryrdlock;
+      pthread_rwlock_trywrlock;
+      pthread_rwlock_unlock;
 } GLIBC_2.3.2;
