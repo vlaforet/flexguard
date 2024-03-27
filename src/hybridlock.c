@@ -537,6 +537,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         // Initialize things without BPF
         qnode_allocation_array = malloc(MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS * sizeof(hybrid_qnode_t));
         queue_lock = malloc(MAX_NUMBER_LOCKS * sizeof(hybrid_qnode_ptr));
+        thread_info = malloc(MAX_NUMBER_THREADS * sizeof(hybrid_thread_info_t));
 #endif
     }
 
