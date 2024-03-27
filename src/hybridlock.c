@@ -52,12 +52,12 @@ _Atomic(int) lock_count = 0;
 hybrid_qnode_ptr qnode_allocation_array;
 hybrid_qnode_ptr *queue_lock;
 
+hybrid_thread_info_t *thread_info;
+__thread int thread_id = -1;
+
 #ifdef BPF
 hybrid_addresses_t *addresses;
 struct bpf_map *nodes_map;
-
-hybrid_thread_info_t *thread_info;
-__thread int thread_id = -1;
 
 #ifdef HYBRID_EPOCH
 uint64_t *dummy_node_enqueued;
