@@ -66,6 +66,18 @@ typedef struct mcs_global_params
 #endif
 } mcs_global_params;
 
+typedef union
+{
+    struct
+    {
+        uint32_t seq;
+        uint32_t target;
+    };
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#endif
+} mcs_condvar_t;
+
 /*
  * Methods for single lock manipulation
  */
@@ -81,5 +93,15 @@ void mcs_acquire(mcs_lock *the_lock, mcs_qnode_ptr I);
 void mcs_release(mcs_lock *the_lock, mcs_qnode_ptr I);
 int is_free_mcs(mcs_lock *L);
 int mcs_trylock(mcs_lock *L, mcs_qnode_ptr I);
+
+/*
+ *  Condition Variables
+ */
+int mcs_condvar_init(mcs_condvar_t *cond);
+int mcs_condvar_wait(mcs_condvar_t *cond, mcs_qnode_ptr I, mcs_lock *the_lock);
+int mcs_condvar_timedwait(mcs_condvar_t *cond, mcs_qnode_ptr I, mcs_lock *the_lock, const struct timespec *ts);
+int mcs_condvar_signal(mcs_condvar_t *cond);
+int mcs_condvar_broadcast(mcs_condvar_t *cond);
+int mcs_condvar_destroy(mcs_condvar_t *cond);
 
 #endif

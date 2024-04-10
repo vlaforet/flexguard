@@ -114,3 +114,57 @@ int init_futex_global(futex_lock_t *the_lock)
   MEM_BARRIER;
   return 0;
 }
+
+/*
+ *  Condition Variables
+ */
+
+int futex_condvar_init(futex_condvar_t *cond)
+{
+  cond->seq = 0;
+  cond->target = 0;
+  return 0;
+}
+
+int futex_condvar_wait(futex_condvar_t *cond, futex_lock_t *the_lock)
+{
+  // No need for atomic operations, I have the lock
+  uint32_t target = ++cond->target;
+  uint32_t seq = cond->seq;
+  futex_unlock(the_lock);
+
+  while (target > seq)
+  {
+    futex_wait(&cond->seq, seq);
+    seq = cond->seq;
+  }
+  futex_lock(the_lock);
+  return 0;
+}
+
+int futex_condvar_timedwait(futex_condvar_t *cond, futex_lock_t *the_lock, const struct timespec *ts)
+{
+  perror("Timedwait not supported yet.");
+  return 1;
+}
+
+int futex_condvar_signal(futex_condvar_t *cond)
+{
+  cond->seq++;
+  futex_wake(&cond->seq, 1);
+  return 0;
+}
+
+int futex_condvar_broadcast(futex_condvar_t *cond)
+{
+  cond->seq = cond->target;
+  futex_wake(&cond->seq, INT_MAX);
+  return 0;
+}
+
+int futex_condvar_destroy(futex_condvar_t *cond)
+{
+  cond->seq = 0;
+  cond->target = 0;
+  return 0;
+}

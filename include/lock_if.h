@@ -293,6 +293,10 @@ static inline void release_trylock(lock_local_data *local_d, lock_global_data *g
 /* Condition Variables */
 #ifdef USE_HYBRIDLOCK_LOCKS
 typedef hybridlock_condvar_t lock_condvar_t;
+#elif defined(USE_MCS_LOCKS)
+typedef mcs_condvar_t lock_condvar_t;
+#elif defined(USE_FUTEX_LOCKS)
+typedef futex_condvar_t lock_condvar_t;
 #else
 typedef int lock_condvar_t;
 #endif
@@ -301,6 +305,10 @@ static inline int condvar_init(lock_condvar_t *cond)
 {
 #ifdef USE_HYBRIDLOCK_LOCKS
     return hybridlock_condvar_init(cond);
+#elif defined(USE_MCS_LOCKS)
+    return mcs_condvar_init(cond);
+#elif defined(USE_FUTEX_LOCKS)
+    return futex_condvar_init(cond);
 #else
     perror("condvar not supported by this lock.");
     return 1;
@@ -311,6 +319,10 @@ static inline int condvar_wait(lock_condvar_t *cond, lock_local_data *local_d, l
 {
 #ifdef USE_HYBRIDLOCK_LOCKS
     return hybridlock_condvar_wait(cond, local_d, global_d);
+#elif defined(USE_MCS_LOCKS)
+    return mcs_condvar_wait(cond, *local_d, global_d->the_lock);
+#elif defined(USE_FUTEX_LOCKS)
+    return futex_condvar_wait(cond, global_d);
 #else
     perror("condvar not supported by this lock.");
     return 1;
@@ -321,6 +333,10 @@ static inline int condvar_timedwait(lock_condvar_t *cond, lock_local_data *local
 {
 #ifdef USE_HYBRIDLOCK_LOCKS
     return hybridlock_condvar_timedwait(cond, local_d, global_d, ts);
+#elif defined(USE_MCS_LOCKS)
+    return mcs_condvar_timedwait(cond, *local_d, global_d->the_lock, ts);
+#elif defined(USE_FUTEX_LOCKS)
+    return futex_condvar_timedwait(cond, global_d, ts);
 #else
     perror("condvar not supported by this lock.");
     return 1;
@@ -331,6 +347,10 @@ static inline int condvar_signal(lock_condvar_t *cond)
 {
 #ifdef USE_HYBRIDLOCK_LOCKS
     return hybridlock_condvar_signal(cond);
+#elif defined(USE_MCS_LOCKS)
+    return mcs_condvar_signal(cond);
+#elif defined(USE_FUTEX_LOCKS)
+    return futex_condvar_signal(cond);
 #else
     perror("condvar not supported by this lock.");
     return 1;
@@ -341,6 +361,10 @@ static inline int condvar_broadcast(lock_condvar_t *cond)
 {
 #ifdef USE_HYBRIDLOCK_LOCKS
     return hybridlock_condvar_broadcast(cond);
+#elif defined(USE_MCS_LOCKS)
+    return mcs_condvar_broadcast(cond);
+#elif defined(USE_FUTEX_LOCKS)
+    return futex_condvar_broadcast(cond);
 #else
     perror("condvar not supported by this lock.");
     return 1;
@@ -351,6 +375,10 @@ static inline int condvar_destroy(lock_condvar_t *cond)
 {
 #ifdef USE_HYBRIDLOCK_LOCKS
     return hybridlock_condvar_destroy(cond);
+#elif defined(USE_MCS_LOCKS)
+    return mcs_condvar_destroy(cond);
+#elif defined(USE_FUTEX_LOCKS)
+    return futex_condvar_destroy(cond);
 #else
     perror("condvar not supported by this lock.");
     return 1;

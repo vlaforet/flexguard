@@ -57,6 +57,18 @@ typedef struct futex_lock_t
   };
 } futex_lock_t;
 
+typedef union
+{
+  struct
+  {
+    uint32_t seq;
+    uint32_t target;
+  };
+#ifdef ADD_PADDING
+  uint8_t padding[CACHE_LINE_SIZE];
+#endif
+} futex_condvar_t;
+
 /*
  * Lock manipulation methods
  */
@@ -69,5 +81,15 @@ int is_free_futex(futex_lock_t *the_lock);
  * Methods for single lock manipulation
  */
 int init_futex_global(futex_lock_t *the_lock);
+
+/*
+ *  Condition Variables
+ */
+int futex_condvar_init(futex_condvar_t *cond);
+int futex_condvar_wait(futex_condvar_t *cond, futex_lock_t *the_lock);
+int futex_condvar_timedwait(futex_condvar_t *cond, futex_lock_t *the_lock, const struct timespec *ts);
+int futex_condvar_signal(futex_condvar_t *cond);
+int futex_condvar_broadcast(futex_condvar_t *cond);
+int futex_condvar_destroy(futex_condvar_t *cond);
 
 #endif

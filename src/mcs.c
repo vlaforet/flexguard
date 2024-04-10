@@ -103,3 +103,55 @@ void end_mcs_global(mcs_global_params the_locks)
 {
     free(the_locks.the_lock);
 }
+
+/*
+ *  Condition Variables
+ */
+
+int mcs_condvar_init(mcs_condvar_t *cond)
+{
+    cond->seq = 0;
+    cond->target = 0;
+    return 0;
+}
+
+int mcs_condvar_wait(mcs_condvar_t *cond, mcs_qnode_ptr I, mcs_lock *the_lock)
+{
+    // No need for atomic operations, I have the lock
+    uint32_t target = ++cond->target;
+    uint32_t seq = cond->seq;
+    mcs_release(the_lock, I);
+
+    while (target > seq)
+    {
+        PAUSE;
+        seq = cond->seq;
+    }
+    mcs_acquire(the_lock, I);
+    return 0;
+}
+
+int mcs_condvar_timedwait(mcs_condvar_t *cond, mcs_qnode_ptr I, mcs_lock *the_lock, const struct timespec *ts)
+{
+    perror("Timedwait not supported yet.");
+    return 1;
+}
+
+int mcs_condvar_signal(mcs_condvar_t *cond)
+{
+    cond->seq++;
+    return 0;
+}
+
+int mcs_condvar_broadcast(mcs_condvar_t *cond)
+{
+    cond->seq = cond->target;
+    return 0;
+}
+
+int mcs_condvar_destroy(mcs_condvar_t *cond)
+{
+    cond->seq = 0;
+    cond->target = 0;
+    return 0;
+}
