@@ -93,15 +93,15 @@ extern "C"
             file = popen("sudo bpftrace -e 'BEGIN { printf(\"%u\", *kaddr(\"tsc_khz\")); exit(); }' | sed -n 2p", "r");
             if (file == NULL)
             {
-                fprintf(stderr, "popen frequency");
-                exit(1);
+                perror("popen frequency");
+                exit(EXIT_FAILURE);
             }
 
             fgets(text, 32, file);
             if (!(frequency = atoi(text)))
             {
-                fprintf(stderr, "unable to retrieve TSC frequency, check that bpftrace is properly installed");
-                exit(1);
+                fprintf(stderr, "Unable to retrieve TSC frequency, check that bpftrace is properly installed.\n");
+                exit(EXIT_FAILURE);
             }
         }
         return frequency;

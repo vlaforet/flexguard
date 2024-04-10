@@ -91,8 +91,8 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
             return 0; // Not free
         break;
     default:
-        printf("Transition types cannot be free.\n");
-        exit(1);
+        fprintf(stderr, "Transition types cannot be free.\n");
+        exit(EXIT_FAILURE);
     }
     return 1; // Free
 }
@@ -253,8 +253,8 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
         }
         return 1;
     default:
-        printf("Transition types cannot be locked.\n");
-        exit(1);
+        fprintf(stderr, "Transition types cannot be locked.\n");
+        exit(EXIT_FAILURE);
     }
     return 0;
 }
@@ -354,8 +354,8 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
 
         break;
     default:
-        printf("Transition types cannot be unlocked.\n");
-        exit(1);
+        fprintf(stderr, "Transition types cannot be unlocked.\n");
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -454,7 +454,7 @@ static void deploy_bpf_code()
     if (!skel)
     {
         fprintf(stderr, "Failed to open BPF skeleton\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     addresses = &skel->bss->addresses;
@@ -502,7 +502,7 @@ static void deploy_bpf_code()
     {
         fprintf(stderr, "Failed to load and verify BPF skeleton (%d)\n", err);
         hybridlock_bpf__destroy(skel);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     // Store map
@@ -514,7 +514,7 @@ static void deploy_bpf_code()
     {
         fprintf(stderr, "Failed to attach BPF skeleton (%d)\n", err);
         hybridlock_bpf__destroy(skel);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 #endif
@@ -524,8 +524,8 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     the_lock->id = atomic_fetch_add(&lock_count, 1);
     if (the_lock->id >= MAX_NUMBER_LOCKS)
     {
-        perror("Too many locks. Increase MAX_NUMBER_LOCKS in platform_defs.h.");
-        exit(1);
+        fprintf(stderr, "Too many locks. Increase MAX_NUMBER_LOCKS in platform_defs.h.");
+        exit(EXIT_FAILURE);
     }
 
     // TODO: LOCK
@@ -677,8 +677,8 @@ int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_
 
 int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock, const struct timespec *ts)
 {
-    perror("Timedwait not supported yet.");
-    return 1;
+    fprintf(stderr, "Timedwait not supported yet.\n");
+    exit(EXIT_FAILURE);
 }
 
 int hybridlock_condvar_signal(hybridlock_condvar_t *cond)

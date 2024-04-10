@@ -144,8 +144,8 @@ int futex_condvar_wait(futex_condvar_t *cond, futex_lock_t *the_lock)
 
 int futex_condvar_timedwait(futex_condvar_t *cond, futex_lock_t *the_lock, const struct timespec *ts)
 {
-  perror("Timedwait not supported yet.");
-  return 1;
+  fprintf(stderr, "Timedwait not supported yet.\n");
+  exit(EXIT_FAILURE);
 }
 
 int futex_condvar_signal(futex_condvar_t *cond)

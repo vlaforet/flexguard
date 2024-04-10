@@ -133,8 +133,8 @@ int mcs_condvar_wait(mcs_condvar_t *cond, mcs_qnode_ptr I, mcs_lock *the_lock)
 
 int mcs_condvar_timedwait(mcs_condvar_t *cond, mcs_qnode_ptr I, mcs_lock *the_lock, const struct timespec *ts)
 {
-    perror("Timedwait not supported yet.");
-    return 1;
+    fprintf(stderr, "Timedwait not supported yet.\n");
+    exit(EXIT_FAILURE);
 }
 
 int mcs_condvar_signal(mcs_condvar_t *cond)

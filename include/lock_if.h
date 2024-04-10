@@ -310,8 +310,8 @@ static inline int condvar_init(lock_condvar_t *cond)
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_init(cond);
 #else
-    perror("condvar not supported by this lock.");
-    return 1;
+    fprintf(stderr, "condvar not supported by this lock.\n");
+    exit(EXIT_FAILURE);
 #endif
 }
 
@@ -324,8 +324,8 @@ static inline int condvar_wait(lock_condvar_t *cond, lock_local_data *local_d, l
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_wait(cond, global_d);
 #else
-    perror("condvar not supported by this lock.");
-    return 1;
+    fprintf(stderr, "condvar not supported by this lock.\n");
+    exit(EXIT_FAILURE);
 #endif
 }
 
@@ -338,8 +338,8 @@ static inline int condvar_timedwait(lock_condvar_t *cond, lock_local_data *local
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_timedwait(cond, global_d, ts);
 #else
-    perror("condvar not supported by this lock.");
-    return 1;
+    fprintf(stderr, "condvar not supported by this lock.\n");
+    exit(EXIT_FAILURE);
 #endif
 }
 
@@ -352,8 +352,8 @@ static inline int condvar_signal(lock_condvar_t *cond)
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_signal(cond);
 #else
-    perror("condvar not supported by this lock.");
-    return 1;
+    fprintf(stderr, "condvar not supported by this lock.\n");
+    exit(EXIT_FAILURE);
 #endif
 }
 
@@ -366,8 +366,8 @@ static inline int condvar_broadcast(lock_condvar_t *cond)
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_broadcast(cond);
 #else
-    perror("condvar not supported by this lock.");
-    return 1;
+    fprintf(stderr, "condvar not supported by this lock.\n");
+    exit(EXIT_FAILURE);
 #endif
 }
 
@@ -380,7 +380,7 @@ static inline int condvar_destroy(lock_condvar_t *cond)
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_destroy(cond);
 #else
-    perror("condvar not supported by this lock.");
-    return 1;
+    fprintf(stderr, "condvar not supported by this lock.\n");
+    exit(EXIT_FAILURE);
 #endif
 }
