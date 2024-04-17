@@ -11,6 +11,7 @@
 /#README.md#
 /libsync.a
 /interpose.so
+/interpose.sh
 
 /scheduling
 /scheduling_*

@@ -1,0 +1,56 @@
+#!/bin/bash
+
+BASE_DIR="@base_dir@"
+
+if ! TEMP=$(getopt -o +hg -l help,gdb -n interpose -- "$@"); then
+  exit 1
+fi
+
+eval set -- "$TEMP"
+
+debugger=0
+
+while :; do
+  case $1 in
+  -g | --gdb)
+    debugger=1
+    shift 1
+    ;;
+
+  -h | --help)
+    cat <<EOF
+Usage: interpose [OPTIONS...] APPLICATION [ARGUMENTS...]
+
+COMMANDS:
+  -h, --help                      Show this help
+
+OPTIONS:
+  -g, --gdb                       Launch the application in the gdb debugger
+EOF
+    exit 0
+    ;;
+  --)
+    shift
+    break
+    ;;
+
+  *)
+    echo "Parsing failed!" >&2
+    exit 1
+    ;;
+  esac
+done
+
+shift $(($OPTIND - 1))
+
+if [ x"$1" = x ]; then
+  echo "Please specify an application to profile!" >&2
+  exit 1
+fi
+
+if [ x"$debugger" = x1 ]; then
+  gdb -q -ex="set env LD_PRELOAD $BASE_DIR/interpose.so" --args "$@"
+else
+  export LD_PRELOAD="$LD_PRELOAD:$BASE_DIR/interpose.so"
+  exec "$@"
+fi

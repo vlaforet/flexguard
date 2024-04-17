@@ -4,11 +4,7 @@ ifeq ($(DEBUG),1)
   COMPILE_FLAGS += -O0 -fno-inline -ggdb
 	DEFINED := -DDEBUG
 else
-  COMPILE_FLAGS += -O3 -Wall
-endif
-
-ifeq ($(DEBUG_LITL),1)
-	DEFINED += -DDEBUG_LITL
+  COMPILE_FLAGS += -O3
 endif
 
 ifneq ($(ADD_PADDING),0)
@@ -33,17 +29,15 @@ ifeq ($(LOCK_VERSION), HYBRIDLOCK)
 	endif
 	DEFINED += -DHYBRID_$(HYBRID_VERSION)
 
-	ifeq ($(HYBRID_GLOBAL_STATE), 1)
-		DEFINED += -DHYBRID_GLOBAL_STATE
-	endif
-
-		ifeq ($(HYBRID_EPOCH), 1)
+	ifeq ($(HYBRID_EPOCH), 1)
 		DEFINED += -DHYBRID_EPOCH
 	endif
 
 	ifndef NOBPF
 		NOBPF=0
 	endif
+else
+	NOBPF=1
 endif
 
 ifeq ($(LOCK_VERSION), MUTEX)
@@ -99,7 +93,7 @@ SRCPATH := $(abspath ./src/)
 MAININCLUDE := $(abspath ./include/)
 INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
 
-all: scheduling test_correctness buckets libsync.a interpose.so
+all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
 	@echo "############### Used lock:" $(LOCK_VERSION)
 
 ifeq ($(NOBPF), 0)
@@ -134,13 +128,14 @@ $(OUTPUT)/%.bpf.o: src/%.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(VMLINUX) | $(OUTP
 # Generate BPF skeletons
 $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 	$(BPFTOOL) gen skeleton $< > $@
-
-# Build user-space code
-$(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 endif
 
 litl: include/lock_if.h libsync.a $(LIBBPF_OBJ)
 	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(DEFINED) $(INCLUDES)"
+
+interpose.sh: interpose.in interpose.so
+	cat interpose.in | sed -e "s/@base_dir@/$$(echo $$(cd .; pwd) | sed -e 's/\([\/&]\)/\\\1/g')/g" > $@
+	chmod a+x $@
 
 interpose.so: $(OBJ_FILES) $(LIBBPF_OBJ) include/atomic_ops.h include/utils.h include/lock_if.h interpose.o
 	$(GCC) -shared -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o interpose.so $(LIBS) -Wl,--version-script=src/interpose.map
@@ -186,5 +181,5 @@ test_correctness: bmarks/test_correctness.c $(OBJ_FILES) $(LIBBPF_OBJ)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/test_correctness.c -o test_correctness $(LIBS)
 
 clean:
-	rm -rf $(OUTPUT) interpose.so *.o *.s *.odump test_correctness scheduling buckets libsync.a
+	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s *.odump test_correctness scheduling buckets libsync.a
 	$(MAKE) -C litl/ clean
