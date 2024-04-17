@@ -119,8 +119,17 @@ typedef struct hybrid_lock_info_t
   {
     struct
     {
-      volatile int locking_id;
-      volatile uint8_t is_running;
+#ifdef HYBRID_MCS
+      hybrid_qnode_ptr queue_lock;
+#ifdef HYBRID_EPOCH
+      uint64_t dummy_node_enqueued;
+      uint64_t blocking_nodes;
+#endif
+#endif
+
+#ifndef HYBRID_EPOCH
+      unsigned long preempted_at;
+#endif
     };
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];

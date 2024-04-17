@@ -45,52 +45,28 @@
 #define MAX_STACK_TRACE_DEPTH 8
 
 /*
- * Translate a user-space qnode pointer to a kernel-space qnode pointer.
- * Should be used as a condition to quiet the eBPF verifier.
- * The negative condition should never happen as long as your
- * user-space pointer is valid.
+ * QNODE_ID(user_qnode)
+ * Return the qnode id from a user-space qnode pointer.
+ * To be used with array_map.
  *
  * Example:
- * ```
- * int id;
- * hybrid_qnode_ptr kern;
- *
- * // Inline
- * return QNODE_USER_TO_KERNEL(user, id, kern) ? kern->waiting : 0;
- *
- * // Full condition
- * if (QNODE_USER_TO_KERN(user, id, kern)) return kern->waiting;
- *
- * // Negative
- * if (!QNODE_USER_TO_KERN(user, id, kern)) return 0; // Should never happen if "user" is valid
- * return kern->waiting;
- * ```
+```
+u32 key = QNODE_ID(user_qnode);
+hybrid_qnode_ptr qnode = bpf_map_lookup_elem(&array_map, &key);
+if (qnode) {
+	// Do something
+}
+```
  */
-#define QNODE_USER_TO_KERNEL(user_qnode, id, kern_qnode) \
-	((id = (user_qnode - qnode_allocation_starting_address)) >= 0 && id < (MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS) && (kern_qnode = &qnode_allocation_array[id]))
-
-#define QNODE_FROM_THREAD_LOCK_ID(thread_id, lock_id, dest) \
-	(thread_id >= 0 && thread_id < MAX_NUMBER_THREADS && lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && (dest = &qnode_allocation_array[lock_id * MAX_NUMBER_THREADS + thread_id]))
+#define QNODE_ID(user_qnode) (user_qnode - qnode_allocation_starting_address)
 
 #define THREAD_INFO_FROM_ID(thread_id, dest) \
 	(thread_id >= 0 && thread_id < MAX_NUMBER_THREADS && (dest = &thread_info[thread_id]))
 
-#ifndef HYBRID_EPOCH
-unsigned long preempted_at[MAX_NUMBER_LOCKS];
-#endif
-
 hybrid_addresses_t addresses;
-volatile hybrid_qnode_t qnode_allocation_array[MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS];
 hybrid_qnode_ptr qnode_allocation_starting_address; // Filled by the lock init function with user-space pointer to qnode_allocation_array.
 
-#ifdef HYBRID_MCS
-hybrid_qnode_ptr queue_lock[MAX_NUMBER_LOCKS];
-#ifdef HYBRID_EPOCH
-uint64_t dummy_node_enqueued[MAX_NUMBER_LOCKS];
-uint64_t blocking_nodes[MAX_NUMBER_LOCKS];
-#endif
-#endif
-
+volatile hybrid_lock_info_t lock_info[MAX_NUMBER_LOCKS];
 volatile hybrid_thread_info_t thread_info[MAX_NUMBER_THREADS];
 
 char _license[4] SEC("license") = "GPL";
@@ -102,6 +78,15 @@ struct
 	__type(value, int);
 	__uint(max_entries, MAX_NUMBER_THREADS);
 } nodes_map SEC(".maps");
+
+struct
+{
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, volatile hybrid_qnode_t);
+	__uint(max_entries, (MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS));
+	__uint(map_flags, BPF_F_MMAPABLE);
+} array_map SEC(".maps");
 
 #ifndef HYBRID_EPOCH
 /*
@@ -121,31 +106,39 @@ static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 	int lock_id = holder->lock_id;
 	if (!(lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)) // Weird negative to please the verifier
 		return 1;																				 // Should never happen
+	volatile hybrid_lock_info_t *linfo = &lock_info[lock_id];
 
 #ifdef HYBRID_EPOCH
 	// Prevent 2nd preemption of the same thread to re-enqueue the dummy_node.
-	if (__sync_val_compare_and_swap(&dummy_node_enqueued[lock_id], 0, 1) != 0)
+	if (__sync_val_compare_and_swap(&linfo->dummy_node_enqueued, 0, 1) != 0)
 	{
 		DPRINT("Dummy_node already enqueued.");
 		return 0;
 	}
 
-	int id;
-	hybrid_qnode_ptr curr, temp;
-	hybrid_qnode_ptr dummy_node = &qnode_allocation_array[lock_id * MAX_NUMBER_THREADS];
-	hybrid_qnode_ptr dummy_pointer = qnode_allocation_starting_address + lock_id * MAX_NUMBER_THREADS;
+	hybrid_qnode_ptr curr, temp, dummy_pointer, dummy_node, pred;
 
 	curr = holder->next;
 	if (!curr)
 	{ // Can happen if system is over-subscribed by other apps or other locks. Nothing to do.
 		DPRINT("Holder has no next");
-		__sync_lock_test_and_set(&dummy_node_enqueued[lock_id], 0);
+		__sync_lock_test_and_set(&linfo->dummy_node_enqueued, 0);
 		return 0;
+	}
+
+	dummy_pointer = qnode_allocation_starting_address + lock_id * MAX_NUMBER_THREADS;
+
+	u32 key = lock_id * MAX_NUMBER_THREADS;
+	dummy_node = bpf_map_lookup_elem(&array_map, &key);
+	if (!dummy_node)
+	{
+		bpf_printk("Error: No dummy node");
+		return 1;
 	}
 
 	// <LOCK_DUMMY_NODE>
 	dummy_node->next = NULL;
-	hybrid_qnode_ptr pred = (hybrid_qnode_ptr)__sync_lock_test_and_set(&queue_lock[lock_id], dummy_pointer);
+	pred = (hybrid_qnode_ptr)__sync_lock_test_and_set(&linfo->queue_lock, dummy_pointer);
 	if (pred == NULL)
 	{
 		bpf_printk("Error: Queue is empty. Holder should at least be in the queue.");
@@ -153,14 +146,18 @@ static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 	}
 
 	dummy_node->waiting = 1;
-	if (QNODE_USER_TO_KERNEL(pred, id, temp))
+	key = QNODE_ID(pred);
+	temp = bpf_map_lookup_elem(&array_map, &key);
+	if (temp)
 		temp->next = dummy_pointer;
 	// </LOCK_DUMMY_NODE>
 
 	int i;
 	for (i = 0; i < MAX_NUMBER_THREADS; i++)
 	{
-		if (QNODE_USER_TO_KERNEL(curr, id, temp))
+		key = QNODE_ID(curr);
+		temp = bpf_map_lookup_elem(&array_map, &key);
+		if (temp)
 		{
 			if (temp->waiting != 1)
 			{
@@ -171,7 +168,7 @@ static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 			temp->should_block = 1;
 			curr = temp->next;
 
-			if (!curr && queue_lock[lock_id] == temp)
+			if (!curr && linfo->queue_lock == temp)
 			{
 				bpf_printk("Error: No dummy node after %d nodes.", i);
 				return 1;
@@ -188,11 +185,11 @@ static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 			break;
 	}
 
-	__sync_fetch_and_add(&blocking_nodes[lock_id], i + 1);
+	__sync_fetch_and_add(&linfo->blocking_nodes, i + 1);
 	DPRINT("Walked %d nodes", i + 1);
 
 #else
-	preempted_at[lock_id] = time;
+	linfo->preempted_at = time;
 	long ret = bpf_map_update_elem(&preempted_map, &tid, &tid, BPF_NOEXIST);
 	if (ret < 0)
 		bpf_printk("Error on map update.");
@@ -207,14 +204,13 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	struct pt_regs *regs;
 	u32 key;
 	hybrid_qnode_ptr qnode;
-	int lock_id;
+	int lock_id, *thread_id;
 	volatile hybrid_thread_info_t *tinfo;
 
 	/*
 	 * Clear preempted status of next thread.
 	 */
 	key = next->pid;
-	int *thread_id;
 	thread_id = bpf_map_lookup_elem(&nodes_map, &key);
 	if (thread_id && THREAD_INFO_FROM_ID(*thread_id, tinfo))
 	{
@@ -226,7 +222,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		{
 			DPRINT("%s (%d) rescheduled after %s (%d)", next->comm, next->pid, prev->comm, prev->pid);
 			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)
-				preempted_at[lock_id] = 18446744073709551615UL; // ULONG_MAX
+				lock_info[lock_id].preempted_at = 18446744073709551615UL; // ULONG_MAX
 		}
 #endif
 	}
@@ -251,10 +247,12 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	/*
 	 * Ignore preemption if the thread was not locking.
 	 */
-	if (!(lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS))
+	if (lock_id == -1)
 		return 0;
 
-	if (!QNODE_FROM_THREAD_LOCK_ID(*thread_id, lock_id, qnode))
+	key = lock_id * MAX_NUMBER_THREADS + *thread_id;
+	qnode = bpf_map_lookup_elem(&array_map, &key);
+	if (!qnode)
 		return 0;
 
 	/*

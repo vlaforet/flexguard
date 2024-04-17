@@ -50,21 +50,14 @@ static unsigned long get_nsecs()
 _Atomic(int) thread_count = 1;
 _Atomic(int) lock_count = 0;
 hybrid_qnode_ptr qnode_allocation_array;
-hybrid_qnode_ptr *queue_lock;
 
+hybrid_lock_info_t *lock_info;
 hybrid_thread_info_t *thread_info;
 __thread int thread_id = -1;
 
 #ifdef BPF
 hybrid_addresses_t *addresses;
 struct bpf_map *nodes_map;
-
-#ifdef HYBRID_EPOCH
-uint64_t *dummy_node_enqueued;
-uint64_t *blocking_nodes;
-#else
-unsigned long *preempted_at;
-#endif
 #endif
 
 static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
@@ -481,20 +474,7 @@ static void deploy_bpf_code()
 #endif
 
     thread_info = skel->bss->thread_info;
-    qnode_allocation_array = skel->bss->qnode_allocation_array;
-    skel->bss->qnode_allocation_starting_address = skel->bss->qnode_allocation_array;
-
-#if defined(HYBRID_CLH) || defined(HYBRID_MCS)
-    queue_lock = (hybrid_qnode_ptr *)skel->bss->queue_lock;
-#ifdef HYBRID_EPOCH
-    dummy_node_enqueued = skel->bss->dummy_node_enqueued;
-    blocking_nodes = skel->bss->blocking_nodes;
-#endif
-#endif
-
-#ifndef HYBRID_EPOCH
-    preempted_at = skel->bss->preempted_at;
-#endif
+    lock_info = skel->bss->lock_info;
 
     // Load BPF skeleton
     err = hybridlock_bpf__load(skel);
@@ -507,6 +487,15 @@ static void deploy_bpf_code()
 
     // Store map
     nodes_map = skel->maps.nodes_map;
+
+    int fd = bpf_map__fd(skel->maps.array_map);
+    qnode_allocation_array = mmap(NULL, MAX_NUMBER_THREADS * MAX_NUMBER_LOCKS * sizeof(hybrid_qnode_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (qnode_allocation_array == MAP_FAILED)
+    {
+        perror("qnode_allocation_array mmap");
+        exit(EXIT_FAILURE);
+    }
+    skel->bss->qnode_allocation_starting_address = qnode_allocation_array;
 
     // Attach BPF skeleton
     err = hybridlock_bpf__attach(skel);
@@ -543,12 +532,12 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     }
 
 #ifdef HYBRID_MCS
-    the_lock->queue_lock = &queue_lock[the_lock->id];
+    the_lock->queue_lock = &lock_info[the_lock->id].queue_lock;
 
 #ifdef HYBRID_EPOCH
 #ifdef BPF
-    the_lock->dummy_node_enqueued = &dummy_node_enqueued[the_lock->id];
-    the_lock->blocking_nodes = &blocking_nodes[the_lock->id];
+    the_lock->dummy_node_enqueued = &lock_info[the_lock->id].dummy_node_enqueued;
+    the_lock->blocking_nodes = &lock_info[the_lock->id].blocking_nodes;
 
     the_lock->dummy_params = (hybridlock_local_params_t *)malloc(sizeof(hybridlock_local_params_t));
     the_lock->dummy_params->qnode = &qnode_allocation_array[the_lock->id * MAX_NUMBER_THREADS];
@@ -563,7 +552,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     the_lock->futex_lock = 0;
 
 #if defined(BPF) && !defined(HYBRID_EPOCH)
-    the_lock->preempted_at = &preempted_at[the_lock->id];
+    the_lock->preempted_at = &lock_info[the_lock->id].preempted_at;
     (*the_lock->preempted_at) = ULONG_MAX;
     the_lock->last_waiter_at = ULONG_MAX;
     the_lock->last_switched_at = 0;
