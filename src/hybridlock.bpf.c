@@ -101,7 +101,7 @@ struct
 } preempted_map SEC(".maps");
 #endif
 
-static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
+static int on_preemption(u32 tid, hybrid_qnode_ptr holder)
 {
 	int lock_id = holder->lock_id;
 	if (!(lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)) // Weird negative to please the verifier
@@ -189,7 +189,7 @@ static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 	DPRINT("Walked %d nodes", i + 1);
 
 #else
-	linfo->preempted_at = time;
+	linfo->preempted_at = bpf_ktime_get_ns();
 	long ret = bpf_map_update_elem(&preempted_map, &tid, &tid, BPF_NOEXIST);
 	if (ret < 0)
 		bpf_printk("Error on map update.");
@@ -200,7 +200,6 @@ static int on_preemption(u64 time, u32 tid, hybrid_qnode_ptr holder)
 SEC("tp_btf/sched_switch")
 int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
 {
-	u64 time = bpf_ktime_get_ns();
 	struct pt_regs *regs;
 	u32 key;
 	hybrid_qnode_ptr qnode;
@@ -338,7 +337,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 
 	DPRINT("%s (%d) preempted to %s (%d): %lld B away from bhl_lock", prev->comm, prev->pid, next->comm, next->pid, (long long)user_stack[0] - (long long)addresses.lock);
 
-	if (on_preemption(time, key, qnode) != 0 && 0 < user_stack_size / sizeof(u64))
+	if (on_preemption(key, qnode) != 0 && 0 < user_stack_size / sizeof(u64))
 		bpf_printk("Failed to handle preemption %lld (0x%x) B away from bhl_lock", (long long)user_stack[0] - (long long)addresses.lock, (long long)user_stack[0] - (long long)addresses.lock);
 
 	return 0;
