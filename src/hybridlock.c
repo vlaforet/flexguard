@@ -528,8 +528,8 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         exit(EXIT_FAILURE);
     }
 
-    // TODO: LOCK
-    if (the_lock->id == 0)
+    static volatile uint8_t init_lock = 0;
+    if (exactly_once(&init_lock) == 0)
     {
 #ifdef BPF
         deploy_bpf_code();
@@ -539,6 +539,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         queue_lock = malloc(MAX_NUMBER_LOCKS * sizeof(hybrid_qnode_ptr));
         thread_info = malloc(MAX_NUMBER_THREADS * sizeof(hybrid_thread_info_t));
 #endif
+        init_lock = 2;
     }
 
 #ifdef HYBRID_MCS
