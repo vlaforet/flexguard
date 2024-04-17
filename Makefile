@@ -99,7 +99,7 @@ SRCPATH := $(abspath ./src/)
 MAININCLUDE := $(abspath ./include/)
 INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
 
-all: scheduling test_correctness buckets libsync.a
+all: scheduling test_correctness buckets libsync.a interpose.so
 	@echo "############### Used lock:" $(LOCK_VERSION)
 
 ifeq ($(NOBPF), 0)
@@ -142,8 +142,14 @@ endif
 litl: include/lock_if.h libsync.a $(LIBBPF_OBJ)
 	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(DEFINED) $(INCLUDES)"
 
+interpose.so: $(OBJ_FILES) $(LIBBPF_OBJ) include/atomic_ops.h include/utils.h include/lock_if.h interpose.o
+	$(GCC) -shared -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o interpose.so $(LIBS) -Wl,--version-script=src/interpose.map
+
 libsync.a: $(OBJ_FILES) include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
 	ar -r libsync.a $(OBJ_FILES)
+
+interpose.o: src/interpose.c
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/interpose.c $(LIBS)
 
 spinlock.o: src/spinlock.c
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/spinlock.c $(LIBS)
@@ -180,5 +186,5 @@ test_correctness: bmarks/test_correctness.c $(OBJ_FILES) $(LIBBPF_OBJ)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/test_correctness.c -o test_correctness $(LIBS)
 
 clean:
-	rm -rf $(OUTPUT) *.o *.s *.odump test_correctness scheduling buckets libsync.a
+	rm -rf $(OUTPUT) interpose.so *.o *.s *.odump test_correctness scheduling buckets libsync.a
 	$(MAKE) -C litl/ clean

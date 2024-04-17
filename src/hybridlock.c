@@ -594,12 +594,7 @@ int init_hybridlock_local(hybridlock_local_params_t *local_params, hybridlock_lo
         thread_id = atomic_fetch_add(&thread_count, 1);
         thread_info[thread_id].locking_id = -1;
     }
-
-    if (thread_id >= MAX_NUMBER_THREADS - 1)
-    {
-        perror("Too many threads. Increase MAX_NUMBER_THREADS in platform_defs.h.");
-        exit(1);
-    }
+    CHECK_NUMBER_THREADS_FATAL(thread_id + 1);
 
     local_params->qnode = &qnode_allocation_array[thread_id + the_lock->id * MAX_NUMBER_THREADS];
     local_params->qnode->lock_id = the_lock->id;
