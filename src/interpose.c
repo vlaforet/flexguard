@@ -64,7 +64,7 @@ static void __attribute__((destructor)) REAL(interpose_exit)(void)
 static lock_local_data *get_me(lock_as_t *lock)
 {
   lock_as_context_t *ctx = &lock->contexts[cur_thread_id];
-  if (ctx->status != 1)
+  if (UNLIKELY(ctx->status != 1))
   {
     init_lock_local(lock->lock, &ctx->me);
     ctx->status = 1;
@@ -100,7 +100,7 @@ static int interpose_lock_init(void *raw_lock, bool force)
 static int interpose_lock_destroy(void *raw_lock)
 {
   lock_as_t *lock = CAST_TO_LOCK(raw_lock);
-  if (lock->status == 2)
+  if (LIKELY(lock->status == 2))
   {
     free_lock_global(*lock->lock);
     free(lock->lock);
@@ -115,7 +115,7 @@ static int interpose_lock_lock(void *raw_lock)
 {
   lock_as_t *lock = CAST_TO_LOCK(raw_lock);
 
-  if (lock->status != 2)
+  if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
   lock_local_data *me = get_me(lock);
@@ -127,7 +127,7 @@ static int interpose_lock_trylock(void *raw_lock)
 {
   lock_as_t *lock = CAST_TO_LOCK(raw_lock);
 
-  if (lock->status != 2)
+  if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
   lock_local_data *me = get_me(lock);
@@ -142,7 +142,7 @@ static int interpose_lock_unlock(void *raw_lock)
 {
   lock_as_t *lock = CAST_TO_LOCK(raw_lock);
 
-  if (lock->status != 2)
+  if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
   lock_local_data *me = get_me(lock);
@@ -171,7 +171,7 @@ static int interpose_cond_destroy(void *raw_cond)
 {
   condvar_as_t *cond = CAST_TO_COND(raw_cond);
 
-  if (cond->status == 2)
+  if (LIKELY(cond->status == 2))
     return condvar_destroy(cond->cond);
   return 0;
 }
@@ -179,11 +179,11 @@ static int interpose_cond_destroy(void *raw_cond)
 static int interpose_cond_timedwait(void *raw_cond, void *raw_lock, const struct timespec *abstime)
 {
   condvar_as_t *cond = CAST_TO_COND(raw_cond);
-  if (cond->status != 2)
+  if (UNLIKELY(cond->status != 2))
     interpose_cond_init(raw_cond, false);
 
   lock_as_t *lock = CAST_TO_LOCK(raw_lock);
-  if (lock->status != 2)
+  if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
   lock_local_data *me = get_me(lock);
@@ -193,11 +193,11 @@ static int interpose_cond_timedwait(void *raw_cond, void *raw_lock, const struct
 static int interpose_cond_wait(void *raw_cond, void *raw_lock)
 {
   condvar_as_t *cond = CAST_TO_COND(raw_cond);
-  if (cond->status != 2)
+  if (UNLIKELY(cond->status != 2))
     interpose_cond_init(raw_cond, false);
 
   lock_as_t *lock = CAST_TO_LOCK(raw_lock);
-  if (lock->status != 2)
+  if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
   lock_local_data *me = get_me(lock);
@@ -207,7 +207,7 @@ static int interpose_cond_wait(void *raw_cond, void *raw_lock)
 static int interpose_cond_signal(void *raw_cond)
 {
   condvar_as_t *cond = CAST_TO_COND(raw_cond);
-  if (cond->status != 2)
+  if (UNLIKELY(cond->status != 2))
     interpose_cond_init(raw_cond, false);
 
   return condvar_signal(cond->cond);
@@ -216,7 +216,7 @@ static int interpose_cond_signal(void *raw_cond)
 static int interpose_cond_broadcast(void *raw_cond)
 {
   condvar_as_t *cond = CAST_TO_COND(raw_cond);
-  if (cond->status != 2)
+  if (UNLIKELY(cond->status != 2))
     interpose_cond_init(raw_cond, false);
 
   return condvar_broadcast(cond->cond);

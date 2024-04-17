@@ -313,6 +313,9 @@ if (exactly_once(&init) == 0)
         exit(EXIT_FAILURE);                                                                     \
     }
 
+#define UNLIKELY(condition...) __glibc_unlikely(condition)
+#define LIKELY(condition...) __glibc_likely(condition)
+
 #ifdef __cplusplus
 }
 #endif

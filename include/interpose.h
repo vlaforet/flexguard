@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Hugo Guiroux <hugo.guiroux at gmail dot com>
+ * Copyright (c) 2024 Victor Laforet <victor.laforet@inria.fr>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of his software and associated documentation files (the "Software"), to deal
