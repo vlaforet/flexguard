@@ -268,7 +268,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex)
 
 int pthread_mutex_timedlock(pthread_mutex_t *mutex, const struct timespec *abstime)
 {
-  fprintf(stderr, "Timed locks not supported");
+  fprintf(stderr, "Timed locks not supported\n");
   exit(EXIT_FAILURE);
 }
 
@@ -373,13 +373,13 @@ int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock)
 
 int pthread_rwlock_timedrdlock(pthread_rwlock_t *lcok, const struct timespec *abstime)
 {
-  fprintf(stderr, "Timed locks not supported");
+  fprintf(stderr, "Timed locks not supported\n");
   exit(EXIT_FAILURE);
 }
 
 int pthread_rwlock_timedwrlock(pthread_rwlock_t *lock, const struct timespec *abstime)
 {
-  fprintf(stderr, "Timed locks not supported");
+  fprintf(stderr, "Timed locks not supported\n");
   exit(EXIT_FAILURE);
 }
 
