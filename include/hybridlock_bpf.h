@@ -106,6 +106,7 @@ typedef struct hybrid_thread_info_t
     {
       volatile int locking_id;
       volatile uint8_t is_running;
+      uint8_t is_holder_preempted;
     };
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
