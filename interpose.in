@@ -52,5 +52,5 @@ if [ x"$debugger" = x1 ]; then
   gdb -q -ex="set env LD_PRELOAD $BASE_DIR/interpose.so" --args "$@"
 else
   export LD_PRELOAD="$LD_PRELOAD:$BASE_DIR/interpose.so"
-  exec "$@"
+  "$@"
 fi
