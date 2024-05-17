@@ -31,10 +31,6 @@
 #ifndef _HYBRIDLOCK_BPF_H_
 #define _HYBRIDLOCK_BPF_H_
 
-#define HYBRID_FLAGS_IN_CS 1
-#define HYBRID_FLAGS_LOCK 2
-#define HYBRID_FLAGS_UNLOCK 4
-
 typedef struct hybrid_qnode_t
 {
   union
@@ -47,6 +43,7 @@ typedef struct hybrid_qnode_t
       uint32_t ticket;
 #elif defined(HYBRID_CLH)
       volatile uint8_t done;
+      volatile struct hybrid_qnode_t *pred;
 #elif defined(HYBRID_MCS)
       volatile uint8_t waiting;
       volatile struct hybrid_qnode_t *volatile next;
@@ -57,20 +54,9 @@ typedef struct hybrid_qnode_t
 #endif
     };
 #ifdef ADD_PADDING
-    uint8_t padding1[CACHE_LINE_SIZE];
+    uint8_t padding[CACHE_LINE_SIZE];
 #endif
   };
-
-#ifdef HYBRID_CLH
-  union
-  {
-    volatile struct hybrid_qnode_t *pred;
-#ifdef ADD_PADDING
-    uint8_t padding2[CACHE_LINE_SIZE];
-#endif
-  };
-#endif
-
 } hybrid_qnode_t;
 typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
 
