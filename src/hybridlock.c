@@ -588,6 +588,7 @@ int init_hybridlock_local(hybridlock_local_params_t *local_params, hybridlock_lo
 
     local_params->qnode = &qnode_allocation_array[thread_id + the_lock->id * MAX_NUMBER_THREADS];
     local_params->qnode->lock_id = the_lock->id;
+    local_params->qnode->thread_id = thread_id;
 
 #ifdef HYBRID_EPOCH
     local_params->qnode->should_block = 0;
