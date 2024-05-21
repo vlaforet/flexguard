@@ -192,14 +192,17 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
                 PAUSE;
 
 #if defined(BPF) && !defined(HYBRID_EPOCH)
-                now = get_nsecs();
-                if (
-                    now - CS_PREEMPTION_DURATION_TO_BLOCK_NSECS > *the_lock->preempted_at &&
-                    now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > (unsigned long)atomic_load(&the_lock->last_switched_at) &&
-                    __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
+                if (*the_lock->preempted_at != ULONG_MAX)
                 {
-                    *the_lock->preempted_at = ULONG_MAX;
-                    atomic_store(&the_lock->last_switched_at, now);
+                    now = get_nsecs();
+                    if (
+                        now - CS_PREEMPTION_DURATION_TO_BLOCK_NSECS > *the_lock->preempted_at &&
+                        now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > (unsigned long)atomic_load(&the_lock->last_switched_at) &&
+                        __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
+                    {
+                        *the_lock->preempted_at = ULONG_MAX;
+                        atomic_store(&the_lock->last_switched_at, now);
+                    }
                 }
 #endif
 

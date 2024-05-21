@@ -206,7 +206,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		{
 			DPRINT("%s (%d) rescheduled after %s (%d)", next->comm, next->pid, prev->comm, prev->pid);
 			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)
-				lock_info[lock_id].preempted_at = 18446744073709551615UL; // ULONG_MAX
+				lock_info[lock_id].preempted_at = (__LONG_MAX__ * 2UL + 1UL); // ULONG_MAX
 		}
 #endif
 	}
