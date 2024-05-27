@@ -11,6 +11,11 @@ ifneq ($(ADD_PADDING),0)
 	DEFINED += -DADD_PADDING
 endif
 
+ifeq ($(USE_REAL_PTHREAD),1)
+	DEFINED += -DUSE_REAL_PTHREAD=1
+	OBJ_FILES += interpose.o
+endif
+
 ifeq ($(TRACING),1)
 	DEFINED += -DTRACING
 endif
@@ -20,7 +25,7 @@ ifndef LOCK_VERSION
   LOCK_VERSION=HYBRIDLOCK
 endif
 DEFINED += -DUSE_$(LOCK_VERSION)_LOCKS
-OBJ_FILES := $(shell echo $(LOCK_VERSION).o | tr '[:upper:]' '[:lower:]')
+OBJ_FILES += $(shell echo $(LOCK_VERSION).o | tr '[:upper:]' '[:lower:]')
 
 ifeq ($(LOCK_VERSION), HYBRIDLOCK)
 # HYBRID_VERSION in (MCS, CLH, TICKET)
@@ -38,10 +43,6 @@ ifeq ($(LOCK_VERSION), HYBRIDLOCK)
 	endif
 else
 	NOBPF=1
-endif
-
-ifeq ($(LOCK_VERSION), MUTEX)
-	OBJ_FILES :=
 endif
 
 CORE_NUM := $(shell nproc)
@@ -151,6 +152,9 @@ spinlock.o: src/spinlock.c
 
 futex.o: src/futex.c
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/futex.c $(LIBS)
+
+mutex.o: src/mutex.c
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/mutex.c $(LIBS)
 
 clh.o: src/clh.c
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/clh.c $(LIBS)

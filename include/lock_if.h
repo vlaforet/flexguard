@@ -38,8 +38,7 @@
 #elif defined(USE_TICKET_LOCKS)
 #include "ticket.h"
 #elif defined(USE_MUTEX_LOCKS)
-#include <pthread.h>
-#include "utils.h"
+#include "mutex.h"
 #elif defined(USE_FUTEX_LOCKS)
 #include "futex.h"
 #elif defined(USE_CLH_LOCKS)
@@ -60,7 +59,7 @@ typedef hybridspin_lock_t lock_global_data;
 #elif defined(USE_TICKET_LOCKS)
 typedef ticketlock_t lock_global_data;
 #elif defined(USE_MUTEX_LOCKS)
-typedef pthread_mutex_t lock_global_data;
+typedef mutex_lock_t lock_global_data;
 #elif defined(USE_FUTEX_LOCKS)
 typedef futex_lock_t lock_global_data;
 #elif defined(USE_CLH_LOCKS)
@@ -130,7 +129,7 @@ static inline void acquire_lock(lock_local_data *local_d, lock_global_data *glob
 #elif defined(USE_TICKET_LOCKS)
     ticket_acquire(global_d);
 #elif defined(USE_MUTEX_LOCKS)
-    pthread_mutex_lock(global_d);
+    mutex_lock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_lock(global_d);
 #elif defined(USE_CLH_LOCKS)
@@ -151,7 +150,7 @@ static inline void release_lock(lock_local_data *local_d, lock_global_data *glob
 #elif defined(USE_TICKET_LOCKS)
     ticket_release(global_d);
 #elif defined(USE_MUTEX_LOCKS)
-    pthread_mutex_unlock(global_d);
+    mutex_unlock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_unlock(global_d);
 #elif defined(USE_CLH_LOCKS)
@@ -212,8 +211,7 @@ static inline int init_lock_global(lock_global_data *the_lock)
 #elif defined(USE_TICKET_LOCKS)
     return create_ticketlock(the_lock);
 #elif defined(USE_MUTEX_LOCKS)
-    pthread_mutex_init(the_lock, NULL);
-    return 0;
+    return init_mutex_global(the_lock);
 #elif defined(USE_FUTEX_LOCKS)
     return init_futex_global(the_lock);
 #elif defined(USE_CLH_LOCKS)
@@ -239,7 +237,7 @@ static inline void free_lock_global(lock_global_data the_lock)
 #elif defined(USE_TICKET_LOCKS)
     // free_ticketlocks(the_lock);
 #elif defined(USE_MUTEX_LOCKS)
-    pthread_mutex_destroy(&the_lock);
+    end_mutex_global(&the_lock);
 #elif defined(USE_FUTEX_LOCKS)
     // nothing to be done
 #endif
@@ -261,7 +259,7 @@ static inline int acquire_trylock(lock_local_data *local_d, lock_global_data *gl
 #elif defined(USE_TICKET_LOCKS)
     return ticket_trylock(global_d);
 #elif defined(USE_MUTEX_LOCKS)
-    return pthread_mutex_trylock(global_d);
+    return mutex_trylock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     return futex_trylock(global_d);
 #elif defined(USE_CLH_LOCKS)
@@ -282,7 +280,7 @@ static inline void release_trylock(lock_local_data *local_d, lock_global_data *g
 #elif defined(USE_TICKET_LOCKS)
     ticket_release(global_d);
 #elif defined(USE_MUTEX_LOCKS)
-    pthread_mutex_unlock(global_d);
+    mutex_unlock(global_d);
 #elif defined(USE_FUTEX_LOCKS)
     futex_unlock(global_d);
 #elif defined(USE_CLH_LOCKS)
@@ -297,6 +295,8 @@ typedef hybridlock_condvar_t lock_condvar_t;
 typedef mcs_condvar_t lock_condvar_t;
 #elif defined(USE_FUTEX_LOCKS)
 typedef futex_condvar_t lock_condvar_t;
+#elif defined(USE_MUTEX_LOCKS)
+typedef mutex_condvar_t lock_condvar_t;
 #else
 typedef int lock_condvar_t;
 #endif
@@ -309,6 +309,8 @@ static inline int condvar_init(lock_condvar_t *cond)
     return mcs_condvar_init(cond);
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_init(cond);
+#elif defined(USE_MUTEX_LOCKS)
+    return mutex_condvar_init(cond);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
@@ -323,6 +325,8 @@ static inline int condvar_wait(lock_condvar_t *cond, lock_local_data *local_d, l
     return mcs_condvar_wait(cond, *local_d, global_d->the_lock);
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_wait(cond, global_d);
+#elif defined(USE_MUTEX_LOCKS)
+    return mutex_condvar_wait(cond, global_d);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
@@ -337,6 +341,8 @@ static inline int condvar_timedwait(lock_condvar_t *cond, lock_local_data *local
     return mcs_condvar_timedwait(cond, *local_d, global_d->the_lock, ts);
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_timedwait(cond, global_d, ts);
+#elif defined(USE_MUTEX_LOCKS)
+    return mutex_condvar_timedwait(cond, global_d, ts);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
@@ -351,6 +357,8 @@ static inline int condvar_signal(lock_condvar_t *cond)
     return mcs_condvar_signal(cond);
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_signal(cond);
+#elif defined(USE_MUTEX_LOCKS)
+    return mutex_condvar_signal(cond);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
@@ -365,6 +373,8 @@ static inline int condvar_broadcast(lock_condvar_t *cond)
     return mcs_condvar_broadcast(cond);
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_broadcast(cond);
+#elif defined(USE_MUTEX_LOCKS)
+    return mutex_condvar_broadcast(cond);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
@@ -379,6 +389,8 @@ static inline int condvar_destroy(lock_condvar_t *cond)
     return mcs_condvar_destroy(cond);
 #elif defined(USE_FUTEX_LOCKS)
     return futex_condvar_destroy(cond);
+#elif defined(USE_MUTEX_LOCKS)
+    return mutex_condvar_destroy(cond);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);

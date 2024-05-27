@@ -70,6 +70,21 @@
 
 extern int (*REAL(pthread_create))(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg);
 
+#if USE_REAL_PTHREAD == 1
+extern int (*REAL(pthread_mutex_init))(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);
+extern int (*REAL(pthread_mutex_destroy))(pthread_mutex_t *mutex);
+extern int (*REAL(pthread_mutex_lock))(pthread_mutex_t *mutex);
+extern int (*REAL(pthread_mutex_timedlock))(pthread_mutex_t *mutex, const struct timespec *abstime);
+extern int (*REAL(pthread_mutex_trylock))(pthread_mutex_t *mutex);
+extern int (*REAL(pthread_mutex_unlock))(pthread_mutex_t *mutex);
+extern int (*REAL(pthread_cond_init))(pthread_cond_t *cond, const pthread_condattr_t *attr);
+extern int (*REAL(pthread_cond_destroy))(pthread_cond_t *cond);
+extern int (*REAL(pthread_cond_timedwait))(pthread_cond_t *cond, pthread_mutex_t *mutex, const struct timespec *abstime);
+extern int (*REAL(pthread_cond_wait))(pthread_cond_t *cond, pthread_mutex_t *mutex);
+extern int (*REAL(pthread_cond_signal))(pthread_cond_t *cond);
+extern int (*REAL(pthread_cond_broadcast))(pthread_cond_t *cond);
+#endif
+
 #define CAST_TO_LOCK(input) ((lock_as_t *)input)
 #define CAST_TO_COND(input) ((condvar_as_t *)input)
 

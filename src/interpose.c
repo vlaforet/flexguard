@@ -42,6 +42,22 @@ struct routine
 };
 
 int (*REAL(pthread_create))(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg) __attribute__((aligned(CACHE_LINE_SIZE)));
+
+#if USE_REAL_PTHREAD == 1
+int (*REAL(pthread_mutex_init))(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_mutex_destroy))(pthread_mutex_t *mutex) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_mutex_lock))(pthread_mutex_t *mutex) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_mutex_timedlock))(pthread_mutex_t *mutex, const struct timespec *abstime) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_mutex_trylock))(pthread_mutex_t *mutex) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_mutex_unlock))(pthread_mutex_t *mutex) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_cond_init))(pthread_cond_t *cond, const pthread_condattr_t *attr) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_cond_destroy))(pthread_cond_t *cond) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_cond_timedwait))(pthread_cond_t *cond, pthread_mutex_t *mutex, const struct timespec *abstime) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_cond_wait))(pthread_cond_t *cond, pthread_mutex_t *mutex) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_cond_signal))(pthread_cond_t *cond) __attribute__((aligned(CACHE_LINE_SIZE)));
+int (*REAL(pthread_cond_broadcast))(pthread_cond_t *cond) __attribute__((aligned(CACHE_LINE_SIZE)));
+#endif
+
 static void __attribute__((constructor)) REAL(interpose_init)(void)
 {
   static volatile uint8_t init_lock = 0;
@@ -52,6 +68,20 @@ static void __attribute__((constructor)) REAL(interpose_init)(void)
   CHECK_NUMBER_THREADS_FATAL(cur_thread_id);
 
   LOAD_FUNC(pthread_create, 1);
+
+#if USE_REAL_PTHREAD == 1
+  LOAD_FUNC(pthread_mutex_lock, 1);
+  LOAD_FUNC(pthread_mutex_trylock, 1);
+  LOAD_FUNC(pthread_mutex_unlock, 1);
+  LOAD_FUNC(pthread_mutex_init, 1);
+  LOAD_FUNC(pthread_mutex_destroy, 1);
+  LOAD_FUNC_VERSIONED(pthread_cond_timedwait, 1, GLIBC_2_3_2);
+  LOAD_FUNC_VERSIONED(pthread_cond_wait, 1, GLIBC_2_3_2);
+  LOAD_FUNC_VERSIONED(pthread_cond_broadcast, 1, GLIBC_2_3_2);
+  LOAD_FUNC_VERSIONED(pthread_cond_destroy, 1, GLIBC_2_3_2);
+  LOAD_FUNC_VERSIONED(pthread_cond_init, 1, GLIBC_2_3_2);
+  LOAD_FUNC_VERSIONED(pthread_cond_signal, 1, GLIBC_2_3_2);
+#endif
 
   __sync_synchronize();
   init_lock = 2;
