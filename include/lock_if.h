@@ -27,6 +27,10 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #ifdef USE_MCS_LOCKS
 #include "mcs.h"
 #elif defined(USE_SPINLOCK_LOCKS)
@@ -45,6 +49,14 @@
 #include "clh.h"
 #else
 #error "No type of locks given"
+#endif
+
+#ifdef USE_MCS_LOCKS
+#define LOCK_GLOBAL_INITIALIZER MCS_GLOBAL_INITIALIZER
+#else
+#define LOCK_GLOBAL_INITIALIZER \
+    {                           \
+    }
 #endif
 
 // lock globals
@@ -289,6 +301,14 @@ static inline void release_trylock(lock_local_data *local_d, lock_global_data *g
 }
 
 /* Condition Variables */
+#ifdef USE_MCS_LOCKS
+#define COND_INITIALIZER MCS_COND_INITIALIZER
+#else
+#define COND_INITIALIZER \
+    {                    \
+    }
+#endif
+
 #ifdef USE_HYBRIDLOCK_LOCKS
 typedef hybridlock_condvar_t lock_condvar_t;
 #elif defined(USE_MCS_LOCKS)

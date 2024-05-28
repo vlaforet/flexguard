@@ -65,6 +65,10 @@ typedef struct mcs_global_params
     uint8_t padding[CACHE_LINE_SIZE - 8];
 #endif
 } mcs_global_params;
+#define MCS_GLOBAL_INITIALIZER                                       \
+    {                                                                \
+        .lock = {.the_lock = NULL, .padding = {0}}, .local = { {0} } \
+    }
 
 typedef union
 {
@@ -77,6 +81,10 @@ typedef union
     uint8_t padding[CACHE_LINE_SIZE];
 #endif
 } mcs_condvar_t;
+#define MCS_COND_INITIALIZER \
+    {                        \
+        0, 0                 \
+    }
 
 /*
  * Methods for single lock manipulation
