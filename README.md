@@ -45,7 +45,6 @@ Any of these tags can be added to the make command to compile the desired versio
 ```
 LOCK_VERSION=SPINLOCK
 LOCK_VERSION=HYBRIDLOCK // Hybrid lock
-LOCK_VERSION=HYBRIDSPIN // Compare-And-Swap/Futex hybrid lock
 LOCK_VERSION=MCS
 LOCK_VERSION=CLH
 LOCK_VERSION=TICKET

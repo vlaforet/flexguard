@@ -1,5 +1,5 @@
 #!/bin/bash
-LOCKS="SPINLOCK HYBRIDLOCK HYBRIDSPIN MCS CLH TICKET MUTEX FUTEX"
+LOCKS="SPINLOCK HYBRIDLOCK MCS CLH TICKET MUTEX FUTEX"
 
 usage() {
   echo "$0 [-v] [-s suffix] [-n num_cores] [-l locks]"

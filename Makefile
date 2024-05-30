@@ -20,7 +20,7 @@ ifeq ($(TRACING),1)
 	DEFINED += -DTRACING
 endif
 
-# LOCK_VERSION in (SPINLOCK, HYBRIDLOCK, HYBRIDSPIN, MCS, CLH, TICKET, MUTEX, FUTEX)
+# LOCK_VERSION in (SPINLOCK, HYBRIDLOCK, MCS, CLH, TICKET, MUTEX, FUTEX)
 ifndef LOCK_VERSION
   LOCK_VERSION=HYBRIDLOCK
 endif
@@ -165,9 +165,6 @@ ifeq ($(HYBRID_ASSEMBLY),1) # Produces a hybridlock.s file containing the compil
 	$(GCC) -S -fverbose-asm -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
 	objdump -d hybridlock.o > hybridlock.odump
 endif
-
-hybridspin.o: src/hybridspin.c $(BPF_SKELETON)
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridspin.c $(LIBS)
 
 ticket.o: src/ticket.c 
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/ticket.c $(LIBS)

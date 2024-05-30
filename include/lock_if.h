@@ -37,8 +37,6 @@
 #include "spinlock.h"
 #elif defined(USE_HYBRIDLOCK_LOCKS)
 #include "hybridlock.h"
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-#include "hybridspin.h"
 #elif defined(USE_TICKET_LOCKS)
 #include "ticket.h"
 #elif defined(USE_MUTEX_LOCKS)
