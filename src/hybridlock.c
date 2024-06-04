@@ -580,7 +580,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     return 0;
 }
 
-int init_hybridlock_local(hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
+int init_hybridlock_local(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
     if (thread_id == -1)
     {
@@ -622,6 +622,11 @@ int init_hybridlock_local(hybridlock_local_params_t *local_params, hybridlock_lo
     return 0;
 }
 
+void end_hybridlock_global(hybridlock_lock_t *the_lock)
+{
+    // Nothing to do
+}
+
 #ifdef TRACING
 void set_tracing_fn(hybridlock_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data)
 {
@@ -641,7 +646,7 @@ int hybridlock_condvar_init(hybridlock_condvar_t *cond)
     return 0;
 }
 
-int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock)
+int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
 {
     // No need for atomic operations, I have the lock
     uint32_t target = ++cond->target;
@@ -664,7 +669,7 @@ int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_
     return 0;
 }
 
-int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock, const struct timespec *ts)
+int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, const struct timespec *ts)
 {
     fprintf(stderr, "Timedwait not supported yet.\n");
     exit(EXIT_FAILURE);

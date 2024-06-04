@@ -96,6 +96,8 @@ INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
 
 all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
 	@echo "############### Used lock:" $(LOCK_VERSION)
+	@echo "############### DEFINED =" $(DEFINED)
+	@echo "############### INCLUDES =" $(INCLUDES)
 
 ifeq ($(NOBPF), 0)
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):

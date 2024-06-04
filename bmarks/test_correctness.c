@@ -60,8 +60,7 @@ static volatile int stop;
 
 __thread unsigned long *seeds;
 __thread uint32_t phys_id;
-lock_global_data the_lock;
-__attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
+libslock_t the_lock;
 
 typedef struct shared_data
 {
@@ -127,20 +126,15 @@ void *test_correctness(void *data)
     phys_id = the_cores[d->id];
     set_cpu(phys_id);
 
-    init_lock_local(&the_lock, &(local_th_data[d->id]));
-
     barrier_cross(d->barrier);
 
-    lock_local_data *local_d = &(local_th_data[d->id]);
     while (stop == 0)
     {
-        acquire_lock(local_d, &the_lock);
+        libslock_lock(&the_lock);
         protected_data->counter++;
-        release_lock(local_d, &the_lock);
+        libslock_unlock(&the_lock);
         d->num_acquires++;
     }
-
-    free_lock_local(local_th_data[d->id]);
     return NULL;
 }
 
@@ -151,11 +145,11 @@ void *switch_lock_type(void *data)
     while (stop == 0)
     {
         if (rand() % 2 == 0)
-            __sync_val_compare_and_swap(&the_lock.lock_state,
+            __sync_val_compare_and_swap(&the_lock.global.lock_state,
                                         LOCK_STABLE(LOCK_TYPE_SPIN),
                                         LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
         else
-            __sync_val_compare_and_swap(&the_lock.lock_state,
+            __sync_val_compare_and_swap(&the_lock.global.lock_state,
                                         LOCK_STABLE(LOCK_TYPE_FUTEX),
                                         LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
         cpause(rand() % 10000);
@@ -260,12 +254,10 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    local_th_data = (lock_local_data *)malloc(num_threads * sizeof(lock_local_data));
-
     stop = 0;
     /* Init locks */
     DPRINT("Initializing locks\n");
-    init_lock_global_nt(num_threads, &the_lock);
+    libslock_init(&the_lock);
 
     /* Access set from all threads */
     barrier_init(&barrier, num_threads + 1);
@@ -354,7 +346,7 @@ int main(int argc, char **argv)
         printf("Incorrect lock behavior!\n");
 
     /* Cleanup locks */
-    free_lock_global(the_lock);
+    libslock_destroy(&the_lock);
 
     free(threads);
     free(data);

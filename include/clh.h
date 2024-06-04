@@ -70,6 +70,10 @@ typedef struct clh_lock_t
 #endif
   };
 } clh_lock_t;
+#define CLH_GLOBAL_INITIALIZER \
+  {                            \
+    .lock = NULL               \
+  }
 
 typedef struct clh_local_params_t
 {
@@ -88,12 +92,27 @@ typedef struct clh_local_params_t
 void clh_lock(clh_lock_t *the_lock, clh_local_params_t *local_params);
 int clh_trylock(clh_lock_t *the_locks, clh_local_params_t *local_params);
 void clh_unlock(clh_lock_t *the_locks, clh_local_params_t *local_params);
-int is_free_clh(clh_lock_t *the_lock);
 
 /*
  * Methods for single lock manipulation
  */
 int init_clh_global(clh_lock_t *the_lock);
-int init_clh_local(clh_local_params_t *local_params, clh_lock_t *the_lock);
+int init_clh_local(clh_lock_t *the_lock, clh_local_params_t *local_params);
+void end_clh_global(clh_lock_t *the_lock);
+
+#define LOCAL_NEEDED 1
+
+#define GLOBAL_DATA_T clh_lock_t
+#define LOCAL_DATA_T clh_local_params_t
+
+#define INIT_LOCAL_DATA init_clh_local
+#define INIT_GLOBAL_DATA init_clh_global
+#define DESTROY_GLOBAL_DATA end_clh_global
+
+#define ACQUIRE_LOCK clh_lock
+#define RELEASE_LOCK clh_unlock
+#define ACQUIRE_TRYLOCK clh_trylock
+
+#define LOCK_GLOBAL_INITIALIZER CLH_GLOBAL_INITIALIZER
 
 #endif

@@ -29,79 +29,72 @@
 
 #include "mcs.h"
 
-int mcs_trylock(mcs_lock *L, mcs_qnode_ptr I)
+int mcs_trylock(mcs_global_params *global, mcs_local_params *local)
 {
-    I->next = NULL;
-    if (CAS_PTR(L, NULL, I) == NULL)
+    local->next = NULL;
+    if (__sync_val_compare_and_swap(&global->tail, NULL, local) == NULL)
         return 0;
     return 1;
 }
 
-void mcs_acquire(mcs_lock *L, mcs_qnode_ptr I)
+void mcs_lock(mcs_global_params *global, mcs_local_params *local)
 {
-    I->next = NULL;
-    mcs_qnode_ptr pred = (mcs_qnode *)SWAP_PTR((volatile void *)L, (void *)I);
+    local->next = NULL;
+    volatile mcs_qnode *pred = (mcs_qnode *)SWAP_PTR((volatile void *)&global->tail, (void *)local);
 
     if (pred == NULL) /* lock was free */
         return;
-    I->waiting = 1; // word on which to spin
+    local->waiting = 1; // word on which to spin
     MEM_BARRIER;
-    pred->next = I; // make pred point to me
+    pred->next = local; // make pred point to me
 
-    while (I->waiting != 0)
+    while (local->waiting != 0)
     {
         PAUSE;
     }
 }
 
-void mcs_release(mcs_lock *L, mcs_qnode_ptr I)
+void mcs_unlock(mcs_global_params *global, mcs_local_params *local)
 {
-    mcs_qnode_ptr succ;
-    if (!(succ = I->next)) /* I seem to have no succ. */
+    volatile mcs_qnode *succ;
+    if (!(succ = local->next)) /* I seem to have no succ. */
     {
         /* try to fix global pointer */
-        if (CAS_PTR(L, I, NULL) == I)
+        if (__sync_val_compare_and_swap(&global->tail, local, NULL) == local)
             return;
         do
         {
-            succ = I->next;
+            succ = local->next;
             PAUSE;
         } while (!succ); // wait for successor
     }
     succ->waiting = 0;
 }
 
-int is_free_mcs(mcs_lock *L)
+int init_mcs_global(mcs_global_params *global)
 {
-    if ((*L) == NULL)
-        return 1;
-    return 0;
-}
-
-int init_mcs_global(mcs_global_params *the_lock)
-{
-    the_lock->the_lock = (mcs_lock *)malloc(sizeof(mcs_lock));
-    *(the_lock->the_lock) = 0;
+    global->tail = 0;
     MEM_BARRIER;
     return 0;
 }
 
-int init_mcs_local(mcs_qnode **the_qnode)
+int init_mcs_local(mcs_global_params *global, mcs_local_params *local)
 {
-    (*the_qnode) = (mcs_qnode *)malloc(sizeof(mcs_qnode));
+    local->waiting = 0;
+    local->next = NULL;
 
     MEM_BARRIER;
     return 0;
 }
 
-void end_mcs_local(mcs_qnode *the_qnodes)
+void end_mcs_local(mcs_local_params *local)
 {
-    free(the_qnodes);
+    // Nothing to do
 }
 
-void end_mcs_global(mcs_global_params the_locks)
+void end_mcs_global(mcs_global_params *global)
 {
-    free(the_locks.the_lock);
+    // Nothing to do
 }
 
 /*
@@ -115,23 +108,23 @@ int mcs_condvar_init(mcs_condvar_t *cond)
     return 0;
 }
 
-int mcs_condvar_wait(mcs_condvar_t *cond, mcs_qnode_ptr I, mcs_lock *the_lock)
+int mcs_condvar_wait(mcs_condvar_t *cond, mcs_global_params *global, mcs_local_params *local)
 {
     // No need for atomic operations, I have the lock
     uint32_t target = ++cond->target;
     uint32_t seq = cond->seq;
-    mcs_release(the_lock, I);
+    mcs_unlock(global, local);
 
     while (target > seq)
     {
         PAUSE;
         seq = cond->seq;
     }
-    mcs_acquire(the_lock, I);
+    mcs_lock(global, local);
     return 0;
 }
 
-int mcs_condvar_timedwait(mcs_condvar_t *cond, mcs_qnode_ptr I, mcs_lock *the_lock, const struct timespec *ts)
+int mcs_condvar_timedwait(mcs_condvar_t *cond, mcs_global_params *global, mcs_local_params *local, const struct timespec *ts)
 {
     fprintf(stderr, "Timedwait not supported yet.\n");
     exit(EXIT_FAILURE);

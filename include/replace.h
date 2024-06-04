@@ -37,52 +37,27 @@ extern "C"
 
 #include "lock_if.h"
 
-  typedef struct replace_pthread_mutex_t
-  {
-    lock_global_data lock;
-    lock_local_data local[MAX_NUMBER_THREADS];
-  } replace_pthread_mutex_t;
-
-  static __thread int replace_thread_id = -1;
-  static volatile int replace_thread_count = 0;
-  static lock_local_data *get_me(replace_pthread_mutex_t *r)
-  {
-    if (UNLIKELY(replace_thread_id < 0))
-    {
-      replace_thread_id = __sync_fetch_and_add(&replace_thread_count, 1);
-      CHECK_NUMBER_THREADS_FATAL(replace_thread_id);
-    }
-
-    if (UNLIKELY(r->local[replace_thread_id] == NULL) && init_lock_local(&r->lock, &r->local[replace_thread_id]) != 0)
-    {
-      fprintf(stderr, "init_lock_local failed.");
-      exit(EXIT_FAILURE);
-    }
-
-    return &r->local[replace_thread_id];
-  }
-
-#define pthread_mutex_t replace_pthread_mutex_t
+#define pthread_mutex_t libslock_t
 #define pthread_mutex_init replace_pthread_mutex_init
 #define pthread_mutex_destroy replace_pthread_mutex_destroy
-#define pthread_mutex_lock replace_pthread_mutex_lock
+#define pthread_mutex_lock libslock_lock
 #define pthread_mutex_timedlock replace_pthread_mutex_timedlock
-#define pthread_mutex_unlock replace_pthread_mutex_unlock
-#define pthread_mutex_trylock replace_pthread_mutex_trylock
+#define pthread_mutex_unlock libslock_unlock
+#define pthread_mutex_trylock libslock_trylock
 
 #define pthread_cond_init replace_pthread_cond_init
-#define pthread_cond_destroy replace_pthread_cond_destroy
-#define pthread_cond_signal replace_pthread_cond_signal
-#define pthread_cond_broadcast replace_pthread_cond_broadcast
-#define pthread_cond_wait replace_pthread_cond_wait
-#define pthread_cond_timedwait replace_pthread_cond_timedwait
-#define pthread_cond_t lock_condvar_t
+#define pthread_cond_destroy libslock_cond_destroy
+#define pthread_cond_signal libslock_cond_signal
+#define pthread_cond_broadcast libslock_cond_broadcast
+#define pthread_cond_wait libslock_cond_wait
+#define pthread_cond_timedwait libslock_cond_timedwait
+#define pthread_cond_t libslock_cond_t
 
 #undef PTHREAD_MUTEX_INITIALIZER
-#define PTHREAD_MUTEX_INITIALIZER LOCK_GLOBAL_INITIALIZER
+#define PTHREAD_MUTEX_INITIALIZER LIBSLOCK_INITIALIZER
 
 #undef PTHREAD_COND_INITIALIZER
-#define PTHREAD_COND_INITIALIZER COND_INITIALIZER
+#define PTHREAD_COND_INITIALIZER LIBSLOCK_COND_INITIALIZER
 
   /*
    * Mutex
@@ -90,18 +65,12 @@ extern "C"
 
   static inline int replace_pthread_mutex_init(pthread_mutex_t *mutex, void *attr)
   {
-    return init_lock_global(&mutex->lock);
+    return libslock_init(mutex);
   }
 
   static inline int replace_pthread_mutex_destroy(pthread_mutex_t *mutex)
   {
-    free_lock_global(mutex->lock);
-    return 0;
-  }
-
-  static inline int replace_pthread_mutex_lock(pthread_mutex_t *mutex)
-  {
-    acquire_lock(get_me(mutex), &mutex->lock);
+    libslock_destroy(mutex);
     return 0;
   }
 
@@ -111,49 +80,13 @@ extern "C"
     exit(EXIT_FAILURE);
   }
 
-  static inline int replace_pthread_mutex_unlock(pthread_mutex_t *mutex)
-  {
-    release_lock(get_me(mutex), &mutex->lock);
-    return 0;
-  }
-
-  static inline int replace_pthread_mutex_trylock(pthread_mutex_t *mutex)
-  {
-    return acquire_trylock(get_me(mutex), &mutex->lock);
-  }
-
   /*
    * Condition Variables
    */
 
   static inline int replace_pthread_cond_init(pthread_cond_t *cond, void *attr)
   {
-    return condvar_init(cond);
-  }
-
-  static inline int replace_pthread_cond_destroy(pthread_cond_t *cond)
-  {
-    return condvar_destroy(cond);
-  }
-
-  static inline int replace_pthread_cond_signal(pthread_cond_t *cond)
-  {
-    return condvar_signal(cond);
-  }
-
-  static inline int replace_pthread_cond_broadcast(pthread_cond_t *cond)
-  {
-    return condvar_broadcast(cond);
-  }
-
-  static inline int replace_pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
-  {
-    return condvar_wait(cond, get_me(mutex), &mutex->lock);
-  }
-
-  static inline int replace_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex, const struct timespec *abstime)
-  {
-    return condvar_timedwait(cond, get_me(mutex), &mutex->lock, abstime);
+    return libslock_cond_init(cond);
   }
 
 #ifdef __cplusplus

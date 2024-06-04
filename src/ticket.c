@@ -45,7 +45,7 @@ int ticket_trylock(ticketlock_t *lock)
   return 1;
 }
 
-void ticket_acquire(ticketlock_t *lock)
+void ticket_lock(ticketlock_t *lock)
 {
   uint32_t my_ticket = IAF_U32(&(lock->tail));
 
@@ -66,13 +66,13 @@ void ticket_acquire(ticketlock_t *lock)
   }
 }
 
-void ticket_release(ticketlock_t *lock)
+void ticket_unlock(ticketlock_t *lock)
 {
   COMPILER_BARRIER;
   lock->head++;
 }
 
-int create_ticketlock(ticketlock_t *the_lock)
+int init_ticket_global(ticketlock_t *the_lock)
 {
   the_lock->head = 1;
   the_lock->tail = 0;
@@ -80,28 +80,7 @@ int create_ticketlock(ticketlock_t *the_lock)
   return 0;
 }
 
-int is_free_ticket(ticketlock_t *t)
+void end_ticket_global(ticketlock_t *the_lock)
 {
-  if ((t->head - t->tail) == 1)
-    return 1;
-  return 0;
-}
-
-ticketlock_t *init_ticketlocks(uint32_t num_locks)
-{
-  ticketlock_t *the_locks;
-  the_locks = (ticketlock_t *)malloc(num_locks * sizeof(ticketlock_t));
-  uint32_t i;
-  for (i = 0; i < num_locks; i++)
-  {
-    the_locks[i].head = 1;
-    the_locks[i].tail = 0;
-  }
-  MEM_BARRIER;
-  return the_locks;
-}
-
-void free_ticketlocks(ticketlock_t *the_locks)
-{
-  free(the_locks);
+  // Nothing to do
 }

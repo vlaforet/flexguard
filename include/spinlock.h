@@ -41,6 +41,9 @@
 #include "atomic_ops.h"
 #include "utils.h"
 
+#define UNLOCKED 0
+#define LOCKED 1
+
 typedef volatile uint32_t spinlock_index_t;
 typedef uint8_t spinlock_lock_data_t;
 
@@ -54,21 +57,35 @@ typedef struct spinlock_lock_t
 #endif
   };
 } spinlock_lock_t;
+#define SPINLOCK_GLOBAL_INITIALIZER \
+  {                                 \
+    .lock = UNLOCKED                \
+  }
 
 /*
  *  Lock manipulation methods
  */
-void spinlock_lock(spinlock_lock_t *the_lock, uint32_t *limits);
-int spinlock_trylock(spinlock_lock_t *the_locks, uint32_t *limits);
-void spinlock_unlock(spinlock_lock_t *the_locks);
-int is_free_spinlock(spinlock_lock_t *the_lock);
+void spinlock_lock(spinlock_lock_t *the_lock);
+int spinlock_trylock(spinlock_lock_t *the_lock);
+void spinlock_unlock(spinlock_lock_t *the_lock);
 
 /*
  *  Methods for single lock manipulation
  */
 int init_spinlock_global(spinlock_lock_t *the_lock);
-int init_spinlock_local(uint32_t *limit);
-void end_spinlock_local();
 void end_spinlock_global();
+
+#define LOCAL_NEEDED 0
+
+#define GLOBAL_DATA_T spinlock_lock_t
+
+#define INIT_GLOBAL_DATA init_spinlock_global
+#define DESTROY_GLOBAL_DATA end_spinlock_global
+
+#define ACQUIRE_LOCK spinlock_lock
+#define RELEASE_LOCK spinlock_unlock
+#define ACQUIRE_TRYLOCK spinlock_trylock
+
+#define LOCK_GLOBAL_INITIALIZER SPINLOCK_GLOBAL_INITIALIZER
 
 #endif

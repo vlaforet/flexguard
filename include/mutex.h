@@ -34,15 +34,14 @@
 #include "utils.h"
 
 typedef pthread_mutex_t mutex_lock_t;
-
 typedef pthread_cond_t mutex_condvar_t;
 
 /*
  * Lock manipulation methods
  */
 void mutex_lock(mutex_lock_t *the_lock);
-int mutex_trylock(mutex_lock_t *the_locks);
-void mutex_unlock(mutex_lock_t *the_locks);
+int mutex_trylock(mutex_lock_t *the_lock);
+void mutex_unlock(mutex_lock_t *the_lock);
 
 /*
  * Methods for single lock manipulation
@@ -59,5 +58,27 @@ int mutex_condvar_timedwait(mutex_condvar_t *cond, mutex_lock_t *the_lock, const
 int mutex_condvar_signal(mutex_condvar_t *cond);
 int mutex_condvar_broadcast(mutex_condvar_t *cond);
 int mutex_condvar_destroy(mutex_condvar_t *cond);
+
+#define LOCAL_NEEDED 0
+
+#define GLOBAL_DATA_T mutex_lock_t
+#define CONDVAR_DATA_T mutex_condvar_t
+
+#define INIT_GLOBAL_DATA init_mutex_global
+#define DESTROY_GLOBAL_DATA end_mutex_global
+
+#define ACQUIRE_LOCK mutex_lock
+#define RELEASE_LOCK mutex_unlock
+#define ACQUIRE_TRYLOCK mutex_trylock
+
+#define COND_INIT mutex_condvar_init
+#define COND_WAIT mutex_condvar_wait
+#define COND_TIMEDWAIT mutex_condvar_timedwait
+#define COND_SIGNAL mutex_condvar_signal
+#define COND_BROADCAST mutex_condvar_broadcast
+#define COND_DESTROY mutex_condvar_destroy
+
+#define LOCK_GLOBAL_INITIALIZER PTHREAD_MUTEX_INITIALIZER
+#define COND_INITIALIZER PTHREAD_COND_INITIALIZER
 
 #endif

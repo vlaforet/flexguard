@@ -29,18 +29,13 @@
 
 #include "spinlock.h"
 
-#define UNLOCKED 0
-#define LOCKED 1
-
-__thread unsigned long *spinlock_seeds;
-
-int spinlock_trylock(spinlock_lock_t *the_lock, uint32_t *limits)
+int spinlock_trylock(spinlock_lock_t *the_lock)
 {
     if (TAS_U8(&(the_lock->lock)) == 0)
         return 0;
     return 1;
 }
-void spinlock_lock(spinlock_lock_t *the_lock, uint32_t *limits)
+void spinlock_lock(spinlock_lock_t *the_lock)
 {
     volatile spinlock_lock_data_t *l = &(the_lock->lock);
     while (TAS_U8(l))
@@ -55,31 +50,11 @@ void spinlock_unlock(spinlock_lock_t *the_lock)
     the_lock->lock = UNLOCKED;
 }
 
-int is_free_spinlock(spinlock_lock_t *the_lock)
-{
-    if (the_lock->lock == UNLOCKED)
-        return 1;
-    return 0;
-}
-
 int init_spinlock_global(spinlock_lock_t *the_lock)
 {
     the_lock->lock = UNLOCKED;
     MEM_BARRIER;
     return 0;
-}
-
-int init_spinlock_local(uint32_t *limit)
-{
-    *limit = 1;
-    spinlock_seeds = seed_rand();
-    MEM_BARRIER;
-    return 0;
-}
-
-void end_spinlock_local()
-{
-    // function not needed
 }
 
 void end_spinlock_global()

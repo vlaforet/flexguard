@@ -1,13 +1,13 @@
 /*
  * File: lock_if.h
- * Authors: Tudor David <tudor.david@epfl.ch>, Victor Laforet <victor.laforet@inria.fr>
+ * Authors: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
  *      Common interface to various locking algorithms;
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013 Tudor David
+ * Copyright (c) 2024 Victor Laforet
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +26,9 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#ifndef __LOCK_IF_H__
+#define __LOCK_IF_H__
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -49,368 +52,202 @@
 #error "No type of locks given"
 #endif
 
-#ifdef USE_MCS_LOCKS
-#define LOCK_GLOBAL_INITIALIZER MCS_GLOBAL_INITIALIZER
+#if LOCAL_NEEDED == 1
+#ifdef LOCAL_DATA_T
+typedef LOCAL_DATA_T lock_local_data;
 #else
-#define LOCK_GLOBAL_INITIALIZER \
-    {                           \
+#error "LOCAL_DATA_T not defined"
+#endif
+#endif
+
+#ifdef GLOBAL_DATA_T
+typedef struct libslock_t
+{
+    GLOBAL_DATA_T global;
+
+#if LOCAL_NEEDED == 1
+    lock_local_data *local[MAX_NUMBER_THREADS];
+#endif
+} libslock_t;
+#else
+#error "GLOBAL_DATA_T not defined"
+#endif
+
+#if LOCAL_NEEDED == 1
+static __thread int libslock_thread_id = -1;
+static volatile int libslock_thread_count = 0;
+static lock_local_data *get_local(libslock_t *lock)
+{
+    if (libslock_thread_id < 0)
+    {
+        libslock_thread_id = __sync_fetch_and_add(&libslock_thread_count, 1);
+        CHECK_NUMBER_THREADS_FATAL(libslock_thread_id);
+    }
+
+    if (lock->local[libslock_thread_id] == NULL)
+    {
+        lock->local[libslock_thread_id] = (lock_local_data *)malloc(sizeof(lock_local_data));
+        INIT_LOCAL_DATA(&lock->global, lock->local[libslock_thread_id]);
+    }
+    return lock->local[libslock_thread_id];
+}
+#endif
+
+#ifdef LOCK_GLOBAL_INITIALIZER
+#define LIBSLOCK_INITIALIZER LOCK_GLOBAL_INITIALIZER
+#else
+#define LIBSLOCK_INITIALIZER \
+    {                        \
     }
 #endif
 
-// lock globals
-#ifdef USE_MCS_LOCKS
-typedef mcs_global_params lock_global_data;
-#elif defined(USE_SPINLOCK_LOCKS)
-typedef spinlock_lock_t lock_global_data;
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-typedef hybridlock_lock_t lock_global_data;
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-typedef hybridspin_lock_t lock_global_data;
-#elif defined(USE_TICKET_LOCKS)
-typedef ticketlock_t lock_global_data;
-#elif defined(USE_MUTEX_LOCKS)
-typedef mutex_lock_t lock_global_data;
-#elif defined(USE_FUTEX_LOCKS)
-typedef futex_lock_t lock_global_data;
-#elif defined(USE_CLH_LOCKS)
-typedef clh_lock_t lock_global_data;
+#ifdef COND_INITIALIZER
+#define LIBSLOCK_COND_INITIALIZER COND_INITIALIZER
+#else
+#define LIBSLOCK_COND_INITIALIZER \
+    {                             \
+    }
 #endif
-
-typedef lock_global_data *global_data;
-
-// typedefs for thread local data
-#ifdef USE_MCS_LOCKS
-typedef mcs_local_params lock_local_data;
-#elif defined(USE_SPINLOCK_LOCKS)
-typedef unsigned int lock_local_data;
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-typedef hybridlock_local_params_t lock_local_data;
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-typedef void *lock_local_data; // no local data for hybridspin
-#elif defined(USE_TICKET_LOCKS)
-typedef void *lock_local_data; // no local data for ticket locks
-#elif defined(USE_MUTEX_LOCKS)
-typedef void *lock_local_data; // no local data for mutexes
-#elif defined(USE_FUTEX_LOCKS)
-typedef void *lock_local_data; // no local data for futexes
-#elif defined(USE_CLH_LOCKS)
-typedef clh_local_params_t lock_local_data;
-#endif
-
-typedef lock_local_data *local_data;
 
 /*
  *  Declarations
  */
 
-// lock acquire operation
-static inline void acquire_lock(lock_local_data *local_d, lock_global_data *global_d);
-static inline int acquire_trylock(lock_local_data *local_d, lock_global_data *global_d);
+// lock acquire/release operations
+static inline void libslock_lock(libslock_t *lock);
+static inline int libslock_trylock(libslock_t *lock);
+static inline void libslock_unlock(libslock_t *lock);
 
-// lock release operation
-static inline void release_lock(lock_local_data *local_d, lock_global_data *global_d);
-static inline void release_trylock(lock_local_data *local_d, lock_global_data *global_d);
-
-// initialization of local data for a lock.
-static inline int init_lock_local(lock_global_data *the_locks, lock_local_data *the_data);
-
-// initialization of global data for a lock
-static inline int init_lock_global(lock_global_data *the_locks);
-
-// removal of global data for a lock
-static inline void free_lock_global(lock_global_data the_lock);
-
-// removal of local data for a lock
-static inline void free_lock_local(lock_local_data local_d);
+// initialization of a lock
+static inline int libslock_init(libslock_t *lock);
+static inline void libslock_destroy(libslock_t *lock);
 
 /*
- *  Functions
+ *  Lock Functions
  */
-static inline void acquire_lock(lock_local_data *local_d, lock_global_data *global_d)
-{
-#ifdef USE_MCS_LOCKS
-    mcs_acquire(global_d->the_lock, *local_d);
-#elif defined(USE_SPINLOCK_LOCKS)
-    spinlock_lock(global_d, local_d);
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-    hybridlock_lock(global_d, local_d);
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-    hybridspin_lock(global_d);
-#elif defined(USE_TICKET_LOCKS)
-    ticket_acquire(global_d);
-#elif defined(USE_MUTEX_LOCKS)
-    mutex_lock(global_d);
-#elif defined(USE_FUTEX_LOCKS)
-    futex_lock(global_d);
-#elif defined(USE_CLH_LOCKS)
-    clh_lock(global_d, local_d);
-#endif
-}
 
-static inline void release_lock(lock_local_data *local_d, lock_global_data *global_d)
+static inline void libslock_lock(libslock_t *lock)
 {
-#ifdef USE_MCS_LOCKS
-    mcs_release(global_d->the_lock, *local_d);
-#elif defined(USE_SPINLOCK_LOCKS)
-    spinlock_unlock(global_d);
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-    hybridlock_unlock(global_d, local_d);
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-    hybridspin_unlock(global_d);
-#elif defined(USE_TICKET_LOCKS)
-    ticket_release(global_d);
-#elif defined(USE_MUTEX_LOCKS)
-    mutex_unlock(global_d);
-#elif defined(USE_FUTEX_LOCKS)
-    futex_unlock(global_d);
-#elif defined(USE_CLH_LOCKS)
-    clh_unlock(global_d, local_d);
-#endif
-}
-
-static inline int init_lock_local(lock_global_data *the_lock, lock_local_data *local_data)
-{
-#ifdef USE_MCS_LOCKS
-    return init_mcs_local(local_data);
-#elif defined(USE_SPINLOCK_LOCKS)
-    return init_spinlock_local(local_data);
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-    return init_hybridlock_local(local_data, the_lock);
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-    return 0;
-#elif defined(USE_TICKET_LOCKS)
-    return 0;
-#elif defined(USE_MUTEX_LOCKS)
-    return 0;
-#elif defined(USE_FUTEX_LOCKS)
-    return 0;
-#elif defined(USE_CLH_LOCKS)
-    return init_clh_local(local_data, the_lock);
-#endif
-}
-
-static inline void free_lock_local(lock_local_data local_d)
-{
-#ifdef USE_MCS_LOCKS
-    end_mcs_local(local_d);
-#elif defined(USE_SPINLOCK_LOCKS)
-    //    end_spinlock_local(local_d);
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-    // end_hybridlock_local(local_d);
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-    // end_hybridspin_local(local_d);
-#elif defined(USE_TICKET_LOCKS)
-    // nothing to be done
-#elif defined(USE_MUTEX_LOCKS)
-    // nothing to be done
-#elif defined(USE_FUTEX_LOCKS)
-    // nothing to be done
-#endif
-}
-
-static inline int init_lock_global(lock_global_data *the_lock)
-{
-#ifdef USE_MCS_LOCKS
-    return init_mcs_global(the_lock);
-#elif defined(USE_SPINLOCK_LOCKS)
-    return init_spinlock_global(the_lock);
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-    return init_hybridlock_global(the_lock);
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-    return init_hybridspin_global(the_lock);
-#elif defined(USE_TICKET_LOCKS)
-    return create_ticketlock(the_lock);
-#elif defined(USE_MUTEX_LOCKS)
-    return init_mutex_global(the_lock);
-#elif defined(USE_FUTEX_LOCKS)
-    return init_futex_global(the_lock);
-#elif defined(USE_CLH_LOCKS)
-    return init_clh_global(the_lock);
-#endif
-}
-
-static inline int init_lock_global_nt(int num_threads, lock_global_data *the_lock)
-{
-    return init_lock_global(the_lock);
-}
-
-static inline void free_lock_global(lock_global_data the_lock)
-{
-#ifdef USE_MCS_LOCKS
-    end_mcs_global(the_lock);
-#elif defined(USE_SPINLOCK_LOCKS)
-    end_spinlock_global(the_lock);
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-    // end_hybridlock_global(the_lock);
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-    end_hybridspin_global(the_lock);
-#elif defined(USE_TICKET_LOCKS)
-    // free_ticketlocks(the_lock);
-#elif defined(USE_MUTEX_LOCKS)
-    end_mutex_global(&the_lock);
-#elif defined(USE_FUTEX_LOCKS)
-    // nothing to be done
-#endif
-}
-
-// checks whether the lock is free; if it is, acquire it;
-// we use this in memcached to simulate trylocks
-// return 0 on success, 1 otherwise
-static inline int acquire_trylock(lock_local_data *local_d, lock_global_data *global_d)
-{
-#ifdef USE_MCS_LOCKS
-    return mcs_trylock(global_d->the_lock, *local_d);
-#elif defined(USE_SPINLOCK_LOCKS)
-    return spinlock_trylock(global_d, local_d);
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-    return 1; // Unsupported
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-    return hybridspin_trylock(global_d);
-#elif defined(USE_TICKET_LOCKS)
-    return ticket_trylock(global_d);
-#elif defined(USE_MUTEX_LOCKS)
-    return mutex_trylock(global_d);
-#elif defined(USE_FUTEX_LOCKS)
-    return futex_trylock(global_d);
-#elif defined(USE_CLH_LOCKS)
-    return clh_trylock(global_d, local_d);
-#endif
-}
-
-static inline void release_trylock(lock_local_data *local_d, lock_global_data *global_d)
-{
-#ifdef USE_MCS_LOCKS
-    mcs_release(global_d->the_lock, *local_d);
-#elif defined(USE_SPINLOCK_LOCKS)
-    spinlock_unlock(global_d);
-#elif defined(USE_HYBRIDLOCK_LOCKS)
-    hybridlock_unlock(global_d, local_d);
-#elif defined(USE_HYBRIDSPIN_LOCKS)
-    hybridspin_unlock(global_d);
-#elif defined(USE_TICKET_LOCKS)
-    ticket_release(global_d);
-#elif defined(USE_MUTEX_LOCKS)
-    mutex_unlock(global_d);
-#elif defined(USE_FUTEX_LOCKS)
-    futex_unlock(global_d);
-#elif defined(USE_CLH_LOCKS)
-    clh_unlock(global_d, local_d);
-#endif
-}
-
-/* Condition Variables */
-#ifdef USE_MCS_LOCKS
-#define COND_INITIALIZER MCS_COND_INITIALIZER
+#if LOCAL_NEEDED == 1
+    lock_local_data *local_d = get_local(lock);
+    ACQUIRE_LOCK(&lock->global, local_d);
 #else
-#define COND_INITIALIZER \
-    {                    \
-    }
+    ACQUIRE_LOCK(&lock->global);
 #endif
+}
 
-#ifdef USE_HYBRIDLOCK_LOCKS
-typedef hybridlock_condvar_t lock_condvar_t;
-#elif defined(USE_MCS_LOCKS)
-typedef mcs_condvar_t lock_condvar_t;
-#elif defined(USE_FUTEX_LOCKS)
-typedef futex_condvar_t lock_condvar_t;
-#elif defined(USE_MUTEX_LOCKS)
-typedef mutex_condvar_t lock_condvar_t;
-#else
-typedef int lock_condvar_t;
-#endif
-
-static inline int condvar_init(lock_condvar_t *cond)
+static inline int libslock_trylock(libslock_t *lock)
 {
-#ifdef USE_HYBRIDLOCK_LOCKS
-    return hybridlock_condvar_init(cond);
-#elif defined(USE_MCS_LOCKS)
-    return mcs_condvar_init(cond);
-#elif defined(USE_FUTEX_LOCKS)
-    return futex_condvar_init(cond);
-#elif defined(USE_MUTEX_LOCKS)
-    return mutex_condvar_init(cond);
+#ifdef ACQUIRE_TRYLOCK
+#if LOCAL_NEEDED == 1
+    lock_local_data *local_d = get_local(lock);
+    return ACQUIRE_TRYLOCK(&lock->global, local_d);
+#else
+    return ACQUIRE_TRYLOCK(&lock->global);
+#endif
+#else
+    return 1;
+#endif
+}
+
+static inline void libslock_unlock(libslock_t *lock)
+{
+#if LOCAL_NEEDED == 1
+    lock_local_data *local_d = get_local(lock);
+    RELEASE_LOCK(&lock->global, local_d);
+#else
+    RELEASE_LOCK(&lock->global);
+#endif
+}
+
+static inline int libslock_init(libslock_t *lock)
+{
+    return INIT_GLOBAL_DATA(&lock->global);
+}
+
+static inline void libslock_destroy(libslock_t *lock)
+{
+    DESTROY_GLOBAL_DATA(&lock->global);
+}
+
+/*
+ *  Condition Variables Functions
+ */
+
+#ifdef CONDVAR_DATA_T
+typedef CONDVAR_DATA_T libslock_cond_t;
+#else
+typedef int libslock_cond_t;
+#endif
+
+static inline int libslock_cond_init(libslock_cond_t *cond)
+{
+#ifdef COND_INIT
+    return COND_INIT(cond);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
 #endif
 }
 
-static inline int condvar_wait(lock_condvar_t *cond, lock_local_data *local_d, lock_global_data *global_d)
+static inline int libslock_cond_wait(libslock_cond_t *cond, libslock_t *lock)
 {
-#ifdef USE_HYBRIDLOCK_LOCKS
-    return hybridlock_condvar_wait(cond, local_d, global_d);
-#elif defined(USE_MCS_LOCKS)
-    return mcs_condvar_wait(cond, *local_d, global_d->the_lock);
-#elif defined(USE_FUTEX_LOCKS)
-    return futex_condvar_wait(cond, global_d);
-#elif defined(USE_MUTEX_LOCKS)
-    return mutex_condvar_wait(cond, global_d);
+#ifdef COND_WAIT
+#if LOCAL_NEEDED == 1
+    lock_local_data *local_d = get_local(lock);
+    return COND_WAIT(cond, &lock->global, local_d);
+#else
+    return COND_WAIT(cond, &lock->global);
+#endif
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
 #endif
 }
 
-static inline int condvar_timedwait(lock_condvar_t *cond, lock_local_data *local_d, lock_global_data *global_d, const struct timespec *ts)
+static inline int libslock_cond_timedwait(libslock_cond_t *cond, libslock_t *lock, const struct timespec *ts)
 {
-#ifdef USE_HYBRIDLOCK_LOCKS
-    return hybridlock_condvar_timedwait(cond, local_d, global_d, ts);
-#elif defined(USE_MCS_LOCKS)
-    return mcs_condvar_timedwait(cond, *local_d, global_d->the_lock, ts);
-#elif defined(USE_FUTEX_LOCKS)
-    return futex_condvar_timedwait(cond, global_d, ts);
-#elif defined(USE_MUTEX_LOCKS)
-    return mutex_condvar_timedwait(cond, global_d, ts);
+#ifdef COND_TIMEDWAIT
+#if LOCAL_NEEDED == 1
+    lock_local_data *local_d = get_local(lock);
+    return COND_TIMEDWAIT(cond, &lock->global, local_d, ts);
+#else
+    return COND_TIMEDWAIT(cond, &lock->global, ts);
+#endif
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
 #endif
 }
 
-static inline int condvar_signal(lock_condvar_t *cond)
+static inline int libslock_cond_signal(libslock_cond_t *cond)
 {
-#ifdef USE_HYBRIDLOCK_LOCKS
-    return hybridlock_condvar_signal(cond);
-#elif defined(USE_MCS_LOCKS)
-    return mcs_condvar_signal(cond);
-#elif defined(USE_FUTEX_LOCKS)
-    return futex_condvar_signal(cond);
-#elif defined(USE_MUTEX_LOCKS)
-    return mutex_condvar_signal(cond);
+#ifdef COND_SIGNAL
+    return COND_SIGNAL(cond);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
 #endif
 }
 
-static inline int condvar_broadcast(lock_condvar_t *cond)
+static inline int libslock_cond_broadcast(libslock_cond_t *cond)
 {
-#ifdef USE_HYBRIDLOCK_LOCKS
-    return hybridlock_condvar_broadcast(cond);
-#elif defined(USE_MCS_LOCKS)
-    return mcs_condvar_broadcast(cond);
-#elif defined(USE_FUTEX_LOCKS)
-    return futex_condvar_broadcast(cond);
-#elif defined(USE_MUTEX_LOCKS)
-    return mutex_condvar_broadcast(cond);
+#ifdef COND_BROADCAST
+    return COND_BROADCAST(cond);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
 #endif
 }
 
-static inline int condvar_destroy(lock_condvar_t *cond)
+static inline int libslock_cond_destroy(libslock_cond_t *cond)
 {
-#ifdef USE_HYBRIDLOCK_LOCKS
-    return hybridlock_condvar_destroy(cond);
-#elif defined(USE_MCS_LOCKS)
-    return mcs_condvar_destroy(cond);
-#elif defined(USE_FUTEX_LOCKS)
-    return futex_condvar_destroy(cond);
-#elif defined(USE_MUTEX_LOCKS)
-    return mutex_condvar_destroy(cond);
+#ifdef COND_DESTROY
+    return COND_DESTROY(cond);
 #else
     fprintf(stderr, "condvar not supported by this lock.\n");
     exit(EXIT_FAILURE);
 #endif
 }
+
+#endif

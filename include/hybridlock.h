@@ -150,6 +150,9 @@ typedef struct hybridlock_lock_t
 #endif
   };
 } hybridlock_lock_t;
+#define HYBRIDLOCK_GLOBAL_INITIALIZER \
+  {                                   \
+  }
 
 typedef union
 {
@@ -162,6 +165,10 @@ typedef union
   uint8_t padding[CACHE_LINE_SIZE];
 #endif
 } hybridlock_condvar_t;
+#define HYBRIDLOCK_COND_INITIALIZER \
+  {                                 \
+    .seq = 0, .target = 0           \
+  }
 
 /*
  *  Lock manipulation methods
@@ -175,7 +182,8 @@ void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *l
  */
 
 int init_hybridlock_global(hybridlock_lock_t *the_lock);
-int init_hybridlock_local(hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock);
+int init_hybridlock_local(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
+void end_hybridlock_global(hybridlock_lock_t *the_lock);
 
 #ifdef TRACING
 void set_tracing_fn(hybridlock_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data);
@@ -186,10 +194,33 @@ void set_tracing_fn(hybridlock_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, 
  */
 
 int hybridlock_condvar_init(hybridlock_condvar_t *cond);
-int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock);
-int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_local_params_t *local_params, hybridlock_lock_t *the_lock, const struct timespec *ts);
+int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
+int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, const struct timespec *ts);
 int hybridlock_condvar_signal(hybridlock_condvar_t *cond);
 int hybridlock_condvar_broadcast(hybridlock_condvar_t *cond);
 int hybridlock_condvar_destroy(hybridlock_condvar_t *cond);
+
+#define LOCAL_NEEDED 1
+
+#define GLOBAL_DATA_T hybridlock_lock_t
+#define LOCAL_DATA_T hybridlock_local_params_t
+#define CONDVAR_DATA_T hybridlock_condvar_t
+
+#define INIT_LOCAL_DATA init_hybridlock_local
+#define INIT_GLOBAL_DATA init_hybridlock_global
+#define DESTROY_GLOBAL_DATA end_hybridlock_global
+
+#define ACQUIRE_LOCK hybridlock_lock
+#define RELEASE_LOCK hybridlock_unlock
+
+#define COND_INIT hybridlock_condvar_init
+#define COND_WAIT hybridlock_condvar_wait
+#define COND_TIMEDWAIT hybridlock_condvar_timedwait
+#define COND_SIGNAL hybridlock_condvar_signal
+#define COND_BROADCAST hybridlock_condvar_broadcast
+#define COND_DESTROY hybridlock_condvar_destroy
+
+#define LOCK_GLOBAL_INITIALIZER HYBRIDLOCK_GLOBAL_INITIALIZER
+#define COND_INITIALIZER HYBRIDLOCK_COND_INITIALIZER
 
 #endif

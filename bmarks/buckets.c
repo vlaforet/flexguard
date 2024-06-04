@@ -68,8 +68,7 @@ bool tracing = false;
 typedef struct bucket_t
 {
     int id;
-    lock_global_data lock;
-    __attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
+    libslock_t lock;
     hash_map map;
 
     int reads;
@@ -182,9 +181,6 @@ void *test(void *data)
     int i = 0, bucket_id = 0, *value;
     thread_data_t *d = (thread_data_t *)data;
 
-    for (i = 0; i < bucket_count; i++)
-        init_lock_local(&buckets[i].lock, &(buckets[i].local_th_data[d->id]));
-
     while (!*d->start)
         futex_wait((void *)d->start, false);
 
@@ -197,7 +193,7 @@ void *test(void *data)
         i = rand();
 
         t1 = getticks();
-        acquire_lock(&(buckets[bucket_id].local_th_data[d->id]), &buckets[bucket_id].lock);
+        libslock_lock(&buckets[bucket_id].lock);
 
         if (i % 2 == 0)
         {
@@ -215,7 +211,7 @@ void *test(void *data)
             buckets[bucket_id].reads++;
         }
 
-        release_lock(&(buckets[bucket_id].local_th_data[d->id]), &buckets[bucket_id].lock);
+        libslock_unlock(&buckets[bucket_id].lock);
         d->cs_ticks += getticks() - t1;
         d->cs_count++;
 
@@ -350,12 +346,7 @@ int main(int argc, char **argv)
     for (i = 0; i < bucket_count; i++)
     {
         buckets[i].id = i;
-        init_lock_global(&buckets[i].lock);
-        if ((buckets[i].local_th_data = (lock_local_data *)malloc(max_threads * sizeof(lock_local_data))) == NULL)
-        {
-            perror("malloc local_th_data");
-            exit(1);
-        }
+        libslock_init(&buckets[i].lock);
 
 #if defined(TRACING) && defined(USE_HYBRIDLOCK_LOCKS)
         if (tracing)

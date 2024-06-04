@@ -101,18 +101,15 @@ void futex_unlock(futex_lock_t *lock)
   }
 }
 
-int is_free_futex(futex_lock_t *lock)
-{
-  if (lock->data == 0)
-    return 1;
-  return 0;
-}
-
 int init_futex_global(futex_lock_t *the_lock)
 {
   the_lock->data = 0;
   MEM_BARRIER;
   return 0;
+}
+
+void end_futex_global(futex_lock_t *the_lock)
+{
 }
 
 /*

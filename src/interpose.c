@@ -32,17 +32,6 @@
 #include <dlfcn.h>
 #include <signal.h>
 
-unsigned int last_thread_id;
-__thread unsigned int cur_thread_id;
-
-struct routine
-{
-  void *(*fct)(void *);
-  void *arg;
-};
-
-int (*REAL(pthread_create))(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg) __attribute__((aligned(CACHE_LINE_SIZE)));
-
 #if USE_REAL_PTHREAD == 1
 int (*REAL(pthread_mutex_init))(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr) __attribute__((aligned(CACHE_LINE_SIZE)));
 int (*REAL(pthread_mutex_destroy))(pthread_mutex_t *mutex) __attribute__((aligned(CACHE_LINE_SIZE)));
@@ -63,11 +52,6 @@ static void __attribute__((constructor)) REAL(interpose_init)(void)
   static volatile uint8_t init_lock = 0;
   if (exactly_once(&init_lock) != 0)
     return;
-
-  cur_thread_id = __sync_fetch_and_add(&last_thread_id, 1);
-  CHECK_NUMBER_THREADS_FATAL(cur_thread_id);
-
-  LOAD_FUNC(pthread_create, 1);
 
 #if USE_REAL_PTHREAD == 1
   LOAD_FUNC(pthread_mutex_lock, 1);
@@ -91,18 +75,6 @@ static void __attribute__((destructor)) REAL(interpose_exit)(void)
 {
 }
 
-static lock_local_data *get_me(lock_as_t *lock)
-{
-  lock_as_context_t *ctx = &lock->contexts[cur_thread_id];
-  if (UNLIKELY(ctx->status != 1))
-  {
-    init_lock_local(lock->lock, &ctx->me);
-    ctx->status = 1;
-  }
-
-  return &ctx->me;
-}
-
 /*
  * Lock functions
  */
@@ -116,13 +88,9 @@ static int interpose_lock_init(void *raw_lock, bool force)
   if (exactly_once(&lock->status) != 0)
     return 0;
 
-  lock->lock = (lock_global_data *)malloc((sizeof(lock_global_data)));
+  lock->lock = (libslock_t *)malloc((sizeof(libslock_t)));
 
-  lock->contexts = (lock_as_context_t *)malloc((sizeof(lock_as_context_t) * MAX_NUMBER_THREADS));
-  for (int i = 0; i < MAX_NUMBER_THREADS; i++)
-    lock->contexts[i].status = 0;
-
-  int res = init_lock_global(lock->lock);
+  int res = libslock_init(lock->lock);
   lock->status = 2;
   return res;
 }
@@ -132,9 +100,8 @@ static int interpose_lock_destroy(void *raw_lock)
   lock_as_t *lock = CAST_TO_LOCK(raw_lock);
   if (LIKELY(lock->status == 2))
   {
-    free_lock_global(*lock->lock);
+    libslock_destroy(lock->lock);
     free(lock->lock);
-    free(lock->contexts);
     lock->status = 0;
   }
 
@@ -148,8 +115,7 @@ static int interpose_lock_lock(void *raw_lock)
   if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
-  lock_local_data *me = get_me(lock);
-  acquire_lock(me, lock->lock);
+  libslock_lock(lock->lock);
   return 0;
 }
 
@@ -160,9 +126,7 @@ static int interpose_lock_trylock(void *raw_lock)
   if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
-  lock_local_data *me = get_me(lock);
-
-  if (acquire_trylock(me, lock->lock) == 0)
+  if (libslock_trylock(lock->lock) == 0)
     return 0;
   else
     return EBUSY;
@@ -175,8 +139,7 @@ static int interpose_lock_unlock(void *raw_lock)
   if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
-  lock_local_data *me = get_me(lock);
-  release_lock(me, lock->lock);
+  libslock_unlock(lock->lock);
   return 0;
 }
 
@@ -190,9 +153,9 @@ static int interpose_cond_init(void *raw_cond, bool force)
   if (exactly_once(&cond->status) != 0)
     return 0;
 
-  cond->cond = (lock_condvar_t *)malloc((sizeof(lock_condvar_t)));
+  cond->cond = (libslock_cond_t *)malloc((sizeof(libslock_cond_t)));
 
-  int res = condvar_init(cond->cond);
+  int res = libslock_cond_init(cond->cond);
   cond->status = 2;
   return res;
 }
@@ -202,7 +165,7 @@ static int interpose_cond_destroy(void *raw_cond)
   condvar_as_t *cond = CAST_TO_COND(raw_cond);
 
   if (LIKELY(cond->status == 2))
-    return condvar_destroy(cond->cond);
+    return libslock_cond_destroy(cond->cond);
   return 0;
 }
 
@@ -216,8 +179,7 @@ static int interpose_cond_timedwait(void *raw_cond, void *raw_lock, const struct
   if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
-  lock_local_data *me = get_me(lock);
-  return condvar_timedwait(cond->cond, me, lock->lock, abstime);
+  return libslock_cond_timedwait(cond->cond, lock->lock, abstime);
 }
 
 static int interpose_cond_wait(void *raw_cond, void *raw_lock)
@@ -230,8 +192,7 @@ static int interpose_cond_wait(void *raw_cond, void *raw_lock)
   if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
-  lock_local_data *me = get_me(lock);
-  return condvar_wait(cond->cond, me, lock->lock);
+  return libslock_cond_wait(cond->cond, lock->lock);
 }
 
 static int interpose_cond_signal(void *raw_cond)
@@ -240,7 +201,7 @@ static int interpose_cond_signal(void *raw_cond)
   if (UNLIKELY(cond->status != 2))
     interpose_cond_init(raw_cond, false);
 
-  return condvar_signal(cond->cond);
+  return libslock_cond_signal(cond->cond);
 }
 
 static int interpose_cond_broadcast(void *raw_cond)
@@ -249,36 +210,8 @@ static int interpose_cond_broadcast(void *raw_cond)
   if (UNLIKELY(cond->status != 2))
     interpose_cond_init(raw_cond, false);
 
-  return condvar_broadcast(cond->cond);
+  return libslock_cond_broadcast(cond->cond);
 }
-
-static void *lp_start_routine(void *_arg)
-{
-  struct routine *r = _arg;
-  void *(*fct)(void *) = r->fct;
-  void *arg = r->arg;
-  void *res;
-  free(r);
-
-  cur_thread_id = __sync_fetch_and_add(&last_thread_id, 1);
-  CHECK_NUMBER_THREADS_FATAL(cur_thread_id);
-  __sync_synchronize();
-
-  res = fct(arg);
-  return res;
-}
-
-int __pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg)
-{
-  struct routine *r = malloc(sizeof(struct routine));
-
-  r->fct = start_routine;
-  r->arg = arg;
-
-  return REAL(pthread_create)(thread, attr, lp_start_routine, r);
-}
-__asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
-__asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
 
 int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr)
 {

@@ -64,8 +64,7 @@
 int contention = DEFAULT_CONTENTION;
 int dummy_array_size = DEFAULT_DUMMY_ARRAY_SIZE;
 
-lock_global_data the_lock;
-__attribute__((aligned(CACHE_LINE_SIZE))) lock_local_data *local_th_data;
+libslock_t the_lock;
 
 typedef struct dummy_array_t
 {
@@ -107,12 +106,11 @@ void *test(void *data)
     dummy_array_t *arr = &dummy_array[rand() % dummy_array_size];
 
     thread_data_t *d = (thread_data_t *)data;
-    init_lock_local(&the_lock, &(local_th_data[d->id]));
 
     while (!d->stop)
     {
         t1 = __builtin_ia32_rdtsc();
-        acquire_lock(&(local_th_data[d->id]), &the_lock);
+        libslock_lock(&the_lock);
 
         for (i = 0; i < dummy_array_size; i++)
         {
@@ -120,7 +118,7 @@ void *test(void *data)
             arr = arr->next;
         }
 
-        release_lock(&(local_th_data[d->id]), &the_lock);
+        libslock_unlock(&the_lock);
         t2 = __builtin_ia32_rdtsc();
 
         if (d->reset)
@@ -137,7 +135,6 @@ void *test(void *data)
             cpause(contention);
     }
 
-    free_lock_local(local_th_data[d->id]);
     return NULL;
 }
 
@@ -289,11 +286,6 @@ int main(int argc, char **argv)
         perror("malloc threads");
         exit(1);
     }
-    if ((local_th_data = (lock_local_data *)malloc(max_threads * sizeof(lock_local_data))) == NULL)
-    {
-        perror("malloc local_th_data");
-        exit(1);
-    }
     if ((dummy_array = (dummy_array_t *)malloc(dummy_array_size * sizeof(dummy_array_t))) == NULL)
     {
         perror("malloc dummy_array");
@@ -318,7 +310,7 @@ int main(int argc, char **argv)
 
     /* Init locks */
     DPRINT("Initializing locks\n");
-    init_lock_global_nt(max_threads, &the_lock);
+    libslock_init(&the_lock);
 
     for (i = 0; i < max_threads; i++)
     {
@@ -342,14 +334,14 @@ int main(int argc, char **argv)
         if (i == switch_thread_count)
         {
             DPRINT("Switching to FUTEX hybrid lock\n");
-            __sync_val_compare_and_swap(&the_lock.lock_state,
+            __sync_val_compare_and_swap(&the_lock.global.lock_state,
                                         LOCK_STABLE(LOCK_TYPE_SPIN),
                                         LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
         }
         else if (switch_thread_count > 0 && i == max_threads + 5)
         {
             DPRINT("Switching to spin hybrid lock\n");
-            __sync_val_compare_and_swap(&the_lock.lock_state,
+            __sync_val_compare_and_swap(&the_lock.global.lock_state,
                                         LOCK_STABLE(LOCK_TYPE_FUTEX),
                                         LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
         }
@@ -393,6 +385,6 @@ int main(int argc, char **argv)
         }
     }
 
-    free_lock_global(the_lock);
+    libslock_destroy(&the_lock);
     return EXIT_SUCCESS;
 }

@@ -68,8 +68,6 @@
 #define GLIBC_2_3_2 "GLIBC_2.3.2"
 #define GLIBC_2_34 "GLIBC_2.34"
 
-extern int (*REAL(pthread_create))(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg);
-
 #if USE_REAL_PTHREAD == 1
 extern int (*REAL(pthread_mutex_init))(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);
 extern int (*REAL(pthread_mutex_destroy))(pthread_mutex_t *mutex);
@@ -88,23 +86,16 @@ extern int (*REAL(pthread_cond_broadcast))(pthread_cond_t *cond);
 #define CAST_TO_LOCK(input) ((lock_as_t *)input)
 #define CAST_TO_COND(input) ((condvar_as_t *)input)
 
-typedef struct lock_as_context_t
-{
-  uint8_t status;
-  lock_local_data me __attribute__((aligned(CACHE_LINE_SIZE)));
-} lock_as_context_t __attribute__((aligned(CACHE_LINE_SIZE)));
-
 typedef struct lock_as_t
 {
   volatile uint8_t status;
-  lock_global_data *lock;
-  lock_as_context_t *contexts;
+  libslock_t *lock;
 } lock_as_t;
 
 typedef struct condvar_as_t
 {
   volatile uint8_t status;
-  lock_condvar_t *cond;
+  libslock_cond_t *cond;
 } condvar_as_t;
 
 #endif // __INTERPOSE_H__

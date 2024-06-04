@@ -50,11 +50,6 @@ void clh_unlock(clh_lock_t *the_locks, clh_local_params_t *local_params)
     local_params->qnode = pred;
 }
 
-int is_free_clh(clh_lock_t *the_lock)
-{
-    return 0; // Not free
-}
-
 int init_clh_global(clh_lock_t *the_lock)
 {
     the_lock->lock = (clh_qnode_ptr *)malloc(sizeof(clh_qnode_ptr));
@@ -66,7 +61,7 @@ int init_clh_global(clh_lock_t *the_lock)
     return 0;
 }
 
-int init_clh_local(clh_local_params_t *local_params, clh_lock_t *the_lock)
+int init_clh_local(clh_lock_t *the_lock, clh_local_params_t *local_params)
 {
     local_params->qnode = (clh_qnode_t *)malloc(sizeof(clh_qnode_t));
     local_params->qnode->done = 1;
@@ -74,4 +69,10 @@ int init_clh_local(clh_local_params_t *local_params, clh_lock_t *the_lock)
 
     MEM_BARRIER;
     return 0;
+}
+
+void end_clh_global(clh_lock_t *the_lock)
+{
+    free((void *)*the_lock->lock);
+    free((void *)the_lock->lock);
 }

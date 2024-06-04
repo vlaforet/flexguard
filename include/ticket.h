@@ -63,14 +63,29 @@ typedef struct ticketlock_t
 #endif
 #endif
 } ticketlock_t;
+#define TICKET_GLOBAL_INITIALIZER \
+    {                             \
+        .head = 1, .tail = 0      \
+    }
 
 int ticket_trylock(ticketlock_t *lock);
-void ticket_acquire(ticketlock_t *lock);
-void ticket_release(ticketlock_t *lock);
-int is_free_ticket(ticketlock_t *t);
+void ticket_lock(ticketlock_t *lock);
+void ticket_unlock(ticketlock_t *lock);
 
-int create_ticketlock(ticketlock_t *the_lock);
-ticketlock_t *init_ticketlocks(uint32_t num_locks);
-void free_ticketlocks(ticketlock_t *the_locks);
+int init_ticket_global(ticketlock_t *the_lock);
+void end_ticket_global(ticketlock_t *the_lock);
+
+#define LOCAL_NEEDED 0
+
+#define GLOBAL_DATA_T ticketlock_t
+
+#define INIT_GLOBAL_DATA init_ticket_global
+#define DESTROY_GLOBAL_DATA end_ticket_global
+
+#define ACQUIRE_LOCK ticket_lock
+#define RELEASE_LOCK ticket_unlock
+#define ACQUIRE_TRYLOCK ticket_trylock
+
+#define LOCK_GLOBAL_INITIALIZER TICKET_GLOBAL_INITIALIZER
 
 #endif
