@@ -543,7 +543,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     the_lock->blocking_nodes = &lock_info[the_lock->id].blocking_nodes;
 
     the_lock->dummy_params = (hybridlock_local_params_t *)malloc(sizeof(hybridlock_local_params_t));
-    the_lock->dummy_params->qnode = &qnode_allocation_array[the_lock->id * MAX_NUMBER_THREADS];
+    the_lock->dummy_params->qnode = &qnode_allocation_array[the_lock->id];
 
     the_lock->dummy_params->qnode->waiting = 0;
     the_lock->dummy_params->qnode->next = NULL;
@@ -589,7 +589,7 @@ int init_hybridlock_local(hybridlock_lock_t *the_lock, hybridlock_local_params_t
     }
     CHECK_NUMBER_THREADS_FATAL(thread_id + 1);
 
-    local_params->qnode = &qnode_allocation_array[thread_id + the_lock->id * MAX_NUMBER_THREADS];
+    local_params->qnode = &qnode_allocation_array[the_lock->id + thread_id * MAX_NUMBER_LOCKS];
     local_params->qnode->lock_id = the_lock->id;
     local_params->qnode->thread_id = thread_id;
 

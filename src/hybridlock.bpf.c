@@ -113,9 +113,9 @@ static int on_preemption(volatile hybrid_thread_info_t *tinfo, hybrid_qnode_ptr 
 		return 0;
 	}
 
-	dummy_pointer = qnode_allocation_starting_address + lock_id * MAX_NUMBER_THREADS;
+	dummy_pointer = qnode_allocation_starting_address + lock_id;
 
-	u32 key = lock_id * MAX_NUMBER_THREADS;
+	u32 key = lock_id;
 	dummy_node = bpf_map_lookup_elem(&array_map, &key);
 	if (!dummy_node)
 	{
@@ -234,7 +234,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (lock_id == -1)
 		return 0;
 
-	key = lock_id * MAX_NUMBER_THREADS + *thread_id;
+	key = lock_id + *thread_id * MAX_NUMBER_LOCKS;
 	qnode = bpf_map_lookup_elem(&array_map, &key);
 	if (!qnode)
 		return 0;
