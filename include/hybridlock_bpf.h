@@ -38,7 +38,6 @@ typedef struct hybrid_qnode_t
     struct
     {
       int lock_id;
-      int thread_id;
 
 #ifdef HYBRID_TICKET
       uint32_t ticket;
@@ -54,12 +53,11 @@ typedef struct hybrid_qnode_t
       uint8_t should_block;
 #endif
     };
-#ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE];
-#endif
   };
 } hybrid_qnode_t;
 typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
+
+typedef hybrid_qnode_t hybrid_qnode_thread[MAX_NUMBER_LOCKS];
 
 #ifdef BPF
 typedef struct hybrid_addresses_t

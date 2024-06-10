@@ -492,7 +492,7 @@ static void deploy_bpf_code()
     nodes_map = skel->maps.nodes_map;
 
     int fd = bpf_map__fd(skel->maps.array_map);
-    qnode_allocation_array = mmap(NULL, MAX_NUMBER_THREADS * MAX_NUMBER_LOCKS * sizeof(hybrid_qnode_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    qnode_allocation_array = mmap(NULL, MAX_NUMBER_THREADS * sizeof(hybrid_qnode_thread), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (qnode_allocation_array == MAP_FAILED)
     {
         perror("qnode_allocation_array mmap");
@@ -527,7 +527,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
         deploy_bpf_code();
 #else
         // Initialize things without BPF
-        qnode_allocation_array = malloc(MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS * sizeof(hybrid_qnode_t));
+        qnode_allocation_array = malloc(MAX_NUMBER_THREADS * sizeof(hybrid_qnode_thread));
         lock_info = malloc(MAX_NUMBER_LOCKS * sizeof(hybrid_lock_info_t));
         thread_info = malloc(MAX_NUMBER_THREADS * sizeof(hybrid_thread_info_t));
 #endif
@@ -591,7 +591,6 @@ int init_hybridlock_local(hybridlock_lock_t *the_lock, hybridlock_local_params_t
 
     local_params->qnode = &qnode_allocation_array[the_lock->id + thread_id * MAX_NUMBER_LOCKS];
     local_params->qnode->lock_id = the_lock->id;
-    local_params->qnode->thread_id = thread_id;
 
 #ifdef HYBRID_EPOCH
     local_params->qnode->should_block = 0;

@@ -83,8 +83,8 @@ struct
 {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__type(key, u32);
-	__type(value, volatile hybrid_qnode_t);
-	__uint(max_entries, (MAX_NUMBER_LOCKS * MAX_NUMBER_THREADS));
+	__type(value, hybrid_qnode_thread);
+	__uint(max_entries, MAX_NUMBER_THREADS);
 	__uint(map_flags, BPF_F_MMAPABLE);
 } array_map SEC(".maps");
 
@@ -231,13 +231,13 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	/*
 	 * Ignore preemption if the thread was not locking.
 	 */
-	if (lock_id == -1)
+	if (lock_id < 0 || lock_id >= MAX_NUMBER_LOCKS)
 		return 0;
 
-	key = lock_id + *thread_id * MAX_NUMBER_LOCKS;
-	qnode = bpf_map_lookup_elem(&array_map, &key);
+	qnode = bpf_map_lookup_elem(&array_map, thread_id);
 	if (!qnode)
 		return 0;
+	qnode = &qnode[lock_id];
 
 	/*
 	 * Retrieve preemption address.
