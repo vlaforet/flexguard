@@ -56,9 +56,9 @@ typedef struct futex_lock_t
 #endif
   };
 } futex_lock_t;
-#define FUTEX_GLOBAL_INITIALIZER \
-  {                              \
-    .data = 0                    \
+#define FUTEX_INITIALIZER \
+  {                       \
+    .data = 0             \
   }
 
 typedef union
@@ -71,55 +71,47 @@ typedef union
 #ifdef ADD_PADDING
   uint8_t padding[CACHE_LINE_SIZE];
 #endif
-} futex_condvar_t;
+} futex_cond_t;
 #define FUTEX_COND_INITIALIZER \
   {                            \
     .seq = 0, .target = 0      \
   }
 
 /*
- * Lock manipulation methods
+ * Declarations
  */
+int futex_init(futex_lock_t *the_lock);
+void futex_destroy(futex_lock_t *the_lock);
 void futex_lock(futex_lock_t *the_lock);
 int futex_trylock(futex_lock_t *the_lock);
 void futex_unlock(futex_lock_t *the_lock);
 
-/*
- * Methods for single lock manipulation
- */
-int init_futex_global(futex_lock_t *the_lock);
-void end_futex_global(futex_lock_t *the_lock);
+int futex_cond_init(futex_cond_t *cond);
+int futex_cond_wait(futex_cond_t *cond, futex_lock_t *the_lock);
+int futex_cond_timedwait(futex_cond_t *cond, futex_lock_t *the_lock, const struct timespec *ts);
+int futex_cond_signal(futex_cond_t *cond);
+int futex_cond_broadcast(futex_cond_t *cond);
+int futex_cond_destroy(futex_cond_t *cond);
 
 /*
- *  Condition Variables
+ * lock_if.h bindings
  */
-int futex_condvar_init(futex_condvar_t *cond);
-int futex_condvar_wait(futex_condvar_t *cond, futex_lock_t *the_lock);
-int futex_condvar_timedwait(futex_condvar_t *cond, futex_lock_t *the_lock, const struct timespec *ts);
-int futex_condvar_signal(futex_condvar_t *cond);
-int futex_condvar_broadcast(futex_condvar_t *cond);
-int futex_condvar_destroy(futex_condvar_t *cond);
 
-#define LOCAL_NEEDED 0
+#define LOCKIF_LOCK_T futex_lock_t
+#define LOCKIF_INIT futex_init
+#define LOCKIF_DESTROY futex_destroy
+#define LOCKIF_LOCK futex_lock
+#define LOCKIF_TRYLOCK futex_trylock
+#define LOCKIF_UNLOCK futex_unlock
+#define LOCKIF_INITIALIZER FUTEX_INITIALIZER
 
-#define GLOBAL_DATA_T futex_lock_t
-#define CONDVAR_DATA_T futex_condvar_t
-
-#define INIT_GLOBAL_DATA init_futex_global
-#define DESTROY_GLOBAL_DATA end_futex_global
-
-#define ACQUIRE_LOCK futex_lock
-#define RELEASE_LOCK futex_unlock
-#define ACQUIRE_TRYLOCK futex_trylock
-
-#define COND_INIT futex_condvar_init
-#define COND_WAIT futex_condvar_wait
-#define COND_TIMEDWAIT futex_condvar_timedwait
-#define COND_SIGNAL futex_condvar_signal
-#define COND_BROADCAST futex_condvar_broadcast
-#define COND_DESTROY futex_condvar_destroy
-
-#define LOCK_GLOBAL_INITIALIZER FUTEX_GLOBAL_INITIALIZER
-#define COND_INITIALIZER FUTEX_COND_INITIALIZER
+#define LOCKIF_COND_T futex_cond_t
+#define LOCKIF_COND_INIT futex_cond_init
+#define LOCKIF_COND_DESTROY futex_cond_destroy
+#define LOCKIF_COND_WAIT futex_cond_wait
+#define LOCKIF_COND_TIMEDWAIT futex_cond_timedwait
+#define LOCKIF_COND_SIGNAL futex_cond_signal
+#define LOCKIF_COND_BROADCAST futex_cond_broadcast
+#define LOCKIF_COND_INITIALIZER FUTEX_COND_INITIALIZER
 
 #endif

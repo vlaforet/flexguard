@@ -101,14 +101,14 @@ void futex_unlock(futex_lock_t *lock)
   }
 }
 
-int init_futex_global(futex_lock_t *the_lock)
+int futex_init(futex_lock_t *the_lock)
 {
   the_lock->data = 0;
   MEM_BARRIER;
   return 0;
 }
 
-void end_futex_global(futex_lock_t *the_lock)
+void futex_destroy(futex_lock_t *the_lock)
 {
 }
 
@@ -116,14 +116,14 @@ void end_futex_global(futex_lock_t *the_lock)
  *  Condition Variables
  */
 
-int futex_condvar_init(futex_condvar_t *cond)
+int futex_cond_init(futex_cond_t *cond)
 {
   cond->seq = 0;
   cond->target = 0;
   return 0;
 }
 
-int futex_condvar_wait(futex_condvar_t *cond, futex_lock_t *the_lock)
+int futex_cond_wait(futex_cond_t *cond, futex_lock_t *the_lock)
 {
   // No need for atomic operations, I have the lock
   uint32_t target = ++cond->target;
@@ -139,27 +139,27 @@ int futex_condvar_wait(futex_condvar_t *cond, futex_lock_t *the_lock)
   return 0;
 }
 
-int futex_condvar_timedwait(futex_condvar_t *cond, futex_lock_t *the_lock, const struct timespec *ts)
+int futex_cond_timedwait(futex_cond_t *cond, futex_lock_t *the_lock, const struct timespec *ts)
 {
   fprintf(stderr, "Timedwait not supported yet.\n");
   exit(EXIT_FAILURE);
 }
 
-int futex_condvar_signal(futex_condvar_t *cond)
+int futex_cond_signal(futex_cond_t *cond)
 {
   cond->seq++;
   futex_wake(&cond->seq, 1);
   return 0;
 }
 
-int futex_condvar_broadcast(futex_condvar_t *cond)
+int futex_cond_broadcast(futex_cond_t *cond)
 {
   cond->seq = cond->target;
   futex_wake(&cond->seq, INT_MAX);
   return 0;
 }
 
-int futex_condvar_destroy(futex_condvar_t *cond)
+int futex_cond_destroy(futex_cond_t *cond)
 {
   cond->seq = 0;
   cond->target = 0;

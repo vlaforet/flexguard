@@ -29,50 +29,61 @@
 
 #include "clh.h"
 
-int clh_trylock(clh_lock_t *the_locks, clh_local_params_t *local_params)
+static volatile int clh_thread_count = 0;
+static __thread int clh_thread_id = -1;
+
+#define CHECK_THREAD_ID(the_lock)                                   \
+    if (UNLIKELY(clh_thread_id < 0))                                \
+    {                                                               \
+        clh_thread_id = __sync_fetch_and_add(&clh_thread_count, 1); \
+        CHECK_NUMBER_THREADS_FATAL(clh_thread_id);                  \
+    }
+
+int clh_trylock(clh_lock_t *the_lock)
 {
     return 1; // Fail
 }
 
-void clh_lock(clh_lock_t *the_lock, clh_local_params_t *local_params)
+void clh_lock(clh_lock_t *the_lock)
 {
-    local_params->qnode->done = 0;
-    local_params->qnode->pred = SWAP_PTR(the_lock->lock, (void *)local_params->qnode);
+    CHECK_THREAD_ID(the_lock);
+    clh_qnode_ptr qnode = the_lock->qnodes[clh_thread_id];
 
-    while (local_params->qnode->pred->done == 0)
+    qnode->done = 0;
+    qnode->pred = atomic_exchange(&the_lock->lock, qnode);
+
+    while (qnode->pred->done == 0)
         PAUSE;
 }
 
-void clh_unlock(clh_lock_t *the_locks, clh_local_params_t *local_params)
+void clh_unlock(clh_lock_t *the_lock)
 {
-    volatile clh_qnode_t *pred = local_params->qnode->pred;
-    local_params->qnode->done = 1;
-    local_params->qnode = pred;
+    CHECK_THREAD_ID(the_lock);
+    clh_qnode_ptr qnode = the_lock->qnodes[clh_thread_id];
+
+    volatile clh_qnode_t *pred = qnode->pred;
+    qnode->done = 1;
+    the_lock->qnodes[clh_thread_id] = pred;
 }
 
-int init_clh_global(clh_lock_t *the_lock)
+int clh_init(clh_lock_t *the_lock)
 {
-    the_lock->lock = (clh_qnode_ptr *)malloc(sizeof(clh_qnode_ptr));
-    (*the_lock->lock) = (clh_qnode_t *)malloc(sizeof(clh_qnode_t));
-    (*the_lock->lock)->done = 1;
-    (*the_lock->lock)->pred = NULL;
+    volatile clh_qnode_t *qnodes = malloc(sizeof(clh_qnode_t) * (MAX_NUMBER_THREADS + 1));
+    the_lock->lock = &qnodes[MAX_NUMBER_THREADS];
+    the_lock->lock->done = 1;
+    the_lock->lock->pred = NULL;
+
+    for (int i = 0; i < MAX_NUMBER_THREADS; i++)
+    {
+        the_lock->qnodes[i] = &qnodes[i];
+        the_lock->qnodes[i]->done = 1;
+        the_lock->qnodes[i]->pred = NULL;
+    }
 
     MEM_BARRIER;
     return 0;
 }
 
-int init_clh_local(clh_lock_t *the_lock, clh_local_params_t *local_params)
+void clh_destroy(clh_lock_t *the_lock)
 {
-    local_params->qnode = (clh_qnode_t *)malloc(sizeof(clh_qnode_t));
-    local_params->qnode->done = 1;
-    local_params->qnode->pred = NULL;
-
-    MEM_BARRIER;
-    return 0;
-}
-
-void end_clh_global(clh_lock_t *the_lock)
-{
-    free((void *)*the_lock->lock);
-    free((void *)the_lock->lock);
 }

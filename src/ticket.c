@@ -33,7 +33,7 @@
 
 #define SUB_ABS(A, B) A > B ? A - B : B - A
 
-int ticket_trylock(ticketlock_t *lock)
+int ticket_trylock(ticket_lock_t *lock)
 {
   uint32_t me = lock->tail;
   uint32_t me_new = me + 1;
@@ -45,7 +45,7 @@ int ticket_trylock(ticketlock_t *lock)
   return 1;
 }
 
-void ticket_lock(ticketlock_t *lock)
+void ticket_lock(ticket_lock_t *lock)
 {
   uint32_t my_ticket = IAF_U32(&(lock->tail));
 
@@ -66,13 +66,13 @@ void ticket_lock(ticketlock_t *lock)
   }
 }
 
-void ticket_unlock(ticketlock_t *lock)
+void ticket_unlock(ticket_lock_t *lock)
 {
   COMPILER_BARRIER;
   lock->head++;
 }
 
-int init_ticket_global(ticketlock_t *the_lock)
+int ticket_init(ticket_lock_t *the_lock)
 {
   the_lock->head = 1;
   the_lock->tail = 0;
@@ -80,7 +80,7 @@ int init_ticket_global(ticketlock_t *the_lock)
   return 0;
 }
 
-void end_ticket_global(ticketlock_t *the_lock)
+void ticket_destroy(ticket_lock_t *the_lock)
 {
   // Nothing to do
 }

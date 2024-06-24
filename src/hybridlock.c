@@ -60,6 +60,55 @@ hybrid_addresses_t *addresses;
 struct bpf_map *nodes_map;
 #endif
 
+#ifndef HYBRID_EPOCH
+// lock_type_t global_type = LOCK_TYPE_SPIN;
+#endif
+
+static hybrid_qnode_ptr get_me(hybridlock_lock_t *the_lock)
+{
+    if (UNLIKELY(thread_id < 0))
+    {
+        thread_id = atomic_fetch_add(&thread_count, 1);
+        CHECK_NUMBER_THREADS_FATAL(thread_id);
+
+        // Init thread_info
+        thread_info[thread_id].locking_id = -1;
+        thread_info[thread_id].is_running = 0;
+        thread_info[thread_id].is_holder_preempted = 0;
+    }
+
+    hybrid_qnode_ptr qnode = &qnode_allocation_array[the_lock->id + thread_id * MAX_NUMBER_THREADS];
+    if (UNLIKELY(qnode->lock_id != the_lock->id))
+    {
+        qnode->lock_id = the_lock->id;
+
+#ifdef HYBRID_EPOCH
+        qnode->should_block = 0;
+#endif
+
+#ifdef HYBRID_TICKET
+        qnode->ticket = 0;
+#elif defined(HYBRID_CLH)
+        qnode->done = 1;
+        qnode->pred = NULL;
+#elif defined(HYBRID_MCS)
+        qnode->waiting = 0;
+        qnode->next = NULL;
+#endif
+
+#ifdef BPF
+        // Register thread in BPF map
+        __u32 tid = gettid();
+        int err = bpf_map__update_elem(nodes_map, &tid, sizeof(tid), &thread_id, sizeof(thread_id), BPF_ANY);
+        if (err)
+            fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
+#endif
+        MEM_BARRIER;
+    }
+
+    return qnode;
+}
+
 static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type)
 {
     switch (lock_type)
@@ -90,7 +139,7 @@ static inline int isfree_type(hybridlock_lock_t *the_lock, lock_type_t lock_type
     return 1; // Free
 }
 
-__attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+__attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock_lock_t *the_lock, hybrid_qnode_ptr qnode, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -102,16 +151,16 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
 #endif
 
 #ifdef HYBRID_TICKET
-        local_params->qnode->ticket = __sync_add_and_fetch(&the_lock->ticket_lock.next, 1);
+        qnode->ticket = __sync_add_and_fetch(&the_lock->ticket_lock.next, 1);
 
         uint32_t curr, distance;
         while (1)
         {
             curr = the_lock->ticket_lock.calling;
-            if (curr == local_params->qnode->ticket)
+            if (curr == qnode->ticket)
                 break; // Success
 
-            distance = curr > local_params->qnode->ticket ? curr - local_params->qnode->ticket : local_params->qnode->ticket - curr;
+            distance = curr > qnode->ticket ? curr - qnode->ticket : qnode->ticket - curr;
             if (distance <= 1)
                 PAUSE;
             else
@@ -119,16 +168,16 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
         }
 
 #elif defined(HYBRID_CLH)
-        DASSERT(local_params->qnode != NULL);
+        DASSERT(qnode != NULL);
         DASSERT(the_lock->queue_lock != NULL);
 
-        local_params->qnode->done = 0;
-        local_params->qnode->pred = (hybrid_qnode_ptr)SWAP_PTR(the_lock->queue_lock, (void *)local_params->qnode);
+        qnode->done = 0;
+        qnode->pred = (hybrid_qnode_ptr)SWAP_PTR(the_lock->queue_lock, (void *)qnode);
 
 #if defined(BPF) && !defined(HYBRID_EPOCH)
         unsigned long now;
 #endif
-        while (local_params->qnode->pred->done == 0 && LOCK_CURR_TYPE(the_lock->lock_state) == lock_type)
+        while (qnode->pred->done == 0 && LOCK_CURR_TYPE(the_lock->lock_state) == lock_type)
         {
             PAUSE;
 
@@ -148,23 +197,23 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
         // Cannot abort properly. This only targets cases where every waiter aborts.
         if (LOCK_CURR_TYPE(the_lock->lock_state) != lock_type)
         {
-            hybrid_qnode_ptr pred = local_params->qnode->pred;
-            local_params->qnode->done = 1;
-            local_params->qnode = pred;
+            hybrid_qnode_ptr pred = qnode->pred;
+            qnode->done = 1;
+            qnode = pred;
             return 0; // Aborted
         }
 
 #elif defined(HYBRID_MCS)
-        DASSERT(local_params->qnode != NULL);
+        DASSERT(qnode != NULL);
         DASSERT(the_lock->queue_lock != NULL);
-        DASSERT(*the_lock->queue_lock != local_params->qnode);
+        DASSERT(*the_lock->queue_lock != qnode);
 
-        local_params->qnode->next = NULL;
-        local_params->qnode->waiting = 1; // word on which to spin
+        qnode->next = NULL;
+        qnode->waiting = 1; // word on which to spin
 
         // Register rax stores the current qnode and will contain the previous value of
         // the queue_lock after the xchgq operation.
-        register hybrid_qnode_ptr pred asm("rcx") = local_params->qnode;
+        register hybrid_qnode_ptr pred asm("rcx") = qnode;
 
         /*
          *  Exchange pred (rcx) and queue head.
@@ -182,14 +231,21 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
             asm volatile("bhl_lock_spin:" ::: "memory");
 #endif
             MEM_BARRIER;
-            pred->next = local_params->qnode; // make pred point to me
+            pred->next = qnode; // make pred point to me
 
 #if defined(BPF) && !defined(HYBRID_EPOCH)
             unsigned long now;
 #endif
-            while (local_params->qnode->waiting != 0)
+            while (qnode->waiting != 0)
             {
                 PAUSE;
+
+#ifndef HYBRID_EPOCH
+                /*if (global_type != LOCK_TYPE_SPIN && __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, global_type)))
+                {
+                    atomic_store(&the_lock->last_switched_at, now);
+                }*/
+#endif
 
 #if defined(BPF) && !defined(HYBRID_EPOCH)
                 if (*the_lock->preempted_at != ULONG_MAX)
@@ -200,6 +256,7 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
                         now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > (unsigned long)atomic_load(&the_lock->last_switched_at) &&
                         __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
                     {
+                        // global_type = LOCK_TYPE_FUTEX;
                         *the_lock->preempted_at = ULONG_MAX;
                         atomic_store(&the_lock->last_switched_at, now);
                     }
@@ -208,11 +265,11 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
 
                 if (
 #ifdef HYBRID_EPOCH
-                    local_params->qnode->should_block == 1
+                    qnode->should_block == 1
 #else
                     LOCK_CURR_TYPE(the_lock->lock_state) != lock_type
 #endif
-                    && __sync_bool_compare_and_swap(&local_params->qnode->waiting, 1, 2))
+                    && __sync_bool_compare_and_swap(&qnode->waiting, 1, 2))
                 {
 #ifdef BPF
                     MEM_BARRIER;
@@ -255,7 +312,7 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
     return 0;
 }
 
-__attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, lock_type_t lock_type)
+__attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridlock_lock_t *the_lock, hybrid_qnode_ptr qnode, lock_type_t lock_type)
 {
     switch (lock_type)
     {
@@ -263,17 +320,17 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
 #ifdef HYBRID_TICKET
         the_lock->ticket_lock.calling++;
 #elif defined(HYBRID_CLH)
-        DASSERT(local_params->qnode != NULL);
+        DASSERT(qnode != NULL);
         DASSERT(the_lock->queue_lock != NULL);
-        DASSERT(local_params->qnode->pred != NULL);
+        DASSERT(qnode->pred != NULL);
 
-        hybrid_qnode_ptr pred = local_params->qnode->pred;
-        local_params->qnode->done = 1;
-        local_params->qnode = pred;
+        hybrid_qnode_ptr pred = qnode->pred;
+        qnode->done = 1;
+        qnode = pred;
 #elif defined(HYBRID_MCS)
-        DASSERT(local_params->qnode != NULL);
+        DASSERT(qnode != NULL);
         DASSERT(the_lock->queue_lock != NULL);
-        hybrid_qnode_ptr curr = local_params->qnode, succ;
+        hybrid_qnode_ptr curr = qnode, succ;
 
         while (1) // Spin over aborted nodes
         {
@@ -333,6 +390,13 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
                 futex_wake((void *)&the_lock->futex_lock, 1);
         }
 
+#ifndef HYBRID_EPOCH
+        /*if (global_type != LOCK_TYPE_FUTEX && __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, global_type)))
+        {
+            atomic_store(&the_lock->last_switched_at, get_nsecs());
+        }*/
+#endif
+
 #if defined(BPF) && !defined(HYBRID_EPOCH) // If BPF is disabled, automatic switching is also disabled
         if (ret == 0)
         {
@@ -343,7 +407,10 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
             if (now - NO_WAITER_DURATION_BACK_SPIN_NSECS > fa && now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > lsa)
             {
                 if (__sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN)))
+                {
+                    // global_type = LOCK_TYPE_SPIN;
                     atomic_store(&the_lock->last_switched_at, now);
+                }
             }
         }
 #endif
@@ -355,20 +422,22 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
     }
 }
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
+void hybridlock_lock(hybridlock_lock_t *the_lock)
 {
+    hybrid_qnode_ptr qnode = get_me(the_lock);
+
 #ifdef HYBRID_EPOCH
-    local_params->qnode->should_block = 0;
-    if (!lock_type(the_lock, local_params, LOCK_TYPE_SPIN))
+    qnode->should_block = 0;
+    if (!lock_type(the_lock, qnode, LOCK_TYPE_SPIN))
     {
 #ifdef TRACING
         if (the_lock->tracing_fn)
             the_lock->tracing_fn(getticks(), TRACING_EVENT_SWITCH_BLOCK, NULL, the_lock->tracing_fn_data);
 #endif
-        lock_type(the_lock, local_params, LOCK_TYPE_FUTEX);
-        local_params->qnode->should_block = 2; // 2 = Futex should be released on unlock.
+        lock_type(the_lock, qnode, LOCK_TYPE_FUTEX);
+        qnode->should_block = 2; // 2 = Futex should be released on unlock.
 
-        while (the_lock->dummy_params->qnode->waiting != 0)
+        while (the_lock->dummy_qnode->waiting != 0)
             PAUSE;
     }
 #else
@@ -377,7 +446,7 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
     {
         state = the_lock->lock_state;
 
-        if (!lock_type(the_lock, local_params, LOCK_CURR_TYPE(state)))
+        if (!lock_type(the_lock, qnode, LOCK_CURR_TYPE(state)))
             continue;
 
         if (the_lock->lock_state == state)
@@ -399,31 +468,32 @@ void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *loc
             break;
         }
 
-        unlock_type(the_lock, local_params, LOCK_CURR_TYPE(state));
+        unlock_type(the_lock, qnode, LOCK_CURR_TYPE(state));
     } while (1);
 #endif
 }
 
-void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
+void hybridlock_unlock(hybridlock_lock_t *the_lock)
 {
+    hybrid_qnode_ptr qnode = get_me(the_lock);
 #ifdef HYBRID_EPOCH
-    if (local_params->qnode->should_block != 0)
+    if (qnode->should_block != 0)
     {
         if (__sync_fetch_and_sub(the_lock->blocking_nodes, 1) == 1)
         {
-            unlock_type(the_lock, the_lock->dummy_params, LOCK_TYPE_SPIN);
+            unlock_type(the_lock, the_lock->dummy_qnode, LOCK_TYPE_SPIN);
             __sync_val_compare_and_swap(the_lock->dummy_node_enqueued, 1, 0);
         }
 
 #ifdef DEBUG
-        /*if (local_params->qnode->should_block == 1)
+        /*if (qnode->should_block == 1)
             DPRINT("Not a bug: Thread should have blocked but did not.\n");*/
 #endif
     }
 
-    unlock_type(the_lock, local_params, local_params->qnode->should_block == 2 ? LOCK_TYPE_FUTEX : LOCK_TYPE_SPIN);
+    unlock_type(the_lock, qnode, qnode->should_block == 2 ? LOCK_TYPE_FUTEX : LOCK_TYPE_SPIN);
 #else
-    unlock_type(the_lock, local_params, LOCK_LAST_TYPE(the_lock->lock_state));
+    unlock_type(the_lock, qnode, LOCK_LAST_TYPE(the_lock->lock_state));
 #endif
 }
 
@@ -511,7 +581,7 @@ static void deploy_bpf_code()
 }
 #endif
 
-int init_hybridlock_global(hybridlock_lock_t *the_lock)
+int hybridlock_init(hybridlock_lock_t *the_lock)
 {
     the_lock->id = atomic_fetch_add(&lock_count, 1);
     if (the_lock->id >= MAX_NUMBER_LOCKS)
@@ -542,12 +612,10 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     the_lock->dummy_node_enqueued = &lock_info[the_lock->id].dummy_node_enqueued;
     the_lock->blocking_nodes = &lock_info[the_lock->id].blocking_nodes;
 
-    the_lock->dummy_params = (hybridlock_local_params_t *)malloc(sizeof(hybridlock_local_params_t));
-    the_lock->dummy_params->qnode = &qnode_allocation_array[the_lock->id];
-
-    the_lock->dummy_params->qnode->waiting = 0;
-    the_lock->dummy_params->qnode->next = NULL;
-    the_lock->dummy_params->qnode->should_block = 0;
+    the_lock->dummy_qnode = &qnode_allocation_array[the_lock->id];
+    the_lock->dummy_qnode->waiting = 0;
+    the_lock->dummy_qnode->next = NULL;
+    the_lock->dummy_qnode->should_block = 0;
 #endif
 #endif
 #endif
@@ -580,48 +648,7 @@ int init_hybridlock_global(hybridlock_lock_t *the_lock)
     return 0;
 }
 
-int init_hybridlock_local(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
-{
-    if (thread_id == -1)
-    {
-        thread_id = atomic_fetch_add(&thread_count, 1);
-        thread_info[thread_id].locking_id = -1;
-    }
-    CHECK_NUMBER_THREADS_FATAL(thread_id + 1);
-
-    local_params->qnode = &qnode_allocation_array[the_lock->id + thread_id * MAX_NUMBER_LOCKS];
-    local_params->qnode->lock_id = the_lock->id;
-
-#ifdef HYBRID_EPOCH
-    local_params->qnode->should_block = 0;
-#endif
-
-#ifdef HYBRID_TICKET
-    local_params->qnode->ticket = 0;
-#elif defined(HYBRID_CLH)
-    local_params->qnode->done = 1;
-    local_params->qnode->pred = NULL;
-#elif defined(HYBRID_MCS)
-    local_params->qnode->waiting = 0;
-    local_params->qnode->next = NULL;
-#endif
-
-#ifdef BPF
-    // Register thread in BPF map
-    __u32 tid = gettid();
-    int err = bpf_map__update_elem(nodes_map, &tid, sizeof(tid), &thread_id, sizeof(thread_id), BPF_ANY);
-    if (err)
-    {
-        fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
-        return 1;
-    }
-#endif
-
-    MEM_BARRIER;
-    return 0;
-}
-
-void end_hybridlock_global(hybridlock_lock_t *the_lock)
+void hybridlock_destroy(hybridlock_lock_t *the_lock)
 {
     // Nothing to do
 }
@@ -638,19 +665,19 @@ void set_tracing_fn(hybridlock_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, 
  *  Condition Variables
  */
 
-int hybridlock_condvar_init(hybridlock_condvar_t *cond)
+int hybridlock_cond_init(hybridlock_cond_t *cond)
 {
     cond->seq = 0;
     cond->target = 0;
     return 0;
 }
 
-int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params)
+int hybridlock_cond_wait(hybridlock_cond_t *cond, hybridlock_lock_t *the_lock)
 {
     // No need for atomic operations, I have the lock
     uint32_t target = ++cond->target;
     uint32_t seq = cond->seq;
-    hybridlock_unlock(the_lock, local_params);
+    hybridlock_unlock(the_lock);
 
     while (target > seq)
     {
@@ -664,31 +691,31 @@ int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_lock_t *the_l
 #endif
         seq = cond->seq;
     }
-    hybridlock_lock(the_lock, local_params);
+    hybridlock_lock(the_lock);
     return 0;
 }
 
-int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, const struct timespec *ts)
+int hybridlock_cond_timedwait(hybridlock_cond_t *cond, hybridlock_lock_t *the_lock, const struct timespec *ts)
 {
     fprintf(stderr, "Timedwait not supported yet.\n");
     exit(EXIT_FAILURE);
 }
 
-int hybridlock_condvar_signal(hybridlock_condvar_t *cond)
+int hybridlock_cond_signal(hybridlock_cond_t *cond)
 {
     cond->seq++;
     futex_wake(&cond->seq, 1);
     return 0;
 }
 
-int hybridlock_condvar_broadcast(hybridlock_condvar_t *cond)
+int hybridlock_cond_broadcast(hybridlock_cond_t *cond)
 {
     cond->seq = cond->target;
     futex_wake(&cond->seq, INT_MAX);
     return 0;
 }
 
-int hybridlock_condvar_destroy(hybridlock_condvar_t *cond)
+int hybridlock_cond_destroy(hybridlock_cond_t *cond)
 {
     cond->seq = 0;
     cond->target = 0;

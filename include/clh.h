@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <stdatomic.h>
 #include "atomic_ops.h"
 #include "utils.h"
 
@@ -64,55 +65,38 @@ typedef struct clh_lock_t
 {
   union
   {
-    clh_qnode_ptr *lock;
+    clh_qnode_ptr lock;
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
 #endif
   };
+  volatile clh_qnode_ptr qnodes[MAX_NUMBER_THREADS];
 } clh_lock_t;
-#define CLH_GLOBAL_INITIALIZER \
-  {                            \
-    .lock = NULL               \
+#define CLH_INITIALIZER \
+  {                     \
+    .lock = NULL        \
   }
 
-typedef struct clh_local_params_t
-{
-  union
-  {
-    volatile clh_qnode_t *qnode;
-#ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE];
-#endif
-  };
-} clh_local_params_t;
+/*
+ * Declarations
+ */
+
+int clh_init(clh_lock_t *the_lock);
+void clh_destroy(clh_lock_t *the_lock);
+void clh_lock(clh_lock_t *the_lock);
+int clh_trylock(clh_lock_t *the_lock);
+void clh_unlock(clh_lock_t *the_lock);
 
 /*
- * Lock manipulation methods
+ * lock_if.h bindings
  */
-void clh_lock(clh_lock_t *the_lock, clh_local_params_t *local_params);
-int clh_trylock(clh_lock_t *the_locks, clh_local_params_t *local_params);
-void clh_unlock(clh_lock_t *the_locks, clh_local_params_t *local_params);
 
-/*
- * Methods for single lock manipulation
- */
-int init_clh_global(clh_lock_t *the_lock);
-int init_clh_local(clh_lock_t *the_lock, clh_local_params_t *local_params);
-void end_clh_global(clh_lock_t *the_lock);
-
-#define LOCAL_NEEDED 1
-
-#define GLOBAL_DATA_T clh_lock_t
-#define LOCAL_DATA_T clh_local_params_t
-
-#define INIT_LOCAL_DATA init_clh_local
-#define INIT_GLOBAL_DATA init_clh_global
-#define DESTROY_GLOBAL_DATA end_clh_global
-
-#define ACQUIRE_LOCK clh_lock
-#define RELEASE_LOCK clh_unlock
-#define ACQUIRE_TRYLOCK clh_trylock
-
-#define LOCK_GLOBAL_INITIALIZER CLH_GLOBAL_INITIALIZER
+#define LOCKIF_LOCK_T clh_lock_t
+#define LOCKIF_INIT clh_init
+#define LOCKIF_DESTROY clh_destroy
+#define LOCKIF_LOCK clh_lock
+#define LOCKIF_TRYLOCK clh_trylock
+#define LOCKIF_UNLOCK clh_unlock
+#define LOCKIF_INITIALIZER CLH_INITIALIZER
 
 #endif

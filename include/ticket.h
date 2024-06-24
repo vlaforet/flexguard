@@ -49,7 +49,7 @@
 
 #define TICKET_ON_TW0_CLS 1 /* Put the head and the tail on separate \
                                cache lines (O: not, 1: do)*/
-typedef struct ticketlock_t
+typedef struct ticket_lock_t
 {
     volatile uint32_t head;
 #if TICKET_ON_TW0_CLS == 1
@@ -62,30 +62,32 @@ typedef struct ticketlock_t
     uint8_t padding2[4];
 #endif
 #endif
-} ticketlock_t;
-#define TICKET_GLOBAL_INITIALIZER \
-    {                             \
-        .head = 1, .tail = 0      \
+} ticket_lock_t;
+#define TICKET_INITIALIZER   \
+    {                        \
+        .head = 1, .tail = 0 \
     }
 
-int ticket_trylock(ticketlock_t *lock);
-void ticket_lock(ticketlock_t *lock);
-void ticket_unlock(ticketlock_t *lock);
+/*
+ * Declarations
+ */
 
-int init_ticket_global(ticketlock_t *the_lock);
-void end_ticket_global(ticketlock_t *the_lock);
+int ticket_init(ticket_lock_t *the_lock);
+void ticket_destroy(ticket_lock_t *the_lock);
+int ticket_trylock(ticket_lock_t *lock);
+void ticket_lock(ticket_lock_t *lock);
+void ticket_unlock(ticket_lock_t *lock);
 
-#define LOCAL_NEEDED 0
+/*
+ * lock_if.h bindings
+ */
 
-#define GLOBAL_DATA_T ticketlock_t
-
-#define INIT_GLOBAL_DATA init_ticket_global
-#define DESTROY_GLOBAL_DATA end_ticket_global
-
-#define ACQUIRE_LOCK ticket_lock
-#define RELEASE_LOCK ticket_unlock
-#define ACQUIRE_TRYLOCK ticket_trylock
-
-#define LOCK_GLOBAL_INITIALIZER TICKET_GLOBAL_INITIALIZER
+#define LOCKIF_LOCK_T ticket_lock_t
+#define LOCKIF_INIT ticket_init
+#define LOCKIF_DESTROY ticket_destroy
+#define LOCKIF_LOCK ticket_lock
+#define LOCKIF_TRYLOCK ticket_trylock
+#define LOCKIF_UNLOCK ticket_unlock
+#define LOCKIF_INITIALIZER TICKET_INITIALIZER
 
 #endif

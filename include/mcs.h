@@ -55,16 +55,18 @@ typedef struct mcs_qnode
 
 typedef mcs_qnode mcs_local_params;
 
-typedef struct mcs_global_params
+typedef struct mcs_lock_t
 {
     volatile mcs_qnode *tail;
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE - 8];
 #endif
-} mcs_global_params;
-#define MCS_GLOBAL_INITIALIZER \
-    {                          \
-        .tail = 0              \
+
+    volatile mcs_qnode qnodes[MAX_NUMBER_THREADS];
+} mcs_lock_t;
+#define MCS_INITIALIZER \
+    {                   \
+        .tail = 0       \
     }
 
 typedef union
@@ -77,59 +79,46 @@ typedef union
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
 #endif
-} mcs_condvar_t;
+} mcs_cond_t;
 #define MCS_COND_INITIALIZER  \
     {                         \
         .seq = 0, .target = 0 \
     }
 
 /*
- * Methods for single lock manipulation
+ * Declarations
  */
-int init_mcs_global(mcs_global_params *global);
-int init_mcs_local(mcs_global_params *global, mcs_local_params *local);
-void end_mcs_local(mcs_local_params *local);
-void end_mcs_global(mcs_global_params *global);
+int mcs_init(mcs_lock_t *the_lock);
+void mcs_destroy(mcs_lock_t *the_lock);
+void mcs_lock(mcs_lock_t *the_lock);
+int mcs_trylock(mcs_lock_t *the_lock);
+void mcs_unlock(mcs_lock_t *the_lock);
+
+int mcs_cond_init(mcs_cond_t *cond);
+int mcs_cond_wait(mcs_cond_t *cond, mcs_lock_t *the_lock);
+int mcs_cond_timedwait(mcs_cond_t *cond, mcs_lock_t *the_lock, const struct timespec *ts);
+int mcs_cond_signal(mcs_cond_t *cond);
+int mcs_cond_broadcast(mcs_cond_t *cond);
+int mcs_cond_destroy(mcs_cond_t *cond);
 
 /*
- *  Acquire and release methods
+ * lock_if.h bindings
  */
-void mcs_lock(mcs_global_params *global, mcs_local_params *local);
-int mcs_trylock(mcs_global_params *global, mcs_local_params *local);
-void mcs_unlock(mcs_global_params *global, mcs_local_params *local);
 
-/*
- *  Condition Variables
- */
-int mcs_condvar_init(mcs_condvar_t *cond);
-int mcs_condvar_wait(mcs_condvar_t *cond, mcs_global_params *global, mcs_local_params *local);
-int mcs_condvar_timedwait(mcs_condvar_t *cond, mcs_global_params *global, mcs_local_params *local, const struct timespec *ts);
-int mcs_condvar_signal(mcs_condvar_t *cond);
-int mcs_condvar_broadcast(mcs_condvar_t *cond);
-int mcs_condvar_destroy(mcs_condvar_t *cond);
+#define LOCKIF_LOCK_T mcs_lock_t
+#define LOCKIF_INIT mcs_init
+#define LOCKIF_DESTROY mcs_destroy
+#define LOCKIF_LOCK mcs_lock
+#define LOCKIF_UNLOCK mcs_unlock
+#define LOCKIF_INITIALIZER MCS_INITIALIZER
 
-#define LOCAL_NEEDED 1
-
-#define GLOBAL_DATA_T mcs_global_params
-#define LOCAL_DATA_T mcs_local_params
-#define CONDVAR_DATA_T mcs_condvar_t
-
-#define INIT_LOCAL_DATA init_mcs_local
-#define INIT_GLOBAL_DATA init_mcs_global
-#define DESTROY_GLOBAL_DATA end_mcs_global
-
-#define ACQUIRE_LOCK mcs_lock
-#define RELEASE_LOCK mcs_unlock
-#define ACQUIRE_TRYLOCK mcs_trylock
-
-#define COND_INIT mcs_condvar_init
-#define COND_WAIT mcs_condvar_wait
-#define COND_TIMEDWAIT mcs_condvar_timedwait
-#define COND_SIGNAL mcs_condvar_signal
-#define COND_BROADCAST mcs_condvar_broadcast
-#define COND_DESTROY mcs_condvar_destroy
-
-#define LOCK_GLOBAL_INITIALIZER MCS_GLOBAL_INITIALIZER
-#define COND_INITIALIZER MCS_COND_INITIALIZER
+#define LOCKIF_COND_T mcs_cond_t
+#define LOCKIF_COND_INIT mcs_cond_init
+#define LOCKIF_COND_DESTROY mcs_cond_destroy
+#define LOCKIF_COND_WAIT mcs_cond_wait
+#define LOCKIF_COND_TIMEDWAIT mcs_cond_timedwait
+#define LOCKIF_COND_SIGNAL mcs_cond_signal
+#define LOCKIF_COND_BROADCAST mcs_cond_broadcast
+#define LOCKIF_COND_INITIALIZER MCS_COND_INITIALIZER
 
 #endif

@@ -74,17 +74,6 @@ typedef uint32_t lock_type_t;
 
 typedef uint64_t lock_state_t;
 
-typedef struct hybridlock_local_params_t
-{
-  union
-  {
-    hybrid_qnode_ptr qnode;
-#ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE];
-#endif
-  };
-} hybridlock_local_params_t;
-
 typedef struct hybridlock_lock_t
 {
   union
@@ -101,7 +90,7 @@ typedef struct hybridlock_lock_t
 #endif
 
 #ifdef HYBRID_EPOCH
-      hybridlock_local_params_t *dummy_params;
+      hybrid_qnode_ptr dummy_qnode;
       uint64_t *dummy_node_enqueued;
       uint64_t *blocking_nodes;
 #else
@@ -149,9 +138,12 @@ typedef struct hybridlock_lock_t
     uint8_t padding3[CACHE_LINE_SIZE];
 #endif
   };
+
+  hybrid_qnode_ptr qnodes[MAX_NUMBER_THREADS];
 } hybridlock_lock_t;
-#define HYBRIDLOCK_GLOBAL_INITIALIZER \
-  {                                   \
+#define HYBRIDLOCK_INITIALIZER \
+  {                            \
+    .qnodes = 0                \
   }
 
 typedef union
@@ -164,63 +156,50 @@ typedef union
 #ifdef ADD_PADDING
   uint8_t padding[CACHE_LINE_SIZE];
 #endif
-} hybridlock_condvar_t;
+} hybridlock_cond_t;
 #define HYBRIDLOCK_COND_INITIALIZER \
   {                                 \
     .seq = 0, .target = 0           \
   }
 
 /*
- *  Lock manipulation methods
+ *  Declarations
  */
 
-void hybridlock_lock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
-void hybridlock_unlock(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
-
-/*
- *  Methods for single lock manipulation
- */
-
-int init_hybridlock_global(hybridlock_lock_t *the_lock);
-int init_hybridlock_local(hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
-void end_hybridlock_global(hybridlock_lock_t *the_lock);
+int hybridlock_init(hybridlock_lock_t *the_lock);
+void hybridlock_destroy(hybridlock_lock_t *the_lock);
+void hybridlock_lock(hybridlock_lock_t *the_lock);
+void hybridlock_unlock(hybridlock_lock_t *the_lock);
 
 #ifdef TRACING
 void set_tracing_fn(hybridlock_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data);
 #endif
 
+int hybridlock_cond_init(hybridlock_cond_t *cond);
+int hybridlock_cond_wait(hybridlock_cond_t *cond, hybridlock_lock_t *the_lock);
+int hybridlock_cond_timedwait(hybridlock_cond_t *cond, hybridlock_lock_t *the_lock, const struct timespec *ts);
+int hybridlock_cond_signal(hybridlock_cond_t *cond);
+int hybridlock_cond_broadcast(hybridlock_cond_t *cond);
+int hybridlock_cond_destroy(hybridlock_cond_t *cond);
+
 /*
- *  Condition Variables
+ * lock_if.h bindings
  */
 
-int hybridlock_condvar_init(hybridlock_condvar_t *cond);
-int hybridlock_condvar_wait(hybridlock_condvar_t *cond, hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params);
-int hybridlock_condvar_timedwait(hybridlock_condvar_t *cond, hybridlock_lock_t *the_lock, hybridlock_local_params_t *local_params, const struct timespec *ts);
-int hybridlock_condvar_signal(hybridlock_condvar_t *cond);
-int hybridlock_condvar_broadcast(hybridlock_condvar_t *cond);
-int hybridlock_condvar_destroy(hybridlock_condvar_t *cond);
+#define LOCKIF_LOCK_T hybridlock_lock_t
+#define LOCKIF_INIT hybridlock_init
+#define LOCKIF_DESTROY hybridlock_destroy
+#define LOCKIF_LOCK hybridlock_lock
+#define LOCKIF_UNLOCK hybridlock_unlock
+#define LOCKIF_INITIALIZER HYBRIDLOCK_INITIALIZER
 
-#define LOCAL_NEEDED 1
-
-#define GLOBAL_DATA_T hybridlock_lock_t
-#define LOCAL_DATA_T hybridlock_local_params_t
-#define CONDVAR_DATA_T hybridlock_condvar_t
-
-#define INIT_LOCAL_DATA init_hybridlock_local
-#define INIT_GLOBAL_DATA init_hybridlock_global
-#define DESTROY_GLOBAL_DATA end_hybridlock_global
-
-#define ACQUIRE_LOCK hybridlock_lock
-#define RELEASE_LOCK hybridlock_unlock
-
-#define COND_INIT hybridlock_condvar_init
-#define COND_WAIT hybridlock_condvar_wait
-#define COND_TIMEDWAIT hybridlock_condvar_timedwait
-#define COND_SIGNAL hybridlock_condvar_signal
-#define COND_BROADCAST hybridlock_condvar_broadcast
-#define COND_DESTROY hybridlock_condvar_destroy
-
-#define LOCK_GLOBAL_INITIALIZER HYBRIDLOCK_GLOBAL_INITIALIZER
-#define COND_INITIALIZER HYBRIDLOCK_COND_INITIALIZER
+#define LOCKIF_COND_T hybridlock_cond_t
+#define LOCKIF_COND_INIT hybridlock_cond_init
+#define LOCKIF_COND_DESTROY hybridlock_cond_destroy
+#define LOCKIF_COND_WAIT hybridlock_cond_wait
+#define LOCKIF_COND_TIMEDWAIT hybridlock_cond_timedwait
+#define LOCKIF_COND_SIGNAL hybridlock_cond_signal
+#define LOCKIF_COND_BROADCAST hybridlock_cond_broadcast
+#define LOCKIF_COND_INITIALIZER HYBRIDLOCK_COND_INITIALIZER
 
 #endif

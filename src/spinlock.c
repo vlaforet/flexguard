@@ -50,14 +50,14 @@ void spinlock_unlock(spinlock_lock_t *the_lock)
     the_lock->lock = UNLOCKED;
 }
 
-int init_spinlock_global(spinlock_lock_t *the_lock)
+int spinlock_init(spinlock_lock_t *the_lock)
 {
     the_lock->lock = UNLOCKED;
     MEM_BARRIER;
     return 0;
 }
 
-void end_spinlock_global()
+void spinlock_destroy(spinlock_lock_t *the_lock)
 {
     // function not needed
 }

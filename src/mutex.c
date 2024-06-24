@@ -60,7 +60,7 @@ void mutex_unlock(mutex_lock_t *the_lock)
 #endif
 }
 
-int init_mutex_global(mutex_lock_t *the_lock)
+int mutex_init(mutex_lock_t *the_lock)
 {
 #if USE_REAL_PTHREAD == 1
   return (REAL(pthread_mutex_init))(the_lock, NULL);
@@ -69,7 +69,7 @@ int init_mutex_global(mutex_lock_t *the_lock)
 #endif
 }
 
-void end_mutex_global(mutex_lock_t *the_lock)
+void mutex_destroy(mutex_lock_t *the_lock)
 {
 #if USE_REAL_PTHREAD == 1
   (REAL(pthread_mutex_destroy))(the_lock);
@@ -82,7 +82,7 @@ void end_mutex_global(mutex_lock_t *the_lock)
  *  Condition Variables
  */
 
-int mutex_condvar_init(mutex_condvar_t *cond)
+int mutex_cond_init(mutex_cond_t *cond)
 {
 #if USE_REAL_PTHREAD == 1
   return (REAL(pthread_cond_init))(cond, NULL);
@@ -91,7 +91,7 @@ int mutex_condvar_init(mutex_condvar_t *cond)
 #endif
 }
 
-int mutex_condvar_wait(mutex_condvar_t *cond, mutex_lock_t *the_lock)
+int mutex_cond_wait(mutex_cond_t *cond, mutex_lock_t *the_lock)
 {
 #if USE_REAL_PTHREAD == 1
   return (REAL(pthread_cond_wait))(cond, the_lock);
@@ -100,7 +100,7 @@ int mutex_condvar_wait(mutex_condvar_t *cond, mutex_lock_t *the_lock)
 #endif
 }
 
-int mutex_condvar_timedwait(mutex_condvar_t *cond, mutex_lock_t *the_lock, const struct timespec *ts)
+int mutex_cond_timedwait(mutex_cond_t *cond, mutex_lock_t *the_lock, const struct timespec *ts)
 {
 #if USE_REAL_PTHREAD == 1
   return (REAL(pthread_cond_timedwait))(cond, the_lock, ts);
@@ -109,7 +109,7 @@ int mutex_condvar_timedwait(mutex_condvar_t *cond, mutex_lock_t *the_lock, const
 #endif
 }
 
-int mutex_condvar_signal(mutex_condvar_t *cond)
+int mutex_cond_signal(mutex_cond_t *cond)
 {
 #if USE_REAL_PTHREAD == 1
   return (REAL(pthread_cond_signal))(cond);
@@ -118,7 +118,7 @@ int mutex_condvar_signal(mutex_condvar_t *cond)
 #endif
 }
 
-int mutex_condvar_broadcast(mutex_condvar_t *cond)
+int mutex_cond_broadcast(mutex_cond_t *cond)
 {
 #if USE_REAL_PTHREAD == 1
   return (REAL(pthread_cond_broadcast))(cond);
@@ -127,7 +127,7 @@ int mutex_condvar_broadcast(mutex_condvar_t *cond)
 #endif
 }
 
-int mutex_condvar_destroy(mutex_condvar_t *cond)
+int mutex_cond_destroy(mutex_cond_t *cond)
 {
 #if USE_REAL_PTHREAD == 1
   return (REAL(pthread_cond_destroy))(cond);

@@ -57,35 +57,30 @@ typedef struct spinlock_lock_t
 #endif
   };
 } spinlock_lock_t;
-#define SPINLOCK_GLOBAL_INITIALIZER \
-  {                                 \
-    .lock = UNLOCKED                \
+#define SPINLOCK_INITIALIZER \
+  {                          \
+    .lock = UNLOCKED         \
   }
 
 /*
- *  Lock manipulation methods
+ *  Declarations
  */
+int spinlock_init(spinlock_lock_t *the_lock);
+void spinlock_destroy(spinlock_lock_t *the_lock);
 void spinlock_lock(spinlock_lock_t *the_lock);
 int spinlock_trylock(spinlock_lock_t *the_lock);
 void spinlock_unlock(spinlock_lock_t *the_lock);
 
 /*
- *  Methods for single lock manipulation
+ * lock_if.h bindings
  */
-int init_spinlock_global(spinlock_lock_t *the_lock);
-void end_spinlock_global();
 
-#define LOCAL_NEEDED 0
-
-#define GLOBAL_DATA_T spinlock_lock_t
-
-#define INIT_GLOBAL_DATA init_spinlock_global
-#define DESTROY_GLOBAL_DATA end_spinlock_global
-
-#define ACQUIRE_LOCK spinlock_lock
-#define RELEASE_LOCK spinlock_unlock
-#define ACQUIRE_TRYLOCK spinlock_trylock
-
-#define LOCK_GLOBAL_INITIALIZER SPINLOCK_GLOBAL_INITIALIZER
+#define LOCKIF_LOCK_T spinlock_lock_t
+#define LOCKIF_INIT spinlock_init
+#define LOCKIF_DESTROY spinlock_destroy
+#define LOCKIF_LOCK spinlock_lock
+#define LOCKIF_TRYLOCK spinlock_trylock
+#define LOCKIF_UNLOCK spinlock_unlock
+#define LOCKIF_INITIALIZER SPINLOCK_INITIALIZER
 
 #endif
