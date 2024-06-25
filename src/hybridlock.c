@@ -77,7 +77,7 @@ static hybrid_qnode_ptr get_me(hybridlock_lock_t *the_lock)
         thread_info[thread_id].is_holder_preempted = 0;
     }
 
-    hybrid_qnode_ptr qnode = &qnode_allocation_array[the_lock->id + thread_id * MAX_NUMBER_THREADS];
+    hybrid_qnode_ptr qnode = &qnode_allocation_array[the_lock->id + thread_id * MAX_NUMBER_LOCKS];
     if (UNLIKELY(qnode->lock_id != the_lock->id))
     {
         qnode->lock_id = the_lock->id;

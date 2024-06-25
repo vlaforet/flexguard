@@ -138,12 +138,9 @@ typedef struct hybridlock_lock_t
     uint8_t padding3[CACHE_LINE_SIZE];
 #endif
   };
-
-  hybrid_qnode_ptr qnodes[MAX_NUMBER_THREADS];
 } hybridlock_lock_t;
 #define HYBRIDLOCK_INITIALIZER \
   {                            \
-    .qnodes = 0                \
   }
 
 typedef union
