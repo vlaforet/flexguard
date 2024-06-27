@@ -61,7 +61,7 @@ struct bpf_map *nodes_map;
 #endif
 
 #ifndef HYBRID_EPOCH
-// lock_type_t global_type = LOCK_TYPE_SPIN;
+int global_blocking_id = 0;
 #endif
 
 static hybrid_qnode_ptr get_me(hybridlock_lock_t *the_lock)
@@ -242,10 +242,11 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
                 PAUSE;
 
 #ifndef HYBRID_EPOCH
-                /*if (global_type != LOCK_TYPE_SPIN && __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, global_type)))
+                if (global_blocking_id > the_lock->blocking_id && __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
                 {
                     atomic_store(&the_lock->last_switched_at, now);
-                }*/
+                    the_lock->blocking_id = global_blocking_id;
+                }
 #endif
 
 #if defined(BPF) && !defined(HYBRID_EPOCH)
@@ -257,7 +258,7 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
                         now - MINIMUM_DURATION_BETWEEN_SWITCHES_NSECS > (unsigned long)atomic_load(&the_lock->last_switched_at) &&
                         __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
                     {
-                        // global_type = LOCK_TYPE_FUTEX;
+                        the_lock->blocking_id = atomic_fetch_add(&global_blocking_id, 1) + 1;
                         *the_lock->preempted_at = ULONG_MAX;
                         atomic_store(&the_lock->last_switched_at, now);
                     }
@@ -391,13 +392,6 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
                 futex_wake((void *)&the_lock->futex_lock, 1);
         }
 
-#ifndef HYBRID_EPOCH
-        /*if (global_type != LOCK_TYPE_FUTEX && __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, global_type)))
-        {
-            atomic_store(&the_lock->last_switched_at, get_nsecs());
-        }*/
-#endif
-
 #if defined(BPF) && !defined(HYBRID_EPOCH) // If BPF is disabled, automatic switching is also disabled
         if (ret == 0)
         {
@@ -409,7 +403,6 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
             {
                 if (__sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_FUTEX), LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN)))
                 {
-                    // global_type = LOCK_TYPE_SPIN;
                     atomic_store(&the_lock->last_switched_at, now);
                 }
             }
@@ -590,6 +583,8 @@ int hybridlock_init(hybridlock_lock_t *the_lock)
         fprintf(stderr, "Too many locks. Increase MAX_NUMBER_LOCKS in platform_defs.h.\n");
         exit(EXIT_FAILURE);
     }
+
+    the_lock->blocking_id = 0;
 
     static volatile uint8_t init_lock = 0;
     if (exactly_once(&init_lock) == 0)

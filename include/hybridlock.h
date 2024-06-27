@@ -81,6 +81,7 @@ typedef struct hybridlock_lock_t
     struct
     {
       int id;
+      int blocking_id;
 
 #ifdef BPF
 #ifndef HYBRID_EPOCH
