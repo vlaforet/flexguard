@@ -38,6 +38,7 @@ typedef struct hybrid_qnode_t
     struct
     {
       int lock_id;
+      uint8_t is_init;
 
 #ifdef HYBRID_TICKET
       uint32_t ticket;

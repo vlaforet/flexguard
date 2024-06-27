@@ -78,9 +78,10 @@ static hybrid_qnode_ptr get_me(hybridlock_lock_t *the_lock)
     }
 
     hybrid_qnode_ptr qnode = &qnode_allocation_array[the_lock->id + thread_id * MAX_NUMBER_LOCKS];
-    if (UNLIKELY(qnode->lock_id != the_lock->id))
+    if (UNLIKELY(!qnode->is_init))
     {
         qnode->lock_id = the_lock->id;
+        qnode->is_init = 1;
 
 #ifdef HYBRID_EPOCH
         qnode->should_block = 0;
