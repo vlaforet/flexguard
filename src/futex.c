@@ -31,6 +31,8 @@
 
 #define FUTEX_SKIP_SYSCALL_STATS 0
 
+__thread uint8_t locked_thread = 0;
+
 int futex_trylock(futex_lock_t *lock)
 {
   if (__sync_val_compare_and_swap(&lock->data, 0, 1) != 0)
@@ -46,6 +48,13 @@ int skip_counter3 = 0;
 #endif
 void futex_lock(futex_lock_t *lock)
 {
+#if DEBUG == 1
+  if (locked_thread)
+    DPRINT("Nested locking.");
+
+  locked_thread = 1;
+#endif
+
   int state;
 
 #if FUTEX_SKIP_SYSCALL_STATS == 1
@@ -87,6 +96,10 @@ void futex_lock(futex_lock_t *lock)
 
 void futex_unlock(futex_lock_t *lock)
 {
+#if DEBUG == 1
+  locked_thread = 0;
+#endif
+
 #if FUTEX_SKIP_SYSCALL_STATS == 1
   if (counter == 100000000)
   {
