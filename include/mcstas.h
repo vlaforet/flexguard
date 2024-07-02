@@ -40,7 +40,6 @@ typedef struct mcstas_qnode
     {
         struct
         {
-
             volatile uint8_t waiting;
             volatile struct mcstas_qnode *volatile next;
         };
@@ -54,7 +53,6 @@ typedef union
 {
     struct
     {
-
         volatile mcstas_qnode *tail;
         volatile uint8_t lock;
     };
