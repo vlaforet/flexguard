@@ -20,7 +20,7 @@ ifeq ($(TRACING),1)
 	DEFINED += -DTRACING
 endif
 
-# LOCK_VERSION in (SPINLOCK, HYBRIDLOCK, MCS, CLH, TICKET, MUTEX, FUTEX)
+# LOCK_VERSION in (SPINLOCK, HYBRIDLOCK, MCS, MCSTAS, CLH, TICKET, MUTEX, FUTEX)
 ifndef LOCK_VERSION
   LOCK_VERSION=HYBRIDLOCK
 endif
@@ -96,8 +96,7 @@ INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
 
 all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
 	@echo "############### Used lock:" $(LOCK_VERSION)
-	@echo "############### DEFINED =" $(DEFINED)
-	@echo "############### INCLUDES =" $(INCLUDES)
+	@echo "############### CFLAGS =" $(INCLUDES) $(DEFINED)
 
 ifeq ($(NOBPF), 0)
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
@@ -146,36 +145,12 @@ interpose.so: $(OBJ_FILES) $(LIBBPF_OBJ) include/atomic_ops.h include/utils.h in
 libsync.a: $(OBJ_FILES) include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
 	ar -r libsync.a $(OBJ_FILES)
 
-interpose.o: src/interpose.c
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/interpose.c $(LIBS)
-
-spinlock.o: src/spinlock.c
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/spinlock.c $(LIBS)
-
-futex.o: src/futex.c
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/futex.c $(LIBS)
-
-mutex.o: src/mutex.c
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/mutex.c $(LIBS)
-
-clh.o: src/clh.c
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/clh.c $(LIBS)
-
-hybridlock.o: src/hybridlock.c $(BPF_SKELETON)
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
-ifeq ($(HYBRID_ASSEMBLY),1) # Produces a hybridlock.s file containing the compiled-unassembled code
-	$(GCC) -S -fverbose-asm -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/hybridlock.c $(LIBS)
-	objdump -d hybridlock.o > hybridlock.odump
+%.o: src/%.c
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $^ -o $@ $(LIBS)
+ifeq ($(ASSEMBLY_DUMP),1) # Produces a %.s and %.odump files containing the compiled-unassembled code
+	$(GCC) -S -fverbose-asm -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $^ $(LIBS)
+	objdump -d $@ > ${@}dump
 endif
-
-ticket.o: src/ticket.c 
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/ticket.c $(LIBS)
-
-mcs.o: src/mcs.c 
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/mcs.c $(LIBS)
-
-mcstas.o: src/mcstas.c 
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/mcstas.c $(LIBS)
 
 scheduling: bmarks/scheduling.c $(OBJ_FILES) $(LIBBPF_OBJ)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/scheduling.c -o scheduling $(LIBS)
