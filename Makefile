@@ -174,6 +174,9 @@ ticket.o: src/ticket.c
 mcs.o: src/mcs.c 
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/mcs.c $(LIBS)
 
+mcstas.o: src/mcstas.c 
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c src/mcstas.c $(LIBS)
+
 scheduling: bmarks/scheduling.c $(OBJ_FILES) $(LIBBPF_OBJ)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/scheduling.c -o scheduling $(LIBS)
 
