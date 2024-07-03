@@ -241,7 +241,7 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
             {
                 PAUSE;
 
-#ifndef HYBRID_EPOCH
+#if !defined(HYBRID_EPOCH) && defined(BPF)
                 if (global_blocking_id > the_lock->blocking_id && __sync_bool_compare_and_swap(&the_lock->lock_state, LOCK_STABLE(LOCK_TYPE_SPIN), LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX)))
                 {
                     atomic_store(&the_lock->last_switched_at, now);
