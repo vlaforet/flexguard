@@ -27,7 +27,7 @@ endif
 DEFINED += -DUSE_$(LOCK_VERSION)_LOCKS
 OBJ_FILES += $(shell echo $(LOCK_VERSION).o | tr '[:upper:]' '[:lower:]')
 
-ifeq ($(LOCK_VERSION), HYBRIDLOCK)
+ifneq (,$(findstring HYBRID,$(LOCK_VERSION)))
 # HYBRID_VERSION in (MCS, CLH, TICKET)
 	ifndef HYBRID_VERSION
 		HYBRID_VERSION=MCS
@@ -40,6 +40,10 @@ ifeq ($(LOCK_VERSION), HYBRIDLOCK)
 
 	ifndef NOBPF
 		NOBPF=0
+	endif
+
+	ifeq ($(NOBPF), 0)
+		BPF_SKELETON += $(OUTPUT)/$(shell echo $(LOCK_VERSION) | tr '[:upper:]' '[:lower:]').skel.h
 	endif
 else
 	NOBPF=1
@@ -74,7 +78,6 @@ ifeq ($(NOBPF), 0)
 	BPFINCLUDES := -I$(OUTPUT) -I$(abspath ../libbpf/include/uapi) -I$(dir $(VMLINUX))
 
 	DEFINED += -DBPF
-	BPF_SKELETON += $(OUTPUT)/hybridlock.skel.h
 
 	# Get Clang's default includes on this system. We'll explicitly add these dirs
 	# to the includes list when compiling with `-target bpf` because otherwise some
