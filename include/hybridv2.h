@@ -141,7 +141,7 @@ typedef struct hybridv2_lock_t
   };
 } hybridv2_lock_t;
 #define HYBRIDV2_INITIALIZER \
-  {                            \
+  {                          \
   }
 
 typedef union
@@ -156,8 +156,8 @@ typedef union
 #endif
 } hybridv2_cond_t;
 #define HYBRIDV2_COND_INITIALIZER \
-  {                                 \
-    .seq = 0, .target = 0           \
+  {                               \
+    .seq = 0, .target = 0         \
   }
 
 /*
