@@ -145,10 +145,10 @@ interpose.so: $(OBJ_FILES) $(LIBBPF_OBJ) include/atomic_ops.h include/utils.h in
 libsync.a: $(OBJ_FILES) include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
 	ar -r libsync.a $(OBJ_FILES)
 
-%.o: src/%.c
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $^ -o $@ $(LIBS)
+%.o: src/%.c $(BPF_SKELETON)
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $(filter %.c,$^) -o $@ $(LIBS)
 ifeq ($(ASSEMBLY_DUMP),1) # Produces a %.s and %.odump files containing the compiled-unassembled code
-	$(GCC) -S -fverbose-asm -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $^ $(LIBS)
+	$(GCC) -S -fverbose-asm -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $(filter %.c,$^) $(LIBS)
 	objdump -d $@ > ${@}dump
 endif
 
