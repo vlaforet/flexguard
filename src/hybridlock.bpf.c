@@ -256,7 +256,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		/*
 		 * Ignore preemptions before enqueue.
 		 */
-		if ((u64)addresses.lock <= user_stack[i] && user_stack[i] < (u64)addresses.lock_spin)
+		if ((u64)addresses.lock <= user_stack[i] && user_stack[i] < (u64)addresses.lock_check_rcx_null)
 		{
 			DPRINT("[%d] Ignored not enqueued", i);
 			return 0;
