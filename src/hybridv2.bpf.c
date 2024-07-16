@@ -142,55 +142,38 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		return 1;
 	}
 
-	for (int i = 0; i < user_stack_size / sizeof(u64); i++)
+	if ((u64)addresses.lock_check_rcx_null <= user_stack[0] && user_stack[0] < (u64)addresses.lock_end)
 	{
-		/*
-		 * Ignore preemptions due to futex wait.
-		 */
-		if ((u64)addresses.futex_wait <= user_stack[i] && user_stack[i] < (u64)addresses.futex_wait_end)
-			return 0;
+		regs = (struct pt_regs *)bpf_task_pt_regs(prev);
 
 		/*
-		 * Ignore preemptions before enqueue.
+		 * Ignore preemption if lock was not free (pred != NULL)
+		 * and if previous node did not release lock (waiting != 0).
 		 */
-		if ((u64)addresses.lock <= user_stack[i] && user_stack[i] < (u64)addresses.lock_check_rcx_null)
+		if ((void *)regs->cx != NULL && qnode->waiting != 0)
 		{
-			DPRINT("[%d] Ignored not enqueued", i);
+			DPRINT("Ignored while spinning");
 			return 0;
 		}
-
-		if ((u64)addresses.lock_check_rcx_null <= user_stack[i] && user_stack[i] < (u64)addresses.lock_end)
+	}
+	else
+		for (int i = 0; i < user_stack_size / sizeof(u64); i++) // Handle external calls
 		{
 			/*
-			 * No need to check registers if preemption happened deeper
-			 * than the lock function.
+			 * Ignore preemptions due to futex wait.
 			 */
-			if (i == 0)
-			{
-				regs = (struct pt_regs *)bpf_task_pt_regs(prev);
-
-				/*
-				 * Ignore preemptions if lock was not free (prev != NULL)
-				 * Only needs to be checked on first stack address.
-				 */
-				if ((void *)regs->cx != NULL)
-				{
-					DPRINT("[%d] Ignored pred != NULL", i);
-					return 0;
-				}
-			}
+			if ((u64)addresses.futex_wait <= user_stack[i] && user_stack[i] < (u64)addresses.futex_wait_end)
+				return 0;
 
 			/*
-			 * Ignore preemptions while spinning if
-			 * previous node did not release lock (waiting != 0)
+			 * Ignore preemptions before enqueue.
 			 */
-			if (qnode->waiting != 0)
+			if ((u64)addresses.lock <= user_stack[i] && user_stack[i] < (u64)addresses.lock_check_rcx_null)
 			{
-				DPRINT("[%d] Ignored while spinning", i);
+				DPRINT("[%d] Ignored not enqueued", i);
 				return 0;
 			}
 		}
-	}
 
 	DPRINT("%s (%d) preempted to %s (%d): %lld B away from bhl_lock", prev->comm, prev->pid, next->comm, next->pid, (long long)user_stack[0] - (long long)addresses.lock);
 
