@@ -64,7 +64,7 @@ static hybrid_qnode_ptr get_me()
         qnode->locking_id = -1;
         qnode->is_running = 1;
         qnode->is_holder_preempted = 0;
-        qnode->wait_for_succesor = 0;
+        qnode->wait_for_successor = 0;
 
 #ifdef HYBRID_TICKET
         qnode->ticket = 0;
@@ -158,7 +158,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
             if (!qnode->next)
             {
-                qnode->wait_for_succesor = 1;
+                qnode->wait_for_successor = 1;
                 return;
             }
 
@@ -174,12 +174,12 @@ void hybridv2_unlock(hybridv2_lock_t *the_lock)
     the_lock->lock_value = 0;
 
     hybrid_qnode_ptr qnode = &qnode_allocation_array[thread_id]; // Assuming qnode has already been initialized.
-    if (qnode->wait_for_succesor)
+    if (qnode->wait_for_successor)
     {
         while (!qnode->next)
             PAUSE;
         qnode->next->waiting = 0;
-        qnode->wait_for_succesor = 0;
+        qnode->wait_for_successor = 0;
     }
 
     futex_wake((void *)&the_lock->lock_value, 1);
