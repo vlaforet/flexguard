@@ -62,18 +62,6 @@
 #define TRACING_EVENT_SWITCH_SPIN 1
 #endif
 
-#define LOCK_TYPE_SPIN (lock_type_t)0
-#define LOCK_TYPE_FUTEX (lock_type_t)1
-typedef uint32_t lock_type_t;
-
-#define LOCK_LAST_TYPE(state) (lock_type_t)(state >> 32)
-#define LOCK_CURR_TYPE(state) (lock_type_t) state
-
-#define LOCK_TRANSITION(last, curr) ((lock_state_t)curr | (lock_state_t)(last) << 32)
-#define LOCK_STABLE(type) LOCK_TRANSITION(type, type)
-
-typedef uint64_t lock_state_t;
-
 typedef struct hybridv2_lock_t
 {
   union
@@ -81,22 +69,8 @@ typedef struct hybridv2_lock_t
     struct
     {
       int id;
-      int blocking_id;
 
-#ifdef BPF
-#ifndef HYBRID_EPOCH
-      volatile _Atomic(unsigned long) last_switched_at;
-      unsigned long *preempted_at;
-#endif
-#endif
-
-#ifdef HYBRID_EPOCH
-      hybrid_qnode_ptr dummy_qnode;
-      uint64_t *dummy_node_enqueued;
-      uint64_t *blocking_nodes;
-#else
-      lock_state_t lock_state;
-#endif
+      volatile uint64_t *is_blocking;
 
 #ifdef TRACING
       void *tracing_fn_data;
@@ -110,7 +84,7 @@ typedef struct hybridv2_lock_t
 
   union
   {
-    volatile int futex_lock;
+    volatile int lock_value;
 #ifdef ADD_PADDING
     uint8_t padding2[CACHE_LINE_SIZE];
 #endif
@@ -128,10 +102,6 @@ typedef struct hybridv2_lock_t
       } ticket_lock;
 #elif defined(HYBRID_CLH) || defined(HYBRID_MCS)
       hybrid_qnode_ptr *queue_lock;
-#endif
-
-#ifndef HYBRID_EPOCH
-      volatile _Atomic(unsigned long) last_waiter_at;
 #endif
     };
 
