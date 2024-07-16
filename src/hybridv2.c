@@ -44,7 +44,7 @@ __thread int thread_id = -1;
 struct bpf_map *nodes_map;
 #endif
 
-static hybrid_qnode_ptr get_me()
+static inline hybrid_qnode_ptr get_me()
 {
     if (UNLIKELY(thread_id < 0))
     {
