@@ -101,7 +101,7 @@ typedef struct hybridv2_lock_t
         volatile uint32_t calling;
       } ticket_lock;
 #elif defined(HYBRID_CLH) || defined(HYBRID_MCS)
-      hybrid_qnode_ptr *queue_lock;
+      hybrid_qnode_ptr queue;
 #endif
     };
 

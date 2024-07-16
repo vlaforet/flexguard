@@ -99,13 +99,13 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
     if (!*the_lock->is_blocking)
     {
         enqueued = 1;
-        DASSERT(*the_lock->queue_lock != qnode);
+        DASSERT(the_lock->queue != qnode);
 
         qnode->next = NULL;
         qnode->waiting = 1; // word on which to spin
 
         // Register rax stores the current qnode and will contain the previous value of
-        // the queue_lock after the xchgq operation.
+        // the queue after the xchgq operation.
         register hybrid_qnode_ptr pred asm("rcx") = qnode;
 
         /*
@@ -113,7 +113,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
          *  Store the pointer to the queue head in a register.
          *  Uses the value in rax (pred) as an exchange parameter.
          */
-        asm volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(the_lock->queue_lock) : "memory");
+        asm volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(&the_lock->queue) : "memory");
 
 #ifdef BPF
         asm volatile("bhl_lock_check_rcx_null:" ::: "memory");
@@ -153,7 +153,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         if (!qnode->next) // I seem to have no successor
         {
             // Trying to fix global pointer
-            if (__sync_val_compare_and_swap(the_lock->queue_lock, qnode, NULL) == qnode)
+            if (__sync_val_compare_and_swap(&the_lock->queue, qnode, NULL) == qnode)
                 return;
 
             if (!qnode->next)
@@ -288,10 +288,6 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
         init_lock = 2;
     }
 
-#ifdef HYBRID_MCS
-    the_lock->queue_lock = &lock_info[the_lock->id].queue_lock;
-#endif
-
     the_lock->is_blocking = &lock_info[the_lock->id].is_blocking;
     (*the_lock->is_blocking) = 0;
 
@@ -299,11 +295,11 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
     the_lock->ticket_lock.calling = 1;
     the_lock->ticket_lock.next = 0;
 #elif defined(HYBRID_CLH)
-    *(the_lock->queue_lock) = (hybrid_qnode_ptr)malloc(sizeof(hybrid_qnode_t)); // CLH keeps an empty node
-    (*the_lock->queue_lock)->done = 1;
-    (*the_lock->queue_lock)->pred = NULL;
+    *(the_lock->queue) = (hybrid_qnode_ptr)malloc(sizeof(hybrid_qnode_t)); // CLH keeps an empty node
+    (*the_lock->queue)->done = 1;
+    (*the_lock->queue)->pred = NULL;
 #elif defined(HYBRID_MCS)
-    *(the_lock->queue_lock) = NULL;
+    the_lock->queue = NULL;
 #endif
 
     MEM_BARRIER;

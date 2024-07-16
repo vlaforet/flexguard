@@ -86,10 +86,6 @@ typedef struct hybrid_lock_info_t
   {
     struct
     {
-#ifdef HYBRID_MCS
-      hybrid_qnode_ptr queue_lock;
-#endif
-
       volatile uint64_t is_blocking;
     };
 #ifdef ADD_PADDING
