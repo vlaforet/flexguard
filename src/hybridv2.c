@@ -138,7 +138,9 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 #ifdef BPF
             asm volatile("bhl_futex_wait:" ::: "memory");
 #endif
+            __sync_fetch_and_add(&the_lock->waiter_count, 1);
             futex_wait((void *)&the_lock->lock_value, 1);
+            __sync_fetch_and_sub(&the_lock->waiter_count, 1);
 #ifdef BPF
             asm volatile("bhl_futex_wait_end:" ::: "memory");
 #endif
@@ -182,7 +184,8 @@ void hybridv2_unlock(hybridv2_lock_t *the_lock)
         qnode->wait_for_successor = 0;
     }
 
-    futex_wake((void *)&the_lock->lock_value, 1);
+    if (the_lock->waiter_count > 0)
+        futex_wake((void *)&the_lock->lock_value, 1);
 
     MEM_BARRIER;
     qnode->locking_id = -1;
@@ -274,6 +277,7 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
     }
 
     the_lock->lock_value = 0;
+    the_lock->waiter_count = 0;
 
     static volatile uint8_t init_lock = 0;
     if (exactly_once(&init_lock) == 0)

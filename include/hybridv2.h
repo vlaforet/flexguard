@@ -71,6 +71,7 @@ typedef struct hybridv2_lock_t
       int id;
 
       volatile uint64_t *is_blocking;
+      volatile uint64_t waiter_count;
 
 #ifdef TRACING
       void *tracing_fn_data;
