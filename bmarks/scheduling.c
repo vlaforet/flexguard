@@ -40,19 +40,13 @@
 #include "utils.h"
 #include "lock_if.h"
 
-#ifdef USE_HYBRIDLOCK_LOCKS
-#include "hybridlock.h"
-#endif
-
 #define DEFAULT_BASE_THREADS 1
 #define DEFAULT_MAX_THREADS 10
 #define DEFAULT_STEP_DURATION_MS 1000
 #define DEFAULT_CONTENTION 100
 #define DEFAULT_DUMMY_ARRAY_SIZE 1
-
-#ifdef USE_HYBRIDLOCK_LOCKS
-#define DEFAULT_SWITCH_THREAD_COUNT -1
-#endif
+#define DEFAULT_THREAD_STEP 1
+#define DEFAULT_INCREASING_ONLY 1
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -178,9 +172,8 @@ int main(int argc, char **argv)
     int base_threads = DEFAULT_BASE_THREADS;
     int max_threads = DEFAULT_MAX_THREADS;
     int step_duration = DEFAULT_STEP_DURATION_MS;
-#ifdef USE_HYBRIDLOCK_LOCKS
-    int switch_thread_count = DEFAULT_SWITCH_THREAD_COUNT;
-#endif
+    int thread_step = DEFAULT_THREAD_STEP;
+    int increasing_only = DEFAULT_INCREASING_ONLY;
 
     struct option long_options[] = {
         {"help", no_argument, NULL, 'h'},
@@ -189,15 +182,14 @@ int main(int argc, char **argv)
         {"step-duration", required_argument, NULL, 'd'},
         {"num-threads", required_argument, NULL, 'n'},
         {"cache-lines", required_argument, NULL, 't'},
-#ifdef USE_HYBRIDLOCK_LOCKS
-        {"switch-thread-count", required_argument, NULL, 's'},
-#endif
+        {"thread-step", required_argument, NULL, 's'},
+        {"increasing-only", required_argument, NULL, 'i'},
         {NULL, 0, NULL, 0}};
 
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hb:c:d:n:t:s:", long_options, &i);
+        c = getopt_long(argc, argv, "hb:c:d:n:t:s:i:", long_options, &i);
 
         if (c == -1)
             break;
@@ -229,11 +221,10 @@ int main(int argc, char **argv)
             printf("        Maximum number of threads (default=" XSTR(DEFAULT_MAX_THREADS) ")\n");
             printf("  -t, --cache-lines <int>\n");
             printf("        Number of cache lines touched in each CS (default=" XSTR(DEFAULT_DUMMY_ARRAY_SIZE) ")\n");
-#ifdef USE_HYBRIDLOCK_LOCKS
-            printf("  -s, --switch-thread-count <int>\n");
-            printf("        Core count after which the lock will be blocking (default=" XSTR(DEFAULT_SWITCH_THREAD_COUNT) ")\n");
-            printf("        A value of -1 will disable the switch (always spin) and with a value of 0 the lock will never spin.\n");
-#endif
+            printf("  -s, --thread-step <int>\n");
+            printf("        A measurement will be taken every x thread step (default=" XSTR(DEFAULT_THREAD_STEP) ")\n");
+            printf("  -i, --increasing-only <int>\n");
+            printf("        Whether to increase then decrease or only increase thread count (default=" XSTR(DEFAULT_INCREASING_ONLY) ")\n");
             exit(0);
         case 'b':
             base_threads = atoi(optarg);
@@ -250,11 +241,12 @@ int main(int argc, char **argv)
         case 't':
             dummy_array_size = atoi(optarg);
             break;
-#ifdef USE_HYBRIDLOCK_LOCKS
         case 's':
-            switch_thread_count = atoi(optarg);
+            thread_step = atoi(optarg);
             break;
-#endif
+        case 'i':
+            increasing_only = atoi(optarg);
+            break;
         case '?':
             printf("Use -h or --help for help\n");
             exit(0);
@@ -268,9 +260,7 @@ int main(int argc, char **argv)
     printf("Step duration: %d\n", step_duration);
     printf("Contention: %d\n", contention);
     printf("Cache lines: %d\n", dummy_array_size);
-#ifdef USE_HYBRIDLOCK_LOCKS
-    printf("Switch thread count: %d\n", switch_thread_count);
-#endif
+    printf("Thread step: %d\n", thread_step);
     printf("TSC frequency: %ld\n", get_tsc_frequency());
 
     thread_data_t *data;
@@ -330,23 +320,6 @@ int main(int argc, char **argv)
 
     for (i = 0; i < 2 * max_threads + 10; i++)
     {
-#if defined(USE_HYBRIDLOCK_LOCKS) && !defined(HYBRID_EPOCH)
-        if (i == switch_thread_count)
-        {
-            DPRINT("Switching to FUTEX hybrid lock\n");
-            __sync_val_compare_and_swap(&the_lock.lock_state,
-                                        LOCK_STABLE(LOCK_TYPE_SPIN),
-                                        LOCK_TRANSITION(LOCK_TYPE_SPIN, LOCK_TYPE_FUTEX));
-        }
-        else if (switch_thread_count > 0 && i == max_threads + 5)
-        {
-            DPRINT("Switching to spin hybrid lock\n");
-            __sync_val_compare_and_swap(&the_lock.lock_state,
-                                        LOCK_STABLE(LOCK_TYPE_FUTEX),
-                                        LOCK_TRANSITION(LOCK_TYPE_FUTEX, LOCK_TYPE_SPIN));
-        }
-#endif
-
         if (i < max_threads)
         {
             DPRINT("Creating thread %d\n", i);
@@ -366,7 +339,8 @@ int main(int argc, char **argv)
             data[c].stop = 1;
         }
 
-        if (i >= base_threads - 1 && i < 2 * max_threads + 10 - base_threads)
+        if (i >= base_threads - 1 && i < 2 * max_threads + 10 - base_threads &&
+            (!increasing_only || i <= max_threads) && (i - base_threads + 1) % thread_step == 0)
         {
             nanosleep(&step_timeout, NULL);
             measurement(data, max_threads);

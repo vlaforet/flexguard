@@ -45,7 +45,9 @@ Any of these tags can be added to the make command to compile the desired versio
 ```
 LOCK_VERSION=SPINLOCK
 LOCK_VERSION=HYBRIDLOCK // Hybrid lock
+LOCK_VERSION=HYBRIDV2   // Hybrid lock version 2
 LOCK_VERSION=MCS
+LOCK_VERSION=MCSTAS
 LOCK_VERSION=CLH
 LOCK_VERSION=TICKET
 LOCK_VERSION=MUTEX
@@ -88,9 +90,10 @@ Options:
         Maximum number of threads (default=10)
   -t, --cache-lines <int>
         Number of cache lines touched in each CS (default=1)
-  -s, --switch-thread-count <int>
-        Core count after which the lock will be blocking (default=-1)
-        A value of -1 will disable the switch (always spin) and with a value of 0 the lock will never spin.
+  -s, --thread-step <int>
+        A measurement will be taken every x thread step (default=1)
+  -i, --increasing-only <int>
+        Whether to increase then decrease or only increase thread count (default=1)
 ```
 
 The `scripts/scheduling_all.sh` script can be run to compute a `scheduling` benchmark for different lock types (by default hybridlock, futex and mcs), different cache lines (by default 1 and 5) and different delays between critical sections (by default 0, 1000 and 1000000). The resulting CSVs will be placed in `results`.
