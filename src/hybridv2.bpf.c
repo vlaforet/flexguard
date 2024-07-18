@@ -67,18 +67,6 @@ struct
 	__uint(map_flags, BPF_F_MMAPABLE);
 } array_map SEC(".maps");
 
-static int on_preemption(hybrid_qnode_ptr holder)
-{
-	int lock_id = holder->locking_id;
-	if (!(lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)) // Weird negative to please the verifier
-		return 1;																				 // Should never happen
-	volatile hybrid_lock_info_t *linfo = &lock_info[lock_id];
-
-	__sync_fetch_and_add(&linfo->is_blocking, 1);
-	holder->is_holder_preempted = 1;
-	return 0;
-}
-
 SEC("tp_btf/sched_switch")
 int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
 {
