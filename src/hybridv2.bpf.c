@@ -75,7 +75,10 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	hybrid_qnode_ptr qnode;
 	int lock_id, *thread_id;
 
-	if (next->flags & 0x00200000) // PF_KTHREAD
+	/*
+	 * Ignore kernel threads except the idle process (pid 0).
+	 */
+	if (next->flags & 0x00200000 /* PF_KTHREAD */ && next->pid != 0)
 		return 0;
 
 	/*
