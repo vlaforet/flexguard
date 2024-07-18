@@ -202,11 +202,11 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 
 #ifndef HYBRID_EPOCH
 		lock_id = tinfo->locking_id;
-		if (lock_id != -1 && tinfo->is_holder_preempted)
+		if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && tinfo->is_holder_preempted)
 		{
 			DPRINT("%s (%d) rescheduled after %s (%d)", next->comm, next->pid, prev->comm, prev->pid);
-			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)
-				lock_info[lock_id].preempted_at = (__LONG_MAX__ * 2UL + 1UL); // ULONG_MAX
+			lock_info[lock_id].preempted_at = (__LONG_MAX__ * 2UL + 1UL); // ULONG_MAX
+			tinfo->is_holder_preempted = 0;
 		}
 #endif
 	}
