@@ -235,6 +235,7 @@ static void deploy_bpf_code()
 #endif
 
     lock_info = skel->bss->lock_info;
+    qnode_allocation_array = skel->bss->qnodes;
 
     // Load BPF skeleton
     err = hybridv2_bpf__load(skel);
@@ -247,14 +248,6 @@ static void deploy_bpf_code()
 
     // Store map
     nodes_map = skel->maps.nodes_map;
-
-    int fd = bpf_map__fd(skel->maps.array_map);
-    qnode_allocation_array = mmap(NULL, MAX_NUMBER_THREADS * sizeof(hybrid_qnode_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (qnode_allocation_array == MAP_FAILED)
-    {
-        perror("qnode_allocation_array mmap");
-        exit(EXIT_FAILURE);
-    }
 
     // Attach BPF skeleton
     err = hybridv2_bpf__attach(skel);

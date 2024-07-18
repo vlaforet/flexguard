@@ -45,8 +45,8 @@
 #define MAX_STACK_TRACE_DEPTH 8
 
 hybrid_addresses_t addresses;
-
 volatile hybrid_lock_info_t lock_info[MAX_NUMBER_LOCKS];
+hybrid_qnode_t qnodes[MAX_NUMBER_THREADS];
 
 char _license[4] SEC("license") = "GPL";
 
@@ -57,15 +57,6 @@ struct
 	__type(value, int);
 	__uint(max_entries, MAX_NUMBER_THREADS);
 } nodes_map SEC(".maps");
-
-struct
-{
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, u32);
-	__type(value, hybrid_qnode_t);
-	__uint(max_entries, MAX_NUMBER_THREADS);
-	__uint(map_flags, BPF_F_MMAPABLE);
-} array_map SEC(".maps");
 
 SEC("tp_btf/sched_switch")
 int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
@@ -86,7 +77,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	 */
 	key = next->pid;
 	thread_id = bpf_map_lookup_elem(&nodes_map, &key);
-	if (thread_id && (qnode = bpf_map_lookup_elem(&array_map, thread_id)))
+	if (thread_id && *thread_id >= 0 && *thread_id < MAX_NUMBER_THREADS && (qnode = &qnodes[*thread_id]))
 	{
 		qnode->is_running = 1;
 
@@ -110,7 +101,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	 */
 	key = prev->pid;
 	thread_id = bpf_map_lookup_elem(&nodes_map, &key);
-	if (!thread_id || !(qnode = bpf_map_lookup_elem(&array_map, thread_id)))
+	if (!thread_id || *thread_id < 0 || *thread_id >= MAX_NUMBER_THREADS || !(qnode = &qnodes[*thread_id]))
 		return 0;
 
 	qnode->is_running = 0;
