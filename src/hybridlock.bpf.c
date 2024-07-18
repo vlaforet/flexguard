@@ -47,27 +47,26 @@
 /*
  * QNODE_ID(user_qnode)
  * Return the qnode id from a user-space qnode pointer.
- * To be used with array_map.
+ * To be used with QNODE_FROM_ID.
  *
  * Example:
 ```
-u32 key = QNODE_ID(user_qnode);
-hybrid_qnode_ptr qnode = bpf_map_lookup_elem(&array_map, &key);
-if (qnode) {
+u32 id = QNODE_ID(user_qnode);
+if (QNODE_FROM_ID(id)) {
 	// Do something
 }
 ```
  */
 #define QNODE_ID(user_qnode) (user_qnode - qnode_allocation_starting_address)
 
-#define THREAD_INFO_FROM_ID(thread_id, dest) \
-	(thread_id >= 0 && thread_id < MAX_NUMBER_THREADS && (dest = &thread_info[thread_id]))
+#define QNODE_FROM_ID(thread_id, dest) \
+	(thread_id >= 0 && thread_id < MAX_NUMBER_THREADS && (dest = &qnodes[thread_id]))
 
 hybrid_addresses_t addresses;
 hybrid_qnode_ptr qnode_allocation_starting_address; // Filled by the lock init function with user-space pointer to qnode_allocation_array.
 
 volatile hybrid_lock_info_t lock_info[MAX_NUMBER_LOCKS];
-volatile hybrid_thread_info_t thread_info[MAX_NUMBER_THREADS];
+hybrid_qnode_t qnodes[MAX_NUMBER_THREADS];
 
 char _license[4] SEC("license") = "GPL";
 
@@ -79,18 +78,9 @@ struct
 	__uint(max_entries, MAX_NUMBER_THREADS);
 } nodes_map SEC(".maps");
 
-struct
+static int on_preemption(hybrid_qnode_ptr holder)
 {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, u32);
-	__type(value, hybrid_qnode_thread);
-	__uint(max_entries, MAX_NUMBER_THREADS);
-	__uint(map_flags, BPF_F_MMAPABLE);
-} array_map SEC(".maps");
-
-static int on_preemption(volatile hybrid_thread_info_t *tinfo, hybrid_qnode_ptr holder)
-{
-	int lock_id = holder->lock_id;
+	int lock_id = holder->locking_id;
 	if (!(lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)) // Weird negative to please the verifier
 		return 1;																				 // Should never happen
 	volatile hybrid_lock_info_t *linfo = &lock_info[lock_id];
@@ -177,7 +167,7 @@ static int on_preemption(volatile hybrid_thread_info_t *tinfo, hybrid_qnode_ptr 
 
 #else
 	linfo->preempted_at = bpf_ktime_get_ns();
-	tinfo->is_holder_preempted = 1;
+	holder->is_holder_preempted = 1;
 #endif
 	return 0;
 }
@@ -189,24 +179,23 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	u32 key;
 	hybrid_qnode_ptr qnode;
 	int lock_id, *thread_id;
-	volatile hybrid_thread_info_t *tinfo;
 
 	/*
 	 * Clear preempted status of next thread.
 	 */
 	key = next->pid;
 	thread_id = bpf_map_lookup_elem(&nodes_map, &key);
-	if (thread_id && THREAD_INFO_FROM_ID(*thread_id, tinfo))
+	if (thread_id && QNODE_FROM_ID(*thread_id, qnode))
 	{
-		tinfo->is_running = 1;
+		qnode->is_running = 1;
 
 #ifndef HYBRID_EPOCH
-		lock_id = tinfo->locking_id;
-		if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && tinfo->is_holder_preempted)
+		lock_id = qnode->locking_id;
+		if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && qnode->is_holder_preempted)
 		{
 			DPRINT("%s (%d) rescheduled after %s (%d)", next->comm, next->pid, prev->comm, prev->pid);
 			lock_info[lock_id].preempted_at = (__LONG_MAX__ * 2UL + 1UL); // ULONG_MAX
-			tinfo->is_holder_preempted = 0;
+			qnode->is_holder_preempted = 0;
 		}
 #endif
 	}
@@ -222,22 +211,17 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	 */
 	key = prev->pid;
 	thread_id = bpf_map_lookup_elem(&nodes_map, &key);
-	if (!thread_id || !THREAD_INFO_FROM_ID(*thread_id, tinfo))
+	if (!thread_id || !QNODE_FROM_ID(*thread_id, qnode))
 		return 0;
 
-	tinfo->is_running = 0;
-	lock_id = tinfo->locking_id;
+	qnode->is_running = 0;
+	lock_id = qnode->locking_id;
 
 	/*
 	 * Ignore preemption if the thread was not locking.
 	 */
 	if (lock_id < 0 || lock_id >= MAX_NUMBER_LOCKS)
 		return 0;
-
-	qnode = bpf_map_lookup_elem(&array_map, thread_id);
-	if (!qnode)
-		return 0;
-	qnode = &qnode[lock_id];
 
 	/*
 	 * Retrieve preemption address.
@@ -322,7 +306,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 
 	DPRINT("%s (%d) preempted to %s (%d): %lld B away from bhl_lock", prev->comm, prev->pid, next->comm, next->pid, (long long)user_stack[0] - (long long)addresses.lock);
 
-	if (on_preemption(tinfo, qnode) != 0 && 0 < user_stack_size / sizeof(u64))
+	if (on_preemption(qnode) != 0 && 0 < user_stack_size / sizeof(u64))
 		bpf_printk("Failed to handle preemption %lld (0x%x) B away from bhl_lock", (long long)user_stack[0] - (long long)addresses.lock, (long long)user_stack[0] - (long long)addresses.lock);
 
 	return 0;

@@ -37,8 +37,9 @@ typedef struct hybrid_qnode_t
   {
     struct
     {
-      int lock_id;
-      uint8_t is_init;
+      volatile int locking_id;
+      volatile uint8_t is_running;
+      uint8_t is_holder_preempted;
 
 #ifdef HYBRID_TICKET
       uint32_t ticket;
@@ -54,11 +55,13 @@ typedef struct hybrid_qnode_t
       uint8_t should_block;
 #endif
     };
+
+#ifdef ADD_PADDING
+    uint8_t padding[CACHE_LINE_SIZE];
+#endif
   };
 } hybrid_qnode_t;
 typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
-
-typedef hybrid_qnode_t hybrid_qnode_thread[MAX_NUMBER_LOCKS];
 
 #ifdef BPF
 typedef struct hybrid_addresses_t
@@ -83,22 +86,6 @@ typedef struct hybrid_addresses_t
   };
 } hybrid_addresses_t;
 #endif
-
-typedef struct hybrid_thread_info_t
-{
-  union
-  {
-    struct
-    {
-      volatile int locking_id;
-      volatile uint8_t is_running;
-      uint8_t is_holder_preempted;
-    };
-#ifdef ADD_PADDING
-    uint8_t padding[CACHE_LINE_SIZE];
-#endif
-  };
-} hybrid_thread_info_t;
 
 typedef struct hybrid_lock_info_t
 {
