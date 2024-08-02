@@ -135,15 +135,9 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
     {
         if (*the_lock->is_blocking)
         {
-#ifdef BPF
-            asm volatile("bhl_futex_wait:" ::: "memory");
-#endif
             __sync_fetch_and_add(&the_lock->waiter_count, 1);
             futex_wait((void *)&the_lock->lock_value, 1);
             __sync_fetch_and_sub(&the_lock->waiter_count, 1);
-#ifdef BPF
-            asm volatile("bhl_futex_wait_end:" ::: "memory");
-#endif
         }
         else
             PAUSE;
@@ -223,12 +217,6 @@ static void deploy_bpf_code()
 
     extern char bhl_lock_check_rcx_null;
     skel->bss->addresses.lock_check_rcx_null = &bhl_lock_check_rcx_null;
-
-    extern char bhl_futex_wait;
-    skel->bss->addresses.futex_wait = &bhl_futex_wait;
-
-    extern char bhl_futex_wait_end;
-    skel->bss->addresses.futex_wait_end = &bhl_futex_wait_end;
 
     extern char bhl_lock_end;
     skel->bss->addresses.lock_end = &bhl_lock_end;

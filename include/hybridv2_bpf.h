@@ -69,8 +69,6 @@ typedef struct hybrid_addresses_t
     {
       void *lock;
       void *lock_check_rcx_null;
-      void *futex_wait;
-      void *futex_wait_end;
       void *lock_end;
     };
 #ifdef ADD_PADDING

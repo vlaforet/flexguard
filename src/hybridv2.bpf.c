@@ -35,6 +35,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include <asm/processor-flags.h>
+#include "bpf_fixes.bpf.h"
 
 #ifdef DEBUG
 #define DPRINT(args...) bpf_printk(args);
@@ -67,12 +68,6 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	int lock_id, *thread_id;
 
 	/*
-	 * Ignore kernel threads except the idle process (pid 0).
-	 */
-	if (next->flags & 0x00200000 /* PF_KTHREAD */ && next->pid != 0)
-		return 0;
-
-	/*
 	 * Clear preempted status of next thread.
 	 */
 	key = next->pid;
@@ -93,7 +88,10 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	/*
 	 * Optimization: No map lookup if prev is a kernel thread.
 	 */
-	if (prev->flags & 0x00200000) // PF_KTHREAD
+	if (prev->flags & 0x00200000 || next->flags & 0x00200000) // PF_KTHREAD
+		return 0;
+
+	if (get_task_state(prev) & ((((TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE | TASK_STOPPED | TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE | TASK_PARKED) + 1) << 1) - 1))
 		return 0;
 
 	/*
