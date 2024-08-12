@@ -59,29 +59,68 @@ struct
 	__uint(max_entries, MAX_NUMBER_THREADS);
 } nodes_map SEC(".maps");
 
+/*
+ * Will return 1 if the thread is detected as a critical thread.
+ * A critical thread holds the MCS or TAS lock.
+ */
+static int is_critical_thread(struct task_struct *task, hybrid_qnode_ptr qnode)
+{
+	u64 user_stack[MAX_STACK_TRACE_DEPTH];
+	long user_stack_size = bpf_get_task_stack(task, user_stack, MAX_STACK_TRACE_DEPTH * sizeof(u64), BPF_F_USER_STACK);
+	if (user_stack_size <= 0)
+	{
+		bpf_printk("Error getting stack (%ld).", user_stack_size);
+		return 0;
+	}
+
+	if ((u64)addresses.lock_check_rcx_null <= user_stack[0] && user_stack[0] < (u64)addresses.lock_end)
+	{
+		struct pt_regs *regs = (struct pt_regs *)bpf_task_pt_regs(task);
+
+		/*
+		 * Ignore preemption if lock was not free (pred != NULL)
+		 * and if previous node did not release lock (waiting != 0).
+		 */
+		return (void *)regs->cx == NULL || qnode->waiting == 0;
+	}
+
+	for (int i = 0; i < user_stack_size / sizeof(u64); i++) // Handle external calls
+	{
+		/*
+		 * Ignore preemptions before enqueue.
+		 */
+		if ((u64)addresses.lock <= user_stack[i] && user_stack[i] < (u64)addresses.lock_check_rcx_null)
+			return 0;
+	}
+
+	return 1;
+}
+
 SEC("tp_btf/sched_switch")
 int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
 {
-	struct pt_regs *regs;
 	u32 key;
 	hybrid_qnode_ptr qnode;
 	int lock_id, *thread_id;
 
 	/*
 	 * Clear preempted status of next thread.
+	 * Optimization: skip if next is a kernel thread.
 	 */
-	key = next->pid;
-	thread_id = bpf_map_lookup_elem(&nodes_map, &key);
-	if (thread_id && *thread_id >= 0 && *thread_id < MAX_NUMBER_THREADS && (qnode = &qnodes[*thread_id]))
+	if (!(next->flags & 0x00200000)) // PF_KTHREAD
 	{
-		qnode->is_running = 1;
-
-		lock_id = qnode->locking_id;
-		if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && qnode->is_holder_preempted)
+		key = next->pid;
+		thread_id = bpf_map_lookup_elem(&nodes_map, &key);
+		if (thread_id && *thread_id >= 0 && *thread_id < MAX_NUMBER_THREADS && (qnode = &qnodes[*thread_id]))
 		{
-			DPRINT("%s (%d) rescheduled after %s (%d)", next->comm, next->pid, prev->comm, prev->pid);
-			__sync_fetch_and_sub(&lock_info[lock_id].is_blocking, 1);
-			qnode->is_holder_preempted = 0;
+			qnode->is_running = 1;
+
+			lock_id = qnode->locking_id;
+			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && qnode->is_holder_preempted)
+			{
+				__sync_fetch_and_sub(&lock_info[lock_id].is_blocking, 2);
+				qnode->is_holder_preempted = 0;
+			}
 		}
 	}
 
@@ -111,54 +150,12 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (lock_id < 0 || lock_id >= MAX_NUMBER_LOCKS)
 		return 0;
 
-	/*
-	 * Retrieve preemption address.
-	 */
-	u64 user_stack[MAX_STACK_TRACE_DEPTH];
-	long user_stack_size = bpf_get_task_stack(prev, user_stack, MAX_STACK_TRACE_DEPTH * sizeof(u64), BPF_F_USER_STACK);
-	if (user_stack_size <= 0)
+	if (is_critical_thread(prev, qnode))
 	{
-		bpf_printk("Error getting stack (%ld).", user_stack_size);
-		return 1;
+		DPRINT("Detected preemption: %s (%d) -> %s (%d)", prev->comm, prev->pid, next->comm, next->pid);
+		__sync_fetch_and_add(&lock_info[lock_id].is_blocking, 2);
+		qnode->is_holder_preempted = 1;
 	}
-
-	if ((u64)addresses.lock_check_rcx_null <= user_stack[0] && user_stack[0] < (u64)addresses.lock_end)
-	{
-		regs = (struct pt_regs *)bpf_task_pt_regs(prev);
-
-		/*
-		 * Ignore preemption if lock was not free (pred != NULL)
-		 * and if previous node did not release lock (waiting != 0).
-		 */
-		if ((void *)regs->cx != NULL && qnode->waiting != 0)
-		{
-			DPRINT("Ignored while spinning");
-			return 0;
-		}
-	}
-	else
-		for (int i = 0; i < user_stack_size / sizeof(u64); i++) // Handle external calls
-		{
-			/*
-			 * Ignore preemptions due to futex wait.
-			 */
-			if ((u64)addresses.futex_wait <= user_stack[i] && user_stack[i] < (u64)addresses.futex_wait_end)
-				return 0;
-
-			/*
-			 * Ignore preemptions before enqueue.
-			 */
-			if ((u64)addresses.lock <= user_stack[i] && user_stack[i] < (u64)addresses.lock_check_rcx_null)
-			{
-				DPRINT("[%d] Ignored not enqueued", i);
-				return 0;
-			}
-		}
-
-	DPRINT("%s (%d) preempted to %s (%d): %lld B away from bhl_lock", prev->comm, prev->pid, next->comm, next->pid, (long long)user_stack[0] - (long long)addresses.lock);
-
-	__sync_fetch_and_add(&lock_info[lock_id].is_blocking, 1);
-	qnode->is_holder_preempted = 1;
 
 	return 0;
 }

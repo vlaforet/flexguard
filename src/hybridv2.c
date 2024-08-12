@@ -152,37 +152,30 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
             if (__sync_val_compare_and_swap(&the_lock->queue, qnode, NULL) == qnode)
                 return;
 
-            if (!qnode->next)
-            {
-                qnode->wait_for_successor = 1;
-                return;
-            }
-
-            // TODO: if (!qnode->next->is_running) { *the_lock->is_blocking = 1; qnode->next->is_holder_preempted = 1; }
+            while (!qnode->next)
+                PAUSE;
         }
+
+        if (!qnode->next->is_running)
+            __sync_fetch_and_add(the_lock->is_blocking, 1);
+
         qnode->next->waiting = 0;
     }
 }
 
 void hybridv2_unlock(hybridv2_lock_t *the_lock)
 {
+    if (*the_lock->is_blocking % 2 != 0)
+        __sync_fetch_and_sub(the_lock->is_blocking, 1);
+
     COMPILER_BARRIER;
     the_lock->lock_value = 0;
-
-    hybrid_qnode_ptr qnode = &qnode_allocation_array[thread_id]; // Assuming qnode has already been initialized.
-    if (qnode->wait_for_successor)
-    {
-        while (!qnode->next)
-            PAUSE;
-        qnode->next->waiting = 0;
-        qnode->wait_for_successor = 0;
-    }
 
     if (the_lock->waiter_count > 0)
         futex_wake((void *)&the_lock->lock_value, 1);
 
     MEM_BARRIER;
-    qnode->locking_id = -1;
+    qnode_allocation_array[thread_id].locking_id = -1; // Assuming qnode has already been initialized.
 }
 
 #ifdef BPF

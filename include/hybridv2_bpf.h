@@ -84,7 +84,7 @@ typedef struct hybrid_lock_info_t
   {
     struct
     {
-      volatile uint64_t is_blocking;
+      volatile int64_t is_blocking;
     };
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
