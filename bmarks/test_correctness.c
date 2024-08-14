@@ -58,8 +58,6 @@ uint64_t c[2] = {0, 0};
 
 static volatile int stop;
 
-__thread unsigned long *seeds;
-__thread uint32_t phys_id;
 libslock_t the_lock;
 
 typedef struct shared_data
@@ -123,8 +121,6 @@ typedef struct thread_data
 void *test_correctness(void *data)
 {
     thread_data_t *d = (thread_data_t *)data;
-    phys_id = the_cores[d->id];
-    set_cpu(phys_id);
 
     barrier_cross(d->barrier);
 
@@ -169,7 +165,6 @@ void catcher(int sig)
 
 int main(int argc, char **argv)
 {
-    set_cpu(the_cores[0]);
     struct option long_options[] = {
         // These options don't set a flag
         {"help", no_argument, NULL, 'h'},
