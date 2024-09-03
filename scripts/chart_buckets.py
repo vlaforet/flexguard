@@ -65,7 +65,7 @@ def load(filename):
 
 
 fig, ax = plt.subplots(layout="constrained")
-#ax.set_yscale("log")
+# ax.set_yscale("log")
 
 csv = load(args.input_file)
 csv = np.sort(csv, order="lock")
@@ -80,13 +80,19 @@ ax.set_xticks(
 )
 
 for key, threads in enumerate(threads):
-    rects = ax.bar(
-        x + width * key,
-        csv[csv["threads"] == threads]["throughput"],
-        width,
-        label=f"{threads} threads",
+    values = csv[csv["threads"] == threads]["throughput"]
+
+    ax.bar(x + width * key, values, width, label=f"{threads} threads", color=f"C{key}")
+
+    ax.hlines(
+        [np.max(values)] * len(locks),
+        x + width * (key - 0.5),
+        x + width * (key + 0.5),
+        colors=f"C{key}",  # type: ignore
+        linestyle="dashed",
+        linewidths=1,
     )
-    ax.bar_label(rects, padding=3)
+
 
 ax.set_ylabel("Throughput (CS/s)")
 ax.legend(loc="upper center", ncols=4, bbox_to_anchor=(0.4, -0.05))
