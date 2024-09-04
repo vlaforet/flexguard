@@ -78,17 +78,21 @@ typedef struct hybrid_addresses_t
 } hybrid_addresses_t;
 #endif
 
+typedef volatile int64_t preempted_count_t;
+
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
 typedef struct hybrid_lock_info_t
 {
   union
   {
     struct
     {
-      volatile int64_t preempted_count;
+      preempted_count_t preempted_count;
     };
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
 #endif
   };
 } hybrid_lock_info_t;
+#endif
 #endif

@@ -46,8 +46,15 @@
 #define MAX_STACK_TRACE_DEPTH 8
 
 hybrid_addresses_t addresses;
-volatile hybrid_lock_info_t lock_info[MAX_NUMBER_LOCKS];
 hybrid_qnode_t qnodes[MAX_NUMBER_THREADS];
+
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+volatile hybrid_lock_info_t lock_info[MAX_NUMBER_LOCKS];
+#define get_preempted_count(lock_id) lock_info[lock_id].preempted_count
+#else
+preempted_count_t preempted_count = 0;
+#define get_preempted_count(lock_id) preempted_count
+#endif
 
 char _license[4] SEC("license") = "GPL";
 
@@ -118,7 +125,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 			lock_id = qnode->locking_id;
 			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && qnode->is_critical_preempted)
 			{
-				__sync_fetch_and_sub(&lock_info[lock_id].preempted_count, 2);
+				__sync_fetch_and_sub(&get_preempted_count(lock_id), 2);
 				qnode->is_critical_preempted = 0;
 			}
 		}
@@ -153,7 +160,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (is_critical_thread(prev, qnode))
 	{
 		DPRINT("Detected preemption: %s (%d) -> %s (%d)", prev->comm, prev->pid, next->comm, next->pid);
-		__sync_fetch_and_add(&lock_info[lock_id].preempted_count, 2);
+		__sync_fetch_and_add(&get_preempted_count(lock_id), 2);
 		qnode->is_critical_preempted = 1;
 	}
 

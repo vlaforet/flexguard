@@ -70,7 +70,10 @@ typedef struct hybridv2_lock_t
     {
       int id;
 
-      volatile int64_t *preempted_count;
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+      preempted_count_t *preempted_count;
+#endif
+
       volatile uint64_t waiter_count;
 
 #ifdef TRACING
@@ -126,10 +129,7 @@ typedef union
   uint8_t padding[CACHE_LINE_SIZE];
 #endif
 } hybridv2_cond_t;
-#define HYBRIDV2_COND_INITIALIZER \
-  {                               \
-    .seq = 0, .target = 0         \
-  }
+#define HYBRIDV2_COND_INITIALIZER {.seq = 0, .target = 0}
 
 /*
  *  Declarations

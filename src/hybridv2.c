@@ -37,7 +37,14 @@ _Atomic(int) thread_count = 1;
 _Atomic(int) lock_count = 0;
 hybrid_qnode_ptr qnode_allocation_array;
 
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
 hybrid_lock_info_t *lock_info;
+#define get_preempted_count(the_lock) the_lock->preempted_count
+#else
+preempted_count_t *preempted_count;
+#define get_preempted_count(the_lock) preempted_count
+#endif
+
 __thread int thread_id = -1;
 
 #ifdef BPF
@@ -96,7 +103,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
     // LOCK MCS
     uint8_t enqueued = 0;
-    if (!*the_lock->preempted_count)
+    if (!*get_preempted_count(the_lock))
     {
         enqueued = 1;
         DASSERT(the_lock->queue != qnode);
@@ -123,7 +130,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
             MEM_BARRIER;
             pred->next = qnode; // make pred point to me
 
-            while (qnode->waiting != 0 && !*the_lock->preempted_count)
+            while (qnode->waiting != 0 && !*get_preempted_count(the_lock))
                 PAUSE;
         }
 #ifdef BPF
@@ -133,7 +140,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
     while (__sync_lock_test_and_set(&the_lock->lock_value, 1) != 0)
     {
-        if (*the_lock->preempted_count)
+        if (*get_preempted_count(the_lock))
         {
             __sync_fetch_and_add(&the_lock->waiter_count, 1);
             futex_wait((void *)&the_lock->lock_value, 1);
@@ -157,7 +164,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         }
 
         if (!qnode->next->is_running)
-            __sync_fetch_and_add(the_lock->preempted_count, 1);
+            __sync_fetch_and_add(get_preempted_count(the_lock), 1);
 
         qnode->next->waiting = 0;
     }
@@ -165,8 +172,8 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
 void hybridv2_unlock(hybridv2_lock_t *the_lock)
 {
-    if (*the_lock->preempted_count % 2 != 0)
-        __sync_fetch_and_sub(the_lock->preempted_count, 1);
+    if (*get_preempted_count(the_lock) % 2 != 0)
+        __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
 
     COMPILER_BARRIER;
     the_lock->lock_value = 0;
@@ -215,7 +222,12 @@ static void deploy_bpf_code()
     skel->bss->addresses.lock_end = &bhl_lock_end;
 #endif
 
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
     lock_info = skel->bss->lock_info;
+#else
+    preempted_count = &skel->bss->preempted_count;
+#endif
+
     qnode_allocation_array = skel->bss->qnodes;
 
     // Load BPF skeleton
@@ -261,13 +273,21 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
 #else
         // Initialize things without BPF
         qnode_allocation_array = malloc(MAX_NUMBER_THREADS * sizeof(hybrid_qnode_t));
+
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
         lock_info = malloc(MAX_NUMBER_LOCKS * sizeof(hybrid_lock_info_t));
+#else
+        preempted_count = malloc(sizeof(preempted_count_t));
+        preempted_count = 0;
+#endif
 #endif
         init_lock = 2;
     }
 
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
     the_lock->preempted_count = &lock_info[the_lock->id].preempted_count;
     (*the_lock->preempted_count) = 0;
+#endif
 
 #ifdef HYBRID_TICKET
     the_lock->ticket_lock.calling = 1;
@@ -317,7 +337,7 @@ int hybridv2_cond_wait(hybridv2_cond_t *cond, hybridv2_lock_t *the_lock)
 
     while (target > seq)
     {
-        if (*the_lock->preempted_count)
+        if (*get_preempted_count(the_lock))
             futex_wait(&cond->seq, seq);
         else
             PAUSE;
