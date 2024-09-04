@@ -63,7 +63,7 @@ static inline hybrid_qnode_ptr get_me()
 
         qnode->locking_id = -1;
         qnode->is_running = 1;
-        qnode->is_holder_preempted = 0;
+        qnode->is_critical_preempted = 0;
         qnode->wait_for_successor = 0;
 
 #ifdef HYBRID_TICKET
@@ -96,7 +96,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
     // LOCK MCS
     uint8_t enqueued = 0;
-    if (!*the_lock->is_blocking)
+    if (!*the_lock->preempted_count)
     {
         enqueued = 1;
         DASSERT(the_lock->queue != qnode);
@@ -123,7 +123,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
             MEM_BARRIER;
             pred->next = qnode; // make pred point to me
 
-            while (qnode->waiting != 0 && !*the_lock->is_blocking)
+            while (qnode->waiting != 0 && !*the_lock->preempted_count)
                 PAUSE;
         }
 #ifdef BPF
@@ -133,7 +133,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
     while (__sync_lock_test_and_set(&the_lock->lock_value, 1) != 0)
     {
-        if (*the_lock->is_blocking)
+        if (*the_lock->preempted_count)
         {
             __sync_fetch_and_add(&the_lock->waiter_count, 1);
             futex_wait((void *)&the_lock->lock_value, 1);
@@ -157,7 +157,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         }
 
         if (!qnode->next->is_running)
-            __sync_fetch_and_add(the_lock->is_blocking, 1);
+            __sync_fetch_and_add(the_lock->preempted_count, 1);
 
         qnode->next->waiting = 0;
     }
@@ -165,8 +165,8 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
 void hybridv2_unlock(hybridv2_lock_t *the_lock)
 {
-    if (*the_lock->is_blocking % 2 != 0)
-        __sync_fetch_and_sub(the_lock->is_blocking, 1);
+    if (*the_lock->preempted_count % 2 != 0)
+        __sync_fetch_and_sub(the_lock->preempted_count, 1);
 
     COMPILER_BARRIER;
     the_lock->lock_value = 0;
@@ -266,8 +266,8 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
         init_lock = 2;
     }
 
-    the_lock->is_blocking = &lock_info[the_lock->id].is_blocking;
-    (*the_lock->is_blocking) = 0;
+    the_lock->preempted_count = &lock_info[the_lock->id].preempted_count;
+    (*the_lock->preempted_count) = 0;
 
 #ifdef HYBRID_TICKET
     the_lock->ticket_lock.calling = 1;
@@ -317,7 +317,7 @@ int hybridv2_cond_wait(hybridv2_cond_t *cond, hybridv2_lock_t *the_lock)
 
     while (target > seq)
     {
-        if (*the_lock->is_blocking)
+        if (*the_lock->preempted_count)
             futex_wait(&cond->seq, seq);
         else
             PAUSE;

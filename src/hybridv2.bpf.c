@@ -116,10 +116,10 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 			qnode->is_running = 1;
 
 			lock_id = qnode->locking_id;
-			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && qnode->is_holder_preempted)
+			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && qnode->is_critical_preempted)
 			{
-				__sync_fetch_and_sub(&lock_info[lock_id].is_blocking, 2);
-				qnode->is_holder_preempted = 0;
+				__sync_fetch_and_sub(&lock_info[lock_id].preempted_count, 2);
+				qnode->is_critical_preempted = 0;
 			}
 		}
 	}
@@ -153,8 +153,8 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (is_critical_thread(prev, qnode))
 	{
 		DPRINT("Detected preemption: %s (%d) -> %s (%d)", prev->comm, prev->pid, next->comm, next->pid);
-		__sync_fetch_and_add(&lock_info[lock_id].is_blocking, 2);
-		qnode->is_holder_preempted = 1;
+		__sync_fetch_and_add(&lock_info[lock_id].preempted_count, 2);
+		qnode->is_critical_preempted = 1;
 	}
 
 	return 0;

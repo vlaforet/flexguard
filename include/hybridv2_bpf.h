@@ -49,7 +49,7 @@ typedef struct hybrid_qnode_t
 
       volatile int locking_id;
       volatile uint8_t is_running;
-      uint8_t is_holder_preempted;
+      uint8_t is_critical_preempted;
       uint8_t wait_for_successor;
     };
 
@@ -84,7 +84,7 @@ typedef struct hybrid_lock_info_t
   {
     struct
     {
-      volatile int64_t is_blocking;
+      volatile int64_t preempted_count;
     };
 #ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
