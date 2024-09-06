@@ -58,8 +58,9 @@
 #include "hybridv2_bpf.h"
 
 #ifdef TRACING
-#define TRACING_EVENT_SWITCH_BLOCK 0
-#define TRACING_EVENT_SWITCH_SPIN 1
+#define TRACING_EVENT_ACQUIRED_SPIN 0
+#define TRACING_EVENT_ACQUIRED_BLOCK 1
+#define TRACING_EVENT_ACQUIRED_STOLEN 2
 #endif
 
 typedef struct hybridv2_lock_t

@@ -144,12 +144,22 @@ bool eq_fn(void *p1, void *p2)
 #ifdef TRACING
 void lock_tracing_fn(ticks rtsp, int event_type, void *event_data, void *fn_data)
 {
+    bucket_t *bucket = (bucket_t *)fn_data;
+
 #ifdef USE_HYBRIDLOCK_LOCKS
     if (event_type == TRACING_EVENT_SWITCH_SPIN || event_type == TRACING_EVENT_SWITCH_BLOCK)
-    {
-        bucket_t *bucket = (bucket_t *)fn_data;
         printf("%s, %ld, %d\n", event_type == TRACING_EVENT_SWITCH_SPIN ? "switch_spin" : "switch_block", rtsp, bucket->id);
-    }
+#endif
+
+#ifdef USE_HYBRIDV2_LOCKS
+    if (event_type == TRACING_EVENT_ACQUIRED_SPIN)
+        printf("%s, %ld, %d\n", "acquired_spin", rtsp, bucket->id);
+
+    if (event_type == TRACING_EVENT_ACQUIRED_BLOCK)
+        printf("%s, %ld, %d\n", "acquired_block", rtsp, bucket->id);
+
+    if (event_type == TRACING_EVENT_ACQUIRED_STOLEN)
+        printf("%s, %ld, %d\n", "acquired_stolen", rtsp, bucket->id);
 #endif
 }
 #endif
@@ -348,7 +358,7 @@ int main(int argc, char **argv)
         buckets[i].id = i;
         libslock_init(&buckets[i].lock);
 
-#if defined(TRACING) && defined(USE_HYBRIDLOCK_LOCKS)
+#if defined(TRACING)
         if (tracing)
             set_tracing_fn(&buckets[i].lock, &lock_tracing_fn, &buckets[i]);
 #endif

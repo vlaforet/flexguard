@@ -96,8 +96,41 @@ ax.plot(
     label="Accessed values",
 )
 
-### Plot hybrid switches
 bucket_span = max_value // bucket_count
+
+## Plot HybridV2 acquires
+acquired_stolen = events[events["event"] == "acquired_stolen"]
+acquired_spin = events[events["event"] == "acquired_spin"]
+acquired_block = events[events["event"] == "acquired_block"]
+
+ax.scatter(
+    acquired_stolen["rtsp"] / frequency,
+    acquired_stolen["value"] * bucket_span,
+    label="Acquired Stolen",
+    color="magenta",
+    s=1.5,
+    linewidths=[0],
+)
+
+ax.scatter(
+    acquired_spin["rtsp"] / frequency,
+    acquired_spin["value"] * bucket_span,
+    label="Acquired Spin",
+    color="orange",
+    s=1.5,
+    linewidths=[0],
+)
+
+ax.scatter(
+    acquired_block["rtsp"] / frequency,
+    acquired_block["value"] * bucket_span,
+    label="Acquired Block",
+    color="green",
+    s=1.5,
+    linewidths=[0],
+)
+
+### Plot hybrid switches
 switches = events[
     np.logical_or(events["event"] == "switch_block", events["event"] == "switch_spin")
 ]

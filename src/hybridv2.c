@@ -99,7 +99,14 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 #endif
 
     if (__sync_lock_test_and_set(&the_lock->lock_value, 1) == 0)
+    {
+#ifdef TRACING
+        if (the_lock->tracing_fn)
+            the_lock->tracing_fn(getticks(), TRACING_EVENT_ACQUIRED_STOLEN, NULL, the_lock->tracing_fn_data);
+#endif
+
         return;
+    }
 
     // LOCK MCS
     uint8_t enqueued = 0;
@@ -137,6 +144,11 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         asm volatile("bhl_lock_end:" ::: "memory");
 #endif
     }
+
+#ifdef TRACING
+    if (the_lock->tracing_fn)
+        the_lock->tracing_fn(getticks(), enqueued ? TRACING_EVENT_ACQUIRED_SPIN : TRACING_EVENT_ACQUIRED_BLOCK, NULL, the_lock->tracing_fn_data);
+#endif
 
     while (__sync_lock_test_and_set(&the_lock->lock_value, 1) != 0)
     {
