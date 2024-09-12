@@ -96,7 +96,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
     MEM_BARRIER;
 #endif
 
-    if (__sync_lock_test_and_set(&the_lock->lock_value, 1) == 0)
+    if (!the_lock->lock_value && __sync_lock_test_and_set(&the_lock->lock_value, 1) == 0)
     {
 #ifdef TRACING
         if (the_lock->tracing_fn)
@@ -148,7 +148,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         the_lock->tracing_fn(getticks(), enqueued ? TRACING_EVENT_ACQUIRED_SPIN : TRACING_EVENT_ACQUIRED_BLOCK, NULL, the_lock->tracing_fn_data);
 #endif
 
-    while (__sync_lock_test_and_set(&the_lock->lock_value, 1) != 0)
+    while (the_lock->lock_value || __sync_lock_test_and_set(&the_lock->lock_value, 1) != 0)
     {
         if (*get_preempted_count(the_lock))
         {
