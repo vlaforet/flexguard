@@ -70,8 +70,6 @@ static inline hybrid_qnode_ptr get_me()
 
         qnode->locking_id = -1;
         qnode->is_running = 1;
-        qnode->is_critical_preempted = 0;
-        qnode->wait_for_successor = 0;
 
 #ifdef HYBRID_TICKET
         qnode->ticket = 0;

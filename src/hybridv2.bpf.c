@@ -66,6 +66,14 @@ struct
 	__uint(max_entries, MAX_NUMBER_THREADS);
 } nodes_map SEC(".maps");
 
+struct
+{
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(max_entries, MAX_NUMBER_THREADS);
+} is_preempted_map SEC(".maps");
+
 /*
  * Will return 1 if the thread is detected as a critical thread.
  * A critical thread holds the MCS or TAS lock.
@@ -123,10 +131,9 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 			qnode->is_running = 1;
 
 			lock_id = qnode->locking_id;
-			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && qnode->is_critical_preempted)
+			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && bpf_map_delete_elem(&is_preempted_map, &key) == 0)
 			{
 				__sync_fetch_and_sub(&get_preempted_count(lock_id), 2);
-				qnode->is_critical_preempted = 0;
 			}
 		}
 	}
@@ -160,8 +167,8 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (is_critical_thread(prev, qnode))
 	{
 		DPRINT("Detected preemption: %s (%d) -> %s (%d)", prev->comm, prev->pid, next->comm, next->pid);
+		bpf_map_update_elem(&is_preempted_map, &key, &key, BPF_NOEXIST);
 		__sync_fetch_and_add(&get_preempted_count(lock_id), 2);
-		qnode->is_critical_preempted = 1;
 	}
 
 	return 0;

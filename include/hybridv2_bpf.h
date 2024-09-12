@@ -49,8 +49,6 @@ typedef struct hybrid_qnode_t
 
       volatile int locking_id;
       volatile uint8_t is_running;
-      uint8_t is_critical_preempted;
-      uint8_t wait_for_successor;
     };
 
 #ifdef ADD_PADDING
