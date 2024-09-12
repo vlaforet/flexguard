@@ -447,5 +447,8 @@ int main(int argc, char **argv)
     double result = max_threads * (((double)1000 * get_tsc_frequency()) / sum);
     printf("#Throughput: %f CS/s\n", result);
 
+    for (i = 0; i < bucket_count; i++)
+        libslock_destroy(&buckets[i].lock);
+
     return EXIT_SUCCESS;
 }
