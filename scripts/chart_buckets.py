@@ -4,6 +4,8 @@ import argparse
 import os
 import numpy as np
 
+# plt.rcParams.update({'font.size': 18})
+
 parser = argparse.ArgumentParser(description="Chart data from buckets benchmark")
 parser.add_argument(
     "-i",
@@ -95,5 +97,5 @@ for key, threads in enumerate(threads):
 
 
 ax.set_ylabel("Throughput (CS/s)")
-ax.legend(loc="upper center", ncols=4, bbox_to_anchor=(0.4, -0.05))
+ax.legend(loc="upper center", ncols=4, bbox_to_anchor=(0.45, -0.1), prop={"size": 10.5})
 plt.savefig(args.output_file, dpi=600, bbox_inches="tight")
