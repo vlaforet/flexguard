@@ -167,24 +167,32 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         {
             // Trying to fix global pointer
             if (__sync_val_compare_and_swap(&the_lock->queue, qnode, NULL) == qnode)
-                return;
+                goto clean_up_next_waiter_preempted;
 
             while (!qnode->next)
                 PAUSE;
         }
 
         if (!qnode->next->is_running)
-            __sync_fetch_and_add(get_preempted_count(the_lock), 1);
+        {
+            if (!the_lock->next_waiter_preempted)
+                __sync_fetch_and_add(get_preempted_count(the_lock), 1);
+            the_lock->next_waiter_preempted = the_lock->queue;
+        }
 
         qnode->next->waiting = 0;
+    }
+
+clean_up_next_waiter_preempted:
+    if (the_lock->next_waiter_preempted == qnode)
+    {
+        __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
+        the_lock->next_waiter_preempted = NULL;
     }
 }
 
 void hybridv2_unlock(hybridv2_lock_t *the_lock)
 {
-    if (*get_preempted_count(the_lock) % 2 != 0)
-        __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
-
     COMPILER_BARRIER;
     the_lock->lock_value = 0;
 
@@ -274,6 +282,7 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
 
     the_lock->lock_value = 0;
     the_lock->waiter_count = 0;
+    the_lock->next_waiter_preempted = 0;
 
     static volatile uint8_t init_lock = 0;
     if (exactly_once(&init_lock) == 0)
