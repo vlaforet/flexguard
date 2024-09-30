@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 
-plt.rcParams.update({'font.size': 18})
+plt.rcParams.update({"font.size": 18})
 
 parser = argparse.ArgumentParser(description="Chart data from scheduling benchmark")
 parser.add_argument(
@@ -75,7 +75,7 @@ def set_ticks(filename, ax):
 
     ticks, labels = [], []
     for i in range(len(ids)):
-        if (thread_count[i] % 10 == 0 and i % 10 == 9) or len(ids)//2 == i:
+        if (thread_count[i] % 10 == 0 and i % 10 == 9) or len(ids) // 2 == i:
             ticks.append(ids[i])
             labels.append(thread_count[i])
     ax.set_xticks(ticks)
@@ -92,7 +92,7 @@ def plot(filename, label, ax):
 
 
 fig, ax = plt.subplots()
-ax.set_xlabel("Thread Count (40 core machine)")
+ax.set_xlabel("Threads")
 ax.set_ylabel("Critical Section time (ms)")
 ax.set_yscale("log")
 
@@ -113,5 +113,5 @@ for contention in args.contention:
                 ax,
             )
 
-fig.legend()
+fig.legend(loc="center", ncols=1, bbox_to_anchor=(0.3, 0.7))
 plt.savefig(args.output_file, dpi=600, bbox_inches="tight")
