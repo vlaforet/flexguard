@@ -7,3 +7,6 @@
 [submodule "blazesym"]
 	path = blazesym
 	url = https://github.com/libbpf/blazesym.git
+[submodule "snappy"]
+	path = ext/snappy
+	url = https://github.com/google/snappy.git
