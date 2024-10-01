@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 LOCKS="SPINLOCK HYBRIDLOCK MCS CLH TICKET MUTEX FUTEX"
 BENCHMARKS="scheduling test_correctness buckets"
