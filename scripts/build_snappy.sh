@@ -1,6 +1,6 @@
 #! /bin/bash
 
 cd ext/snappy
-mkdir build
+mkdir -p build
 cd build
 cmake ../ && make

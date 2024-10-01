@@ -10,3 +10,9 @@
 [submodule "snappy"]
 	path = ext/snappy
 	url = https://github.com/google/snappy.git
+[submodule "third_party/googletest"]
+	path = ext/leveldb/third_party/googletest
+	url = https://github.com/google/googletest.git
+[submodule "third_party/benchmark"]
+	path = ext/leveldb/third_party/benchmark
+	url = https://github.com/google/benchmark.git
