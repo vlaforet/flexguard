@@ -129,6 +129,7 @@ static inline int libslock_trylock(libslock_t *lock)
 #ifdef LOCKIF_TRYLOCK
     return LOCKIF_TRYLOCK(lock);
 #else
+    UNUSED(lock);
     fprintf(stderr, "Trylock not supported by this lock.\n");
     exit(EXIT_FAILURE);
 #endif

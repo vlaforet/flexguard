@@ -128,8 +128,8 @@ extern "C"
 
 // debugging functions
 #ifdef DEBUG
-#define DPRINT(args...) fprintf(stderr, args);
-#define DASSERT(args...) assert(args)
+#define DPRINT(...) fprintf(stderr, __VA_ARGS__);
+#define DASSERT(...) assert(__VA_ARGS__)
 #else
 #define DPRINT(...)
 #define DASSERT(...)
@@ -190,8 +190,10 @@ if (exactly_once(&init) == 0)
         exit(EXIT_FAILURE);                                                                     \
     }
 
-#define UNLIKELY(condition...) __glibc_unlikely(condition)
-#define LIKELY(condition...) __glibc_likely(condition)
+#define UNLIKELY(...) __glibc_unlikely(__VA_ARGS__)
+#define LIKELY(...) __glibc_likely(__VA_ARGS__)
+
+#define UNUSED(x) (void)(x)
 
 #ifdef __cplusplus
 }
