@@ -63,10 +63,7 @@ typedef struct ticket_lock_t
 #endif
 #endif
 } ticket_lock_t;
-#define TICKET_INITIALIZER   \
-    {                        \
-        .head = 1, .tail = 0 \
-    }
+#define TICKET_INITIALIZER {1, NULL, 0, NULL}
 
 /*
  * Declarations

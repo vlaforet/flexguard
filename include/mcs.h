@@ -64,10 +64,7 @@ typedef struct mcs_lock_t
 
     volatile mcs_qnode qnodes[MAX_NUMBER_THREADS];
 } mcs_lock_t;
-#define MCS_INITIALIZER \
-    {                   \
-        .tail = 0       \
-    }
+#define MCS_INITIALIZER {NULL, NULL}
 
 typedef union
 {
@@ -80,9 +77,11 @@ typedef union
     uint8_t padding[CACHE_LINE_SIZE];
 #endif
 } mcs_cond_t;
-#define MCS_COND_INITIALIZER  \
-    {                         \
-        .seq = 0, .target = 0 \
+#define MCS_COND_INITIALIZER \
+    {                        \
+        {                    \
+            0, 0             \
+        }                    \
     }
 
 /*

@@ -60,9 +60,11 @@ typedef union
     uint8_t padding[CACHE_LINE_SIZE];
 #endif
 } mcstas_lock_t;
-#define MCSTAS_INITIALIZER   \
-    {                        \
-        .tail = 0, .lock = 0 \
+#define MCSTAS_INITIALIZER \
+    {                      \
+        {                  \
+            NULL, 0        \
+        }                  \
     }
 
 typedef union
@@ -78,7 +80,9 @@ typedef union
 } mcstas_cond_t;
 #define MCSTAS_COND_INITIALIZER \
     {                           \
-        .seq = 0, .target = 0   \
+        {                       \
+            0, 0                \
+        }                       \
     }
 
 /*

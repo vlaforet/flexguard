@@ -131,7 +131,12 @@ typedef union
   uint8_t padding[CACHE_LINE_SIZE];
 #endif
 } hybridv2_cond_t;
-#define HYBRIDV2_COND_INITIALIZER {.seq = 0, .target = 0}
+#define HYBRIDV2_COND_INITIALIZER \
+  {                               \
+    {                             \
+      0, 0                        \
+    }                             \
+  }
 
 /*
  *  Declarations

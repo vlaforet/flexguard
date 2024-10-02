@@ -157,7 +157,9 @@ typedef union
 } hybridlock_cond_t;
 #define HYBRIDLOCK_COND_INITIALIZER \
   {                                 \
-    .seq = 0, .target = 0           \
+    {                               \
+      0, 0                          \
+    }                               \
   }
 
 /*

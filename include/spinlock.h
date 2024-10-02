@@ -59,7 +59,9 @@ typedef struct spinlock_lock_t
 } spinlock_lock_t;
 #define SPINLOCK_INITIALIZER \
   {                          \
-    .lock = UNLOCKED         \
+    {                        \
+      NULL                   \
+    }                        \
   }
 
 /*

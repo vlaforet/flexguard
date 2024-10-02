@@ -72,10 +72,7 @@ typedef struct clh_lock_t
   };
   volatile clh_qnode_ptr qnodes[MAX_NUMBER_THREADS];
 } clh_lock_t;
-#define CLH_INITIALIZER \
-  {                     \
-    .lock = NULL        \
-  }
+#define CLH_INITIALIZER {NULL}
 
 /*
  * Declarations

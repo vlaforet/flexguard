@@ -56,10 +56,7 @@ typedef struct futex_lock_t
 #endif
   };
 } futex_lock_t;
-#define FUTEX_INITIALIZER \
-  {                       \
-    .data = 0             \
-  }
+#define FUTEX_INITIALIZER {0}
 
 typedef union
 {
@@ -74,7 +71,9 @@ typedef union
 } futex_cond_t;
 #define FUTEX_COND_INITIALIZER \
   {                            \
-    .seq = 0, .target = 0      \
+    {                          \
+      0, 0                     \
+    }                          \
   }
 
 /*
