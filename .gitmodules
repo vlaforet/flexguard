@@ -16,3 +16,6 @@
 [submodule "third_party/benchmark"]
 	path = ext/leveldb/third_party/benchmark
 	url = https://github.com/google/benchmark.git
+[submodule "jemalloc"]
+	path = ext/jemalloc
+	url = https://github.com/jemalloc/jemalloc.git
