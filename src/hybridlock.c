@@ -138,7 +138,7 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
     {
     case LOCK_TYPE_SPIN:
 #ifdef BPF
-        asm volatile("bhl_lock:" ::: "memory");
+        __asm__ volatile("bhl_lock:" ::: "memory");
         qnode->locking_id = the_lock->id;
         MEM_BARRIER;
 #endif
@@ -206,22 +206,22 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
 
         // Register rax stores the current qnode and will contain the previous value of
         // the queue_lock after the xchgq operation.
-        register hybrid_qnode_ptr pred asm("rcx") = qnode;
+        register hybrid_qnode_ptr pred __asm__("rcx") = qnode;
 
         /*
          *  Exchange pred (rcx) and queue head.
          *  Store the pointer to the queue head in a register.
          *  Uses the value in rax (pred) as an exchange parameter.
          */
-        asm volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(the_lock->queue_lock) : "memory");
+        __asm__ volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(the_lock->queue_lock) : "memory");
 
 #ifdef BPF
-        asm volatile("bhl_lock_check_rcx_null:" ::: "memory");
+        __asm__ volatile("bhl_lock_check_rcx_null:" ::: "memory");
 #endif
         if (pred != NULL) /* lock was not free */
         {
 #ifdef BPF
-            asm volatile("bhl_lock_spin:" ::: "memory");
+            __asm__ volatile("bhl_lock_spin:" ::: "memory");
 #endif
             MEM_BARRIER;
             pred->next = qnode; // make pred point to me
@@ -278,7 +278,7 @@ __attribute__((noinline)) __attribute__((noipa)) static int lock_type(hybridlock
 #endif
 
 #ifdef BPF
-        asm volatile("bhl_lock_end:" ::: "memory");
+        __asm__ volatile("bhl_lock_end:" ::: "memory");
 #endif
         return 1; // Success
 
@@ -336,8 +336,8 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
                  *  Store the pointer to the queue head and new value (NULL) in registers.
                  *  Store the compare value (curr) in the accumulator register.
                  */
-                asm volatile("lock cmpxchgq %2, (%0)" : : "r"(the_lock->queue_lock), "a"(curr), "r"(NULL) : "memory");
-                asm goto("bhl_unlock_check_zero_flag1: je %l[unlock_end]" : : : : unlock_end); // Do a jump to break here.
+                __asm__ volatile("lock cmpxchgq %2, (%0)" : : "r"(the_lock->queue_lock), "a"(curr), "r"(NULL) : "memory");
+                __asm__ goto("bhl_unlock_check_zero_flag1: je %l[unlock_end]" : : : : unlock_end); // Do a jump to break here.
 
                 do
                 {
@@ -357,17 +357,17 @@ __attribute__((noinline)) __attribute__((noipa)) static void unlock_type(hybridl
              *  Store the pointer to the waiting flag and new value (0) in registers.
              *  Store the compare value (1) in the accumulator register.
              */
-            asm volatile("lock cmpxchgb %2, (%0)" : : "r"(&succ->waiting), "a"((uint8_t)1), "r"((uint8_t)0) : "memory");
-            asm goto("bhl_unlock_check_zero_flag2: je %l[unlock_end]" : : : : unlock_end); // Do a jump to break here.
+            __asm__ volatile("lock cmpxchgb %2, (%0)" : : "r"(&succ->waiting), "a"((uint8_t)1), "r"((uint8_t)0) : "memory");
+            __asm__ goto("bhl_unlock_check_zero_flag2: je %l[unlock_end]" : : : : unlock_end); // Do a jump to break here.
         }
 #endif
 
     unlock_end:
-        asm volatile("bhl_unlock_end:" ::: "memory");
+        __asm__ volatile("bhl_unlock_end:" ::: "memory");
 #ifdef BPF
         MEM_BARRIER;
         qnode->locking_id = -1;
-        asm volatile("bhl_unlock_end_b:" ::: "memory");
+        __asm__ volatile("bhl_unlock_end_b:" ::: "memory");
 #endif
         break;
 

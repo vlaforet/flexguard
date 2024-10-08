@@ -74,7 +74,7 @@ extern "C"
         uint32_t i;
         for (i = 0; i < num_reps; i++)
         {
-            asm volatile("NOP");
+            __asm__ volatile("NOP");
         }
     }
 

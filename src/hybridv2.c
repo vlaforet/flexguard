@@ -91,7 +91,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 {
     hybrid_qnode_ptr qnode = get_me();
 #ifdef BPF
-    asm volatile("bhl_lock:" ::: "memory");
+    __asm__ volatile("bhl_lock:" ::: "memory");
     DASSERT(qnode->locking_id == -1);
     qnode->locking_id = the_lock->id;
     MEM_BARRIER;
@@ -119,17 +119,17 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
         // Register rax stores the current qnode and will contain the previous value of
         // the queue after the xchgq operation.
-        register hybrid_qnode_ptr pred asm("rcx") = qnode;
+        register hybrid_qnode_ptr pred __asm__("rcx") = qnode;
 
         /*
          *  Exchange pred (rcx) and queue head.
          *  Store the pointer to the queue head in a register.
          *  Uses the value in rax (pred) as an exchange parameter.
          */
-        asm volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(&the_lock->queue) : "memory");
+        __asm__ volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(&the_lock->queue) : "memory");
 
 #ifdef BPF
-        asm volatile("bhl_lock_check_rcx_null:" ::: "memory");
+        __asm__ volatile("bhl_lock_check_rcx_null:" ::: "memory");
 #endif
         if (pred != NULL) /* lock was not free */
         {
@@ -140,7 +140,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
                 PAUSE;
         }
 #ifdef BPF
-        asm volatile("bhl_lock_end:" ::: "memory");
+        __asm__ volatile("bhl_lock_end:" ::: "memory");
 #endif
     }
 
