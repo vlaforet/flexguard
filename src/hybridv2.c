@@ -30,6 +30,7 @@
 #include "hybridv2.h"
 
 #ifdef BPF
+#include <bpf/libbpf.h>
 #include "hybridv2.skel.h"
 #endif
 

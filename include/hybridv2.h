@@ -49,10 +49,6 @@
 #include <fcntl.h>
 #include <pthread.h>
 
-#ifdef BPF
-#include <bpf/libbpf.h>
-#endif
-
 #include "atomic_ops.h"
 #include "utils.h"
 #include "hybridv2_bpf.h"
