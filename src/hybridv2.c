@@ -89,6 +89,10 @@ static inline hybrid_qnode_ptr get_me()
 
 void hybridv2_lock(hybridv2_lock_t *the_lock)
 {
+    struct timespec futex_timeout;
+    futex_timeout.tv_sec = 0;
+    futex_timeout.tv_nsec = 1000000;
+
     hybrid_qnode_ptr qnode = get_me();
 #ifdef BPF
     __asm__ volatile("bhl_lock:" ::: "memory");
@@ -154,7 +158,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         if (*get_preempted_count(the_lock))
         {
             __sync_fetch_and_add(&the_lock->waiter_count, 1);
-            futex_wait((void *)&the_lock->lock_value, 1);
+            futex_wait_timeout((void *)&the_lock->lock_value, 1, &futex_timeout);
             __sync_fetch_and_sub(&the_lock->waiter_count, 1);
         }
         else
