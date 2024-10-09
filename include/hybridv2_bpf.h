@@ -47,7 +47,12 @@ typedef struct hybrid_qnode_t
       volatile struct hybrid_qnode_t *volatile next;
 #endif
 
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
       volatile int locking_id;
+#else
+      volatile uint8_t is_locking;
+#endif
+
       volatile uint8_t is_running;
     };
 

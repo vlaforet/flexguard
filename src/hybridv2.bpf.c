@@ -116,7 +116,10 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 {
 	u32 key;
 	hybrid_qnode_ptr qnode;
-	int lock_id, *thread_id;
+	int *thread_id;
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+	int lock_id;
+#endif
 
 	/*
 	 * Clear preempted status of next thread.
@@ -130,11 +133,16 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		{
 			qnode->is_running = 1;
 
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
 			lock_id = qnode->locking_id;
-			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS && bpf_map_delete_elem(&is_preempted_map, &key) == 0)
+			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)
 			{
-				__sync_fetch_and_sub(&get_preempted_count(lock_id), 2);
+#endif
+				if (bpf_map_delete_elem(&is_preempted_map, &key) == 0)
+					__sync_fetch_and_sub(&get_preempted_count(lock_id), 1);
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
 			}
+#endif
 		}
 	}
 
@@ -156,19 +164,24 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		return 0;
 
 	qnode->is_running = 0;
-	lock_id = qnode->locking_id;
 
 	/*
 	 * Ignore preemption if the thread was not locking.
 	 */
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+	lock_id = qnode->locking_id;
 	if (lock_id < 0 || lock_id >= MAX_NUMBER_LOCKS)
 		return 0;
+#else
+	if (!qnode->is_locking)
+		return 0;
+#endif
 
 	if (is_critical_thread(prev, qnode))
 	{
 		DPRINT("Detected preemption: %s (%d) -> %s (%d)", prev->comm, prev->pid, next->comm, next->pid);
 		bpf_map_update_elem(&is_preempted_map, &key, &key, BPF_NOEXIST);
-		__sync_fetch_and_add(&get_preempted_count(lock_id), 2);
+		__sync_fetch_and_add(&get_preempted_count(lock_id), 1);
 	}
 
 	return 0;

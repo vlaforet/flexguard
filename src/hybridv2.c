@@ -69,7 +69,12 @@ static inline hybrid_qnode_ptr get_me()
 
         hybrid_qnode_ptr qnode = &qnode_allocation_array[thread_id];
 
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
         qnode->locking_id = -1;
+#else
+        qnode->is_locking = 0;
+#endif
+
         qnode->is_running = 1;
 
 #ifdef HYBRID_TICKET
@@ -96,8 +101,13 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
     hybrid_qnode_ptr qnode = get_me();
 #ifdef BPF
     __asm__ volatile("bhl_lock:" ::: "memory");
-    DASSERT(qnode->locking_id == -1);
+
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
     qnode->locking_id = the_lock->id;
+#else
+    qnode->is_locking = 1;
+#endif
+
     MEM_BARRIER;
 #endif
 
@@ -205,7 +215,11 @@ void hybridv2_unlock(hybridv2_lock_t *the_lock)
         futex_wake((void *)&the_lock->lock_value, 1);
 
     MEM_BARRIER;
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
     qnode_allocation_array[thread_id].locking_id = -1; // Assuming qnode has already been initialized.
+#else
+    qnode_allocation_array[thread_id].is_locking = 0; // Assuming qnode has already been initialized.
+#endif
 }
 
 #ifdef BPF
