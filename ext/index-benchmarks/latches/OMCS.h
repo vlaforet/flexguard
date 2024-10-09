@@ -7,6 +7,8 @@
 #include "OMCSImpl.h"
 #elif defined(STDRW_LOCK)
 #include "STDRW.h"
+#elif defined(MUTEX_LOCK)
+#include "STDMutex.h"
 #elif defined(MCSRW_LOCK)
 #include "MCSRW.h"
 #elif defined(OPT_MCSRW_HYBRID_LOCK)
@@ -24,6 +26,10 @@ struct OMCSLock {
   using Lock = std_lock::STDRWLock;
   using Context = uint64_t;
   static constexpr const char *name = "STD RW Lock";
+#elif defined(MUTEX_LOCK)
+  using Lock = stdmutex_lock::MutexLock;
+  using Context = uint64_t;
+  static constexpr const char *name = "STD Mutex Lock";
 #elif defined(MCSRW_LOCK)
   using Lock = mcsrw::MCSRWLock;
   using Context = mcsrw::MCSRWQNode;
