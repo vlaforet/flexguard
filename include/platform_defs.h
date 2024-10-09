@@ -52,7 +52,7 @@ extern "C"
 /*
  * Maximum number of locks allowed per application.
  */
-#define MAX_NUMBER_LOCKS 1000
+#define MAX_NUMBER_LOCKS INT_MAX
 
 #ifdef __cplusplus
 }
