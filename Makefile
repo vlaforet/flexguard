@@ -120,7 +120,7 @@ interpose.so: libsync.a include/atomic_ops.h include/utils.h include/lock_if.h i
 libsync.a: $(OBJ_FILES) $(LIBBPF_OBJ) include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
 	ar -rc libsync.a $(OBJ_FILES)
 ifneq ($(LIBBPF_OBJ),) # Add libbpf to the archive
-	echo "OPEN libsync.a\n ADDLIB .output/libbpf.a\n SAVE\n END" | ar -M
+	echo "OPEN libsync.a\n ADDLIB $(LIBBPF_OBJ)\n SAVE\n END" | ar -M
 endif
 
 %.o: src/%.c $(BPF_SKELETON)
