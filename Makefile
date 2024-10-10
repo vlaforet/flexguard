@@ -1,10 +1,10 @@
 COMPILE_FLAGS=-fPIC -Wall
 
 ifeq ($(DEBUG),1)
-  COMPILE_FLAGS += -O0 -fno-inline -ggdb
+	COMPILE_FLAGS += -O0 -fno-inline -ggdb
 	DEFINED := -DDEBUG
 else
-  COMPILE_FLAGS += -O3
+	COMPILE_FLAGS += -O3
 endif
 
 ifneq ($(ADD_PADDING),0)
@@ -22,7 +22,7 @@ endif
 
 # LOCK_VERSION in (SPINLOCK, HYBRIDLOCK, MCS, MCSTAS, CLH, TICKET, MUTEX, FUTEX)
 ifndef LOCK_VERSION
-  LOCK_VERSION=HYBRIDLOCK
+	LOCK_VERSION=HYBRIDLOCK
 endif
 DEFINED += -DUSE_$(LOCK_VERSION)_LOCKS
 OBJ_FILES += $(shell echo $(LOCK_VERSION).o | tr '[:upper:]' '[:lower:]')
