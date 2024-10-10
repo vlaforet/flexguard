@@ -80,13 +80,7 @@ ifeq ($(NOBPF), 0)
 	LIBS += -lelf -lz
 endif
 
-SRCPATH := $(abspath ./src/)
-MAININCLUDE := $(abspath ./include/)
-INCLUDES := $(BPFINCLUDES) -I$(MAININCLUDE)
-
-all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
-	@echo "############### Used lock:" $(LOCK_VERSION)
-	@echo "############### CFLAGS =" $(INCLUDES) $(DEFINED)
+INCLUDES := $(BPFINCLUDES) -I$(abspath ./include/)
 
 ifeq ($(NOBPF), 0)
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
@@ -139,8 +133,10 @@ scheduling: bmarks/scheduling.c $(OBJ_FILES) $(LIBBPF_OBJ)
 buckets: bmarks/buckets.c $(OBJ_FILES) $(LIBBPF_OBJ)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) src/hash_map.c bmarks/buckets.c -o buckets -lm $(LIBS)
 
-test_correctness: bmarks/test_correctness.c $(OBJ_FILES) $(LIBBPF_OBJ)
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/test_correctness.c -o test_correctness $(LIBS)
+
+all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
+	@echo "############### Used lock:" $(LOCK_VERSION)
+	@echo "############### CFLAGS =" $(INCLUDES) $(DEFINED)
 
 clean:
 	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s *.odump test_correctness scheduling buckets libsync.a
