@@ -49,12 +49,6 @@ else
 	NOBPF=1
 endif
 
-CORE_NUM := $(shell nproc)
-ifeq ($(CORE_NUM), )
-	CORE_NUM := 8
-endif
-DEFINED += -DCORE_NUM=${CORE_NUM}
-
 UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)
 	GCC:=gcc

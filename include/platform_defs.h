@@ -35,10 +35,6 @@ extern "C"
 {
 #endif
 
-#ifndef CORE_NUM
-#define CORE_NUM 8
-#endif
-
 /*
  * Cache line size in bytes.
  */
@@ -47,7 +43,7 @@ extern "C"
 /*
  * Maximum number of threads allowed per lock.
  */
-#define MAX_NUMBER_THREADS (10 * CORE_NUM)
+#define MAX_NUMBER_THREADS 600
 
 /*
  * Maximum number of locks allowed per application.
