@@ -60,9 +60,6 @@ ifeq ($(NOBPF), 0)
 	LIBBPF_OBJ := $(abspath $(OUTPUT)/libbpf.a)
 	BPFTOOL_OUTPUT ?= $(abspath $(OUTPUT)/bpftool)
 	BPFTOOL ?= $(BPFTOOL_OUTPUT)/bootstrap/bpftool
-	LIBBLAZESYM_SRC := $(abspath ./blazesym/)
-	LIBBLAZESYM_OBJ := $(abspath $(OUTPUT)/libblazesym.a)
-	LIBBLAZESYM_HEADER := $(abspath $(OUTPUT)/blazesym.h)
 	ARCH := $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/' | sed 's/ppc64le/powerpc/' | sed 's/mips.*/mips/')
 	VMLINUX := $(abspath ./vmlinux/$(ARCH)/vmlinux.h)
 	BPFINCLUDES := -I$(OUTPUT) -I$(abspath ../libbpf/include/uapi) -I$(dir $(VMLINUX))
@@ -105,15 +102,6 @@ $(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(OUTPU
 # Build bpftool
 $(BPFTOOL): | $(BPFTOOL_OUTPUT)
 	$(MAKE) ARCH= CROSS_COMPILE= OUTPUT=$(BPFTOOL_OUTPUT)/ -C $(BPFTOOL_SRC) bootstrap
-
-$(LIBBLAZESYM_SRC)/target/release/libblazesym.a::
-	cd $(LIBBLAZESYM_SRC) && $(CARGO) build --features=cheader --release
-
-$(LIBBLAZESYM_OBJ): $(LIBBLAZESYM_SRC)/target/release/libblazesym.a | $(OUTPUT)
-	cp $(LIBBLAZESYM_SRC)/target/release/libblazesym.a $@
-
-$(LIBBLAZESYM_HEADER): $(LIBBLAZESYM_SRC)/target/release/libblazesym.a | $(OUTPUT)
-	cp $(LIBBLAZESYM_SRC)/target/release/blazesym.h $@
 
 # Build BPF code
 $(OUTPUT)/%.bpf.o: src/%.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(VMLINUX) | $(OUTPUT)
