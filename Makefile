@@ -107,18 +107,21 @@ $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 	$(BPFTOOL) gen skeleton $< > $@
 endif
 
-litl: include/lock_if.h libsync.a $(LIBBPF_OBJ)
+litl: include/lock_if.h libsync.a
 	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(DEFINED) $(INCLUDES)"
 
 interpose.sh: interpose.in interpose.so
 	cat interpose.in | sed -e "s/@base_dir@/$$(echo $$(cd .; pwd) | sed -e 's/\([\/&]\)/\\\1/g')/g" > $@
 	chmod a+x $@
 
-interpose.so: $(OBJ_FILES) $(LIBBPF_OBJ) include/atomic_ops.h include/utils.h include/lock_if.h interpose.o
+interpose.so: libsync.a include/atomic_ops.h include/utils.h include/lock_if.h interpose.o
 	$(GCC) -shared -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o interpose.so $(LIBS) -Wl,--version-script=src/interpose.map
 
-libsync.a: $(OBJ_FILES) include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
-	ar -r libsync.a $(OBJ_FILES)
+libsync.a: $(OBJ_FILES) $(LIBBPF_OBJ) include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
+	ar -rc libsync.a $(OBJ_FILES)
+ifneq ($(LIBBPF_OBJ),) # Add libbpf to the archive
+	echo "OPEN libsync.a\n ADDLIB .output/libbpf.a\n SAVE\n END" | ar -M
+endif
 
 %.o: src/%.c $(BPF_SKELETON)
 	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $(filter %.c,$^) -o $@ $(LIBS)
@@ -127,17 +130,19 @@ ifeq ($(ASSEMBLY_DUMP),1) # Produces a %.s and %.odump files containing the comp
 	objdump -d $@ > ${@}dump
 endif
 
-scheduling: bmarks/scheduling.c $(OBJ_FILES) $(LIBBPF_OBJ)
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) bmarks/scheduling.c -o scheduling $(LIBS)
+scheduling: bmarks/scheduling.c libsync.a
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
 
-buckets: bmarks/buckets.c $(OBJ_FILES) $(LIBBPF_OBJ)
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $(OBJ_FILES) $(LIBBPF_OBJ) src/hash_map.c bmarks/buckets.c -o buckets -lm $(LIBS)
+buckets: src/hash_map.c bmarks/buckets.c libsync.a
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ -lm $(LIBS)
 
+test_correctness: bmarks/test_correctness.c libsync.a
+	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
 
 all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
 	@echo "############### Used lock:" $(LOCK_VERSION)
 	@echo "############### CFLAGS =" $(INCLUDES) $(DEFINED)
 
 clean:
-	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s *.odump test_correctness scheduling buckets libsync.a
+	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s *.a *.odump test_correctness scheduling buckets
 	$(MAKE) -C litl/ clean

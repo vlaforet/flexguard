@@ -6,10 +6,10 @@
 *.s
 *.S
 *.odump
+/*.a
 
 /.output
 /#README.md#
-/libsync.a
 /interpose.so
 /interpose.sh
 
