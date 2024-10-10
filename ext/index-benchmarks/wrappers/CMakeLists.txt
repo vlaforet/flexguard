@@ -12,10 +12,11 @@ if (NOT pibench_POPULATED)
 endif ()
 
 macro(add_wrapper)
-  cmake_parse_arguments(WRAPPER "" "NAME;SOURCE" "DEFINITIONS;LIBRARIES" ${ARGN})
+  cmake_parse_arguments(WRAPPER "" "NAME;SOURCE" "DEFINITIONS;LIBRARIES;INCLUDE" ${ARGN})
 
   add_library(${WRAPPER_NAME}_wrapper SHARED ${WRAPPER_SOURCE})
   target_link_libraries(${WRAPPER_NAME}_wrapper glog ${WRAPPER_LIBRARIES})
+  target_include_directories(${WRAPPER_NAME}_wrapper PRIVATE ${WRAPPER_INCLUDE})
   target_compile_definitions(${WRAPPER_NAME}_wrapper PUBLIC ${WRAPPER_DEFINITIONS})
   if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
     target_link_libraries(${WRAPPER_NAME}_wrapper ${JEMALLOC_LIBRARIES})
@@ -142,6 +143,22 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK MUTEX_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size}
   )
+
+  add_wrapper(
+    NAME btreelc_mcstas${page_size_suffix}
+    SOURCE btreeolc_wrapper.cpp
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCSTAS" USE_MCSTAS_LOCKS
+    LIBRARIES "${ROOT_DIR}/libsyncmcstas.a"
+    INCLUDE "${ROOT_DIR}/include"
+  )
+
+   add_wrapper(
+     NAME btreelc_bhl${page_size_suffix}
+     SOURCE btreeolc_wrapper.cpp
+     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF
+     LIBRARIES  "${ROOT_DIR}/libsyncbhl.a" elf
+     INCLUDE "${ROOT_DIR}/include"
+   )
 
   # add_wrapper(
   #   NAME btreelc_mcsrw_cwp${page_size_suffix}
