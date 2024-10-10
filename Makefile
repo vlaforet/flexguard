@@ -1,3 +1,5 @@
+GCC:=gcc
+LIBS := -lrt -lpthread -lnuma
 COMPILE_FLAGS=-fPIC -Wall
 
 ifeq ($(DEBUG),1)
@@ -47,12 +49,6 @@ ifneq (,$(findstring HYBRID,$(LOCK_VERSION)))
 	endif
 else
 	NOBPF=1
-endif
-
-UNAME := $(shell uname)
-ifeq ($(UNAME), Linux)
-	GCC:=gcc
-	LIBS := -lrt -lpthread -lnuma
 endif
 
 ifeq ($(NOBPF), 0)
