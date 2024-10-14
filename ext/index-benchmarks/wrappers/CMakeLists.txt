@@ -282,6 +282,29 @@ add_wrapper(
   LIBRARIES artlc_stdrw tbb numa
 )
 
+add_wrapper(
+  NAME artlc_mutex
+  SOURCE artolc_wrapper.cpp
+  DEFINITIONS RWLOCK MUTEX_LOCK
+  LIBRARIES artlc_mutex tbb numa
+)
+
+add_wrapper(
+  NAME artlc_mcstas
+  SOURCE artolc_wrapper.cpp
+  DEFINITIONS RWLOCK LIBSLOCK_LOCK ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCSTAS" USE_MCSTAS_LOCKS
+  LIBRARIES artlc_mcstas tbb numa "${ROOT_DIR}/libsyncmcstas.a"
+  INCLUDE "${ROOT_DIR}/include"
+)
+
+add_wrapper(
+  NAME artlc_bhl
+  SOURCE artolc_wrapper.cpp
+  DEFINITIONS RWLOCK LIBSLOCK_LOCK ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF
+  LIBRARIES artlc_bhl tbb numa "${ROOT_DIR}/libsyncbhl.a" elf
+  INCLUDE "${ROOT_DIR}/include"
+)
+
 # add_wrapper(
 #   NAME artlc_mcsrw
 #   SOURCE artolc_wrapper.cpp

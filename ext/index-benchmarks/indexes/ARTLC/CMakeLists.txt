@@ -1,9 +1,10 @@
 
 macro(add_libart)
-  cmake_parse_arguments(LIBART "" "NAME" "DEFINITIONS;LIBRARIES" ${ARGN})
+  cmake_parse_arguments(LIBART "" "NAME" "DEFINITIONS;LIBRARIES;INCLUDE" ${ARGN})
 
   add_library(${LIBART_NAME} ${ARTOLC_SRC})
   target_link_libraries(${LIBART_NAME} glog ${LIBART_LIBRARIES})
+  target_include_directories(${LIBART_NAME} PRIVATE ${LIBART_INCLUDE})
   target_compile_definitions(${LIBART_NAME} PUBLIC ${LIBART_DEFINITIONS})
 endmacro()
 
@@ -12,6 +13,23 @@ set(ARTOLC_SRC Tree.cpp N.cpp N4.cpp N16.cpp N48.cpp N256.cpp)
 add_libart(
   NAME artlc_stdrw
   DEFINITIONS RWLOCK STDRW_LOCK
+)
+
+add_libart(
+  NAME artlc_mutex
+  DEFINITIONS RWLOCK MUTEX_LOCK
+)
+
+add_libart(
+  NAME artlc_mcstas
+  DEFINITIONS RWLOCK LIBSLOCK_LOCK ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCSTAS" USE_MCSTAS_LOCKS
+  INCLUDE ${ROOT_DIR}/include
+)
+
+add_libart(
+  NAME artlc_bhl
+  DEFINITIONS RWLOCK LIBSLOCK_LOCK ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF
+  INCLUDE ${ROOT_DIR}/include
 )
 
 add_libart(
