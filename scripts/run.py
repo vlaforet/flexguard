@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
             row = {
                 "test_name": test["name"],
-                "replications": args.replication,
+                "replications": len(results[k]),
                 **test["kwargs"],
             }
             rows.append(pd.merge(res, pd.DataFrame([row]), "cross"))
