@@ -72,6 +72,11 @@ class IndexBenchmark(BenchmarkCore):
                     results[col] = throughput
                     break
 
+        for finishType in self.finishTypes:
+            results[finishType] = sum(
+                [results[f"{opType}-{finishType}"] for opType in self.opTypes]
+            )
+
         if len(results.keys()) == 0:
             return None
         return pd.DataFrame([results])
