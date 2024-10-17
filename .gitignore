@@ -6,8 +6,9 @@
 *.s
 *.S
 *.odump
-/*.a
+__pycache__
 
+/*.a
 /.output
 /#README.md#
 /interpose.so
