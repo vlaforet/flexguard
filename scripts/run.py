@@ -138,4 +138,6 @@ if __name__ == "__main__":
             print("No output")
         else:
             df = pd.concat(rows, ignore_index=True)
-            df.to_csv(os.path.join(exp_dir, f"{exp.name}.csv"))
+            output_file = os.path.join(exp_dir, f"{exp.name}.csv")
+            df.to_csv(output_file)
+            print(f"Output {exp.name} experiment results to {output_file}")
