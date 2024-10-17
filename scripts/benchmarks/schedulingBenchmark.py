@@ -1,18 +1,14 @@
 import os
 import re
 import subprocess
-import sys
-from math import prod
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import pygal
-import seaborn as sns
-from scripts.benchmarks.benchmarkCore import BenchmarkCore
+from benchmarks.benchmarkCore import BenchmarkCore
 
 
 class SchedulingBenchmark(BenchmarkCore):
+    pattern = re.compile(r"(\d+),\s*(\d+),\s*([+-]?\d*\.\d+)")
+
     def __init__(self, base_dir):
         super().__init__(base_dir)
 
@@ -61,20 +57,13 @@ class SchedulingBenchmark(BenchmarkCore):
             print(f"Failed to run scheduling ({result.returncode}):", result.stderr)
             return None
 
-        pattern = r"(\d+),\s*(\d+),\s*([+-]?\d*\.\d+)"
-        rows = []
-        for line in result.stdout.split("\n"):
-            m = re.match(pattern, line)
-            if m:
-                id, threads, throughput = m.groups()
-                rows.append(
-                    {
-                        "id": int(id),
-                        "threads": int(threads),
-                        "throughput": float(throughput),
-                    }
-                )
-
-        if len(rows) == 0:
-            return None
-        return pd.DataFrame(rows)
+        rows = [
+            {
+                "id": int(m.group(1)),
+                "threads": int(m.group(2)),
+                "throughput": float(m.group(3)),
+            }
+            for line in result.stdout.splitlines()
+            if (m := self.pattern.match(line))
+        ]
+        return pd.DataFrame(rows) if rows else None

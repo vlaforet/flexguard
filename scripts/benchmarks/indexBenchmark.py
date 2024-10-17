@@ -4,8 +4,7 @@ import subprocess
 import sys
 
 import pandas as pd
-
-from scripts.benchmarks.benchmarkCore import BenchmarkCore
+from benchmarks.benchmarkCore import BenchmarkCore
 
 
 class IndexBenchmark(BenchmarkCore):
@@ -64,19 +63,15 @@ class IndexBenchmark(BenchmarkCore):
             return None
 
         results = {}
-        for line in result.stdout.split("\n"):
+        for line in result.stdout.splitlines():
             for col, pattern in self.patterns.items():
-                m = re.match(pattern, line)
-                if m:
-                    throughput = float(m.group(1))
-                    results[col] = throughput
+                if m := pattern.match(line):
+                    results[col] = float(m.group(1))
                     break
 
         for finishType in self.finishTypes:
             results[finishType] = sum(
-                [results[f"{opType}-{finishType}"] for opType in self.opTypes]
+                results.get(f"{opType}-{finishType}", 0) for opType in self.opTypes
             )
 
-        if len(results.keys()) == 0:
-            return None
-        return pd.DataFrame([results])
+        return pd.DataFrame([results]) if results else None
