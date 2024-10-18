@@ -17,7 +17,7 @@ class SchedulingBenchmark(BenchmarkCore):
             pd.concat(results)
             .groupby(["id"])
             .agg({"throughput": "mean", "threads": "mean"})
-            .reset_index()
+            .reset_index(drop=True)
         )
 
     def estimate_runtime(self, **kwargs):
