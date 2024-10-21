@@ -316,7 +316,7 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
         lock_info = malloc(MAX_NUMBER_LOCKS * sizeof(hybrid_lock_info_t));
 #else
         preempted_count = malloc(sizeof(preempted_count_t));
-        preempted_count = 0;
+        *preempted_count = 0;
 #endif
 #endif
         init_lock = 2;
