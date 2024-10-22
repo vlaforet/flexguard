@@ -61,6 +61,13 @@ if __name__ == "__main__":
         help="Experiments to run (default=None (run all))",
     )
     parser.add_argument(
+        "--with-debugging",
+        dest="with_debugging",
+        action="store_true",
+        default=False,
+        help="Run debugging experiments (default=True)",
+    )
+    parser.add_argument(
         "-o",
         dest="output_file",
         type=str,
@@ -69,7 +76,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    exps = getExperiments(args.experiments)
+    exps = getExperiments(args.experiments, args.with_debugging)
     if exps is None:
         print("No experiment to run has been specified")
         sys.exit(1)
@@ -129,6 +136,7 @@ if __name__ == "__main__":
 
             row = {
                 "test_name": test["name"],
+                "label": test["label"],
                 "replications": len(results[k]),
                 **test["kwargs"],
             }

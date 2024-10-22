@@ -2,16 +2,22 @@ from experiments.experimentCore import ExperimentCore
 
 
 class CorrectnessExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, with_debugging):
+        super().__init__(with_debugging)
 
-        locks = ["hybridv2", "mcstas", "mcs", "mutex"]
+        locks = {
+            "BPF Hybrid Lock": "hybridv2",
+            "MCS/TAS": "mcstas",
+            "MCS": "mcs",
+            "Pthread Mutex": "mutex",
+        }
 
-        for lock in locks:
+        for label, lock in locks.items():
             self.tests.append(
                 {
                     "benchmark": "correctness",
-                    "name": f"Correctness of {lock} lock",
+                    "name": f"Correctness of {label} lock",
+                    "label": label,
                     "kwargs": {
                         "lock": lock,
                         "num-threads": 50,

@@ -2,16 +2,22 @@ from experiments.experimentCore import ExperimentCore
 
 
 class SchedulingExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, with_debugging):
+        super().__init__(with_debugging)
 
-        locks = ["hybridv2", "mcstas", "mcs", "mutex"]
+        locks = {
+            "BPF Hybrid Lock": "hybridv2",
+            "MCS/TAS": "mcstas",
+            "MCS": "mcs",
+            "Pthread Mutex": "mutex",
+        }
 
-        for lock in locks:
+        for label, lock in locks.items():
             self.tests.append(
                 {
                     "benchmark": "scheduling",
-                    "name": f"Scheduling using {lock} lock",
+                    "name": f"Scheduling using {label} lock",
+                    "label": label,
                     "kwargs": {
                         "lock": lock,
                         "base-threads": 0,

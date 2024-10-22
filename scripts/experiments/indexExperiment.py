@@ -2,33 +2,32 @@ from experiments.experimentCore import ExperimentCore
 
 
 class IndexExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, with_debugging):
+        super().__init__(with_debugging)
 
-        index_bases = [
-            "btreelc_bhl",
-            "btreelc_mcstas",
-            "btreelc_mutex",
-            "artlc_bhl",
-            "artlc_mcstas",
-            "artlc_mutex",
-        ]
+        indexes = {
+            "B+-tree BPF Hybrid Lock": "btreelc_bhl",
+            "B+-tree MCS/TAS": "btreelc_mcstas",
+            "B+-tree Pthread Mutex": "btreelc_mutex",
+            "ART BPF Hybrid Lock": "artlc_bhl",
+            "ART MCS/TAS": "artlc_mcstas",
+            "ART Pthread Mutex": "artlc_mutex",
+        }
 
-        # page_size_suffixes = ["", "_512", "_1K", "_2K", "_4K", "_8K", "_16K"]
-        page_size_suffixes = [""]
+        if self.with_debugging:
+            indexes["B+-tree BPF Hybrid Lock debug"] = "btreelc_bhl"
 
         # threads = [1, 2] + [i for i in range(10, 182, 10)]
         threads = [40, 60, 70, 180]
         # threads = [10, 20]
 
-        for index in [
-            index + suffix for index in index_bases for suffix in page_size_suffixes
-        ]:
+        for label, index in indexes.items():
             for t in threads:
                 self.tests.append(
                     {
                         "benchmark": "index",
-                        "name": f"Index {index} {t} threads",
+                        "name": f"Index {label} {t} threads",
+                        "label": label,
                         "kwargs": {
                             "index": index,
                             "threads": t,

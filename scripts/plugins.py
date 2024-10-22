@@ -17,7 +17,7 @@ def discover_plugins(namespace, suffix):
     }
 
 
-def getExperiments(names) -> List[ExperimentCore]:
+def getExperiments(names, with_debugging=False) -> List[ExperimentCore]:
     discovered = discover_plugins(experiments, "Experiment")
 
     filtered = {k: v for k, v in discovered.items() if names is None or k in names}
@@ -25,7 +25,7 @@ def getExperiments(names) -> List[ExperimentCore]:
         print(f"Loading {name}")
         importlib.import_module(namespace)
 
-    return [cls() for cls in ExperimentCore.registry]
+    return [cls(with_debugging) for cls in ExperimentCore.registry]
 
 
 benchmark_instances = {}
