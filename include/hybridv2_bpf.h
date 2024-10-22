@@ -56,9 +56,7 @@ typedef struct hybrid_qnode_t
       volatile uint8_t is_running;
     };
 
-#ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
-#endif
   };
 } hybrid_qnode_t;
 typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
@@ -74,9 +72,7 @@ typedef struct hybrid_addresses_t
       void *lock_check_rcx_null;
       void *lock_end;
     };
-#ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
-#endif
   };
 } hybrid_addresses_t;
 #endif
@@ -92,9 +88,7 @@ typedef struct hybrid_lock_info_t
     {
       preempted_count_t preempted_count;
     };
-#ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
-#endif
   };
 } hybrid_lock_info_t;
 #endif

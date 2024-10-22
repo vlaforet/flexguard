@@ -56,9 +56,7 @@ typedef struct hybrid_qnode_t
 #endif
     };
 
-#ifdef ADD_PADDING
     uint8_t padding[CACHE_LINE_SIZE];
-#endif
   };
 } hybrid_qnode_t;
 typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;

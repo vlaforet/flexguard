@@ -43,9 +43,7 @@ typedef struct mcstas_qnode
             volatile uint8_t waiting;
             volatile struct mcstas_qnode *volatile next;
         };
-#ifdef ADD_PADDING
         uint8_t padding[CACHE_LINE_SIZE];
-#endif
     };
 } mcstas_qnode;
 
