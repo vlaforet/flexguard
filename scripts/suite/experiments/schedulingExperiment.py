@@ -1,3 +1,8 @@
+import os
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 from experiments.experimentCore import ExperimentCore
 
 
@@ -29,3 +34,24 @@ class SchedulingExperiment(ExperimentCore):
                     },
                 }
             )
+
+    def report(self, results, exp_dir):
+        plt.figure(figsize=(10, 6))
+        sns.lineplot(
+            data=results,
+            x="threads",
+            y="throughput",
+            hue="label",
+            style="label",
+            markers=True,
+        )
+
+        plt.title("Threads vs CS/s")
+        plt.xlabel("Threads")
+        plt.ylabel("CS/s")
+        plt.grid(True)
+        plt.ylim(bottom=0, top=0.2)
+
+        output_path = os.path.join(exp_dir, "scheduling.png")
+        plt.savefig(output_path, dpi=600, bbox_inches="tight")
+        print(f"Wrote plot to {output_path}")

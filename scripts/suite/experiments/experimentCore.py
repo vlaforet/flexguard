@@ -1,16 +1,27 @@
+import abc
+
+import pandas as pd
+
+
 class ExperimentCore:
     """Experiment class. All experiments will inherit from this class."""
 
-    registry = []
+    name = "core"
+    registry = {}
 
+    tests = []
     """Contains all of the tests to run for this experiment.
     The `__init__` method can be used to populate the list."""
-    tests = []
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        ExperimentCore.registry.append(cls)
+        cls.name = cls.__name__.replace("Experiment", "").lower()
+        ExperimentCore.registry[cls.name] = cls
 
     def __init__(self, with_debugging=False):
-        self.name = self.__class__.__name__.replace("Experiment", "").lower()
         self.with_debugging = with_debugging
+
+    @abc.abstractmethod
+    def report(self, results: pd.DataFrame, exp_dir: str):
+        """This method should report on the benchmark results."""
+        raise NotImplementedError

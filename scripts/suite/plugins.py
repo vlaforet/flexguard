@@ -17,15 +17,28 @@ def discover_plugins(namespace, suffix):
     }
 
 
-def getExperiments(names, with_debugging=False) -> List[ExperimentCore]:
-    discovered = discover_plugins(experiments, "Experiment")
+def import_plugins(namespace, suffix):
+    discovered = discover_plugins(namespace, suffix)
+    for _, plugin in discovered.items():
+        importlib.import_module(plugin)
 
-    filtered = {k: v for k, v in discovered.items() if names is None or k in names}
-    for name, namespace in filtered.items():
-        print(f"Loading {name}")
-        importlib.import_module(namespace)
 
-    return [cls(with_debugging) for cls in ExperimentCore.registry]
+experiments_instances = {}
+
+
+def getExperiments(names: List[str], with_debugging=False) -> List[ExperimentCore]:
+    import_plugins(experiments, "Experiment")
+
+    for name in names:
+        if name in experiments_instances:
+            continue
+
+        if name not in ExperimentCore.registry:
+            print(f"Unknown experiment {name}")
+            sys.exit(1)
+        experiments_instances[name] = ExperimentCore.registry[name](with_debugging)
+
+    return [experiments_instances[name] for name in names]
 
 
 benchmark_instances = {}
@@ -33,14 +46,12 @@ benchmark_instances = {}
 
 def getBenchmark(name: str, base_dir) -> BenchmarkCore:
     if name not in benchmark_instances:
-        discovered = discover_plugins(benchmarks, "Benchmark")
+        import_plugins(benchmarks, "Benchmark")
 
-        if name not in discovered.keys():
+        if name not in BenchmarkCore.registry:
             print(f"Unknown benchmark {name}")
             sys.exit(1)
 
-        imported = importlib.import_module(discovered[name])
-        cls = getattr(imported, f"{name.title()}Benchmark")
-        benchmark_instances[name] = cls(base_dir)
+        benchmark_instances[name] = BenchmarkCore.registry[name](base_dir)
 
     return benchmark_instances[name]

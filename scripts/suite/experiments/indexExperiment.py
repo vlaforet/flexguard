@@ -1,3 +1,8 @@
+import os
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 from experiments.experimentCore import ExperimentCore
 
 
@@ -15,7 +20,7 @@ class IndexExperiment(ExperimentCore):
         }
 
         if self.with_debugging:
-            indexes["B+-tree BPF Hybrid Lock debug"] = "btreelc_bhl"
+            indexes["B+-tree BPF Hybrid Lock noBPF blocking"] = "btreelc_bhl"
 
         # threads = [1, 2] + [i for i in range(10, 182, 10)]
         threads = [40, 60, 70, 180]
@@ -41,3 +46,46 @@ class IndexExperiment(ExperimentCore):
                         },
                     }
                 )
+
+    def report(self, results, exp_dir):
+        artlc_data = results[results["index"].str.startswith("artlc")]
+        plt.figure(figsize=(10, 6))
+        sns.lineplot(
+            data=artlc_data,
+            x="threads",
+            y="succeeded",
+            hue="label",
+            style="label",
+            markers=True,
+        )
+
+        plt.xlabel("Threads")
+        plt.ylabel("Operations succeeded")
+        plt.title("Succeeded Operations by Threads (artlc Indexes)")
+        plt.legend(title="Index")
+        plt.grid(True)
+
+        output_path = os.path.join(exp_dir, "artlc.png")
+        plt.savefig(output_path, dpi=600, bbox_inches="tight")
+        print(f"Wrote plot to {output_path}")
+
+        btreelc_data = results[results["index"].str.startswith("btreelc")]
+        plt.figure(figsize=(10, 6))
+        sns.lineplot(
+            data=btreelc_data,
+            x="threads",
+            y="succeeded",
+            hue="label",
+            style="label",
+            markers=True,
+        )
+
+        plt.xlabel("Threads")
+        plt.ylabel("Operations succeeded")
+        plt.title("Succeeded Operations by Threads (btreelc Indexes)")
+        plt.legend(title="Index")
+        plt.grid(True)
+
+        output_path = os.path.join(exp_dir, "btreelc.png")
+        plt.savefig(output_path, dpi=600, bbox_inches="tight")
+        print(f"Wrote plot to {output_path}")

@@ -1,43 +1,47 @@
 #!/usr/bin/env python3
 
 import argparse
-import hashlib
-import json
 import os
 import signal
 import sys
-from typing import List
 
 import numpy as np
-import pandas as pd
-from experiments.experimentCore import ExperimentCore
-from plugins import getBenchmark, getExperiments
+from plugins import getExperiments
+from record import RecordCommand
+from report import ReportCommand
 
 np.seterr("raise")
 
 base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(base_dir)
-results_dir = os.path.join(base_dir, "results")
 
 
-def estimates(exps: List[ExperimentCore]):
-    """Returns estimations for the runtime and number of tests
-    for one replication."""
-    time_estimate = 0
-    for exp in exps:
-        for test in exp.tests:
-            b = getBenchmark(test["benchmark"], base_dir)
-            time_estimate += b.estimate_runtime(**test["kwargs"]) or 0
-
-    return sum(len(exp.tests) for exp in exps), time_estimate
-
-
-if __name__ == "__main__":
-    signal.signal(signal.SIGINT, lambda _, __: sys.exit(0))
-
-    parser = argparse.ArgumentParser(
-        description="Run benchmarks and export in a standard way"
+def recport_arguments(parser):
+    parser.add_argument(
+        "-e",
+        dest="experiments",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Experiments to run (default=None (all))",
     )
+    parser.add_argument(
+        "-o",
+        dest="results_dir",
+        type=str,
+        default=os.path.join(base_dir, "results"),
+        help=f"Results directory (default={os.path.join(base_dir, 'results')})",
+    )
+    parser.add_argument(
+        "--with-debugging",
+        dest="with_debugging",
+        action="store_true",
+        default=False,
+        help="Run debugging experiments (default=True)",
+    )
+
+
+def record_arguments(parser):
     parser.add_argument(
         "-r",
         dest="replication",
@@ -52,100 +56,54 @@ if __name__ == "__main__":
         default=True,
         help="Ignore cache",
     )
-    parser.add_argument(
-        "-e",
-        dest="experiments",
-        type=str,
-        nargs="+",
-        default=None,
-        help="Experiments to run (default=None (run all))",
+
+
+def report_arguments(parser):
+    pass
+
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, lambda _, __: sys.exit(0))
+
+    parser = argparse.ArgumentParser(
+        description="Run benchmarks and export in a standard way"
     )
-    parser.add_argument(
-        "--with-debugging",
-        dest="with_debugging",
-        action="store_true",
-        default=False,
-        help="Run debugging experiments (default=True)",
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    record_parser = subparsers.add_parser(
+        "record", help="Run and record benchmark results"
     )
-    parser.add_argument(
-        "-o",
-        dest="output_file",
-        type=str,
-        default="out.png",
-        help='Output file (default="out.png")',
+    recport_arguments(record_parser)
+    record_arguments(record_parser)
+
+    report_parser = subparsers.add_parser("report", help="Report benchmark results")
+    recport_arguments(report_parser)
+    report_arguments(report_parser)
+
+    recport_parser = subparsers.add_parser(
+        "recport", help="Run, record and report benchmark results"
     )
+    recport_arguments(recport_parser)
+    record_arguments(recport_parser)
+    report_arguments(recport_parser)
+
     args = parser.parse_args()
 
-    exps = getExperiments(args.experiments, args.with_debugging)
-    if exps is None:
-        print("No experiment to run has been specified")
+    experiments = getExperiments(args.experiments, args.with_debugging)
+    if experiments is None:
+        print("No experiments have been specified")
         sys.exit(1)
 
-    tests_count, time_estimate = estimates(exps)
-    print(f"Estimated run time: {time_estimate*args.replication/1000}s")
-    tests_count *= args.replication
+    if args.command == "record" or args.command == "recport":
+        record = RecordCommand(
+            base_dir,
+            args.results_dir,
+            experiments,
+            args.replication,
+            args.cache,
+        )
+        record.run()
 
-    test_id = 0
-    for exp in exps:
-        print(f"Running experiment {exp.name}")
-        exp_dir = os.path.join(results_dir, exp.name)
-        os.makedirs(os.path.join(exp_dir, "cache"), exist_ok=True)
-
-        results = {}
-        for i in range(args.replication):
-            for k, test in enumerate(exp.tests):
-                test_id += 1
-                hash = hashlib.sha256(
-                    json.dumps(test, ensure_ascii=True, sort_keys=True).encode()
-                ).hexdigest()
-
-                cache_file = os.path.join(
-                    exp_dir,
-                    "cache",
-                    f"{hash}_r{i}.csv",
-                )
-
-                if args.cache and os.path.exists(cache_file):
-                    res = pd.read_csv(cache_file)
-                    print(
-                        f"[{test_id}/{tests_count}] Retrieved cached test: {test['name']}"
-                    )
-                else:
-                    b = getBenchmark(test["benchmark"], base_dir)
-
-                    print(f"[{test_id}/{tests_count}] Running test: {test['name']}")
-                    res = b.run(**test["kwargs"])
-                    if res is None:
-                        print(f"Test {test['name']} failed")
-                        continue
-
-                    res["replication_id"] = i
-                    if args.cache:
-                        res.to_csv(cache_file, index=False)
-
-                if k not in results:
-                    results[k] = []
-                results[k].append(res)
-
-        rows = []
-        for k, test in enumerate(exp.tests):
-            if k not in results:
-                continue
-
-            b = getBenchmark(test["benchmark"], base_dir)
-
-            row = {
-                "test_name": test["name"],
-                "label": test["label"],
-                "replications": len(results[k]),
-                **test["kwargs"],
-            }
-            rows.append(pd.merge(pd.concat(results[k]), pd.DataFrame([row]), "cross"))
-
-        if len(rows) == 0:
-            print("No output")
-        else:
-            df = pd.concat(rows, ignore_index=True)
-            output_file = os.path.join(exp_dir, f"{exp.name}.csv")
-            df.to_csv(output_file)
-            print(f"Output {exp.name} experiment results to {output_file}")
+    if args.command == "report" or args.command == "recport":
+        report = ReportCommand(base_dir, args.results_dir, experiments)
+        report.run()
