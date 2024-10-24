@@ -12,14 +12,6 @@ class SchedulingBenchmark(BenchmarkCore):
     def __init__(self, base_dir):
         super().__init__(base_dir)
 
-    def combine_replications(self, *results):
-        return (
-            pd.concat(results)
-            .groupby(["id"])
-            .agg({"throughput": "mean", "threads": "mean"})
-            .reset_index(drop=True)
-        )
-
     def estimate_runtime(self, **kwargs):
         steps = 0
 

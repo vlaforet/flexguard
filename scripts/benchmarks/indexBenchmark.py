@@ -33,9 +33,6 @@ class IndexBenchmark(BenchmarkCore):
             print("PiBench binary permission denied")
             sys.exit(1)
 
-    def combine_replications(self, *results):
-        return pd.concat(results).groupby(level=0).mean()
-
     def estimate_runtime(self, **kwargs):
         if "mode" in kwargs and kwargs["mode"] == "time":
             return kwargs["seconds"] * 1000 if "seconds" in kwargs else 20000

@@ -119,6 +119,7 @@ if __name__ == "__main__":
                         print(f"Test {test['name']} failed")
                         continue
 
+                    res["replication_id"] = i
                     if args.cache:
                         res.to_csv(cache_file, index=False)
 
@@ -132,7 +133,6 @@ if __name__ == "__main__":
                 continue
 
             b = getBenchmark(test["benchmark"], base_dir)
-            res = b.combine_replications(*results[k])
 
             row = {
                 "test_name": test["name"],
@@ -140,7 +140,7 @@ if __name__ == "__main__":
                 "replications": len(results[k]),
                 **test["kwargs"],
             }
-            rows.append(pd.merge(res, pd.DataFrame([row]), "cross"))
+            rows.append(pd.merge(pd.concat(results[k]), pd.DataFrame([row]), "cross"))
 
         if len(rows) == 0:
             print("No output")

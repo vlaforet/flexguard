@@ -13,9 +13,6 @@ class BucketsBenchmark(BenchmarkCore):
     def __init__(self, base_dir):
         super().__init__(base_dir)
 
-    def combine_replications(self, *results):
-        return pd.concat(results).groupby(level=0).mean()
-
     def estimate_runtime(self, **kwargs):
         if "duration" in kwargs:
             return kwargs["duration"]
