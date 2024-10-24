@@ -17,6 +17,8 @@ fi
 make clean
 make -j40 libsync.a LOCK_VERSION=MCSTAS ADD_PADDING=0 DEBUG=${DEBUG}
 mv libsync.a libsyncmcstas.a
+make -j40 libsync.a LOCK_VERSION=FUTEX ADD_PADDING=0 DEBUG=${DEBUG}
+mv libsync.a libsyncfutex.a
 make -j40 libsync.a LOCK_VERSION=HYBRIDV2 ADD_PADDING=0 DEBUG=${DEBUG}
 mv libsync.a libsyncbhl.a
 

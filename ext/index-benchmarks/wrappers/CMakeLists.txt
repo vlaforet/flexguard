@@ -153,6 +153,14 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
   )
 
   add_wrapper(
+    NAME btreelc_futex${page_size_suffix}
+    SOURCE btreeolc_wrapper.cpp
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="FUTEX" USE_FUTEX_LOCKS
+    LIBRARIES "${ROOT_DIR}/libsyncfutex.a"
+    INCLUDE "${ROOT_DIR}/include"
+  )
+
+  add_wrapper(
     NAME btreelc_bhl${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF
