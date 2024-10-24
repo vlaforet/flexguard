@@ -14,7 +14,7 @@ class BucketsExperiment(ExperimentCore):
 
         threads = [1, 2] + [x for x in range(10, 190, 20)]
 
-        for label, lock in locks:
+        for label, lock in locks.items():
             for thread in threads:
                 self.tests.append(
                     {
