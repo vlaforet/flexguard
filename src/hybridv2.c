@@ -192,13 +192,13 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         }
 
         qnode->next->waiting = 0;
-    }
 
-clean_up_next_waiter_preempted:
-    if (the_lock->next_waiter_preempted == qnode)
-    {
-        __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
-        the_lock->next_waiter_preempted = NULL;
+    clean_up_next_waiter_preempted:
+        if (the_lock->next_waiter_preempted == qnode)
+        {
+            __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
+            the_lock->next_waiter_preempted = NULL;
+        }
     }
 }
 
