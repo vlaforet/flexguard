@@ -159,16 +159,24 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         the_lock->tracing_fn(getticks(), enqueued ? TRACING_EVENT_ACQUIRED_SPIN : TRACING_EVENT_ACQUIRED_BLOCK, NULL, the_lock->tracing_fn_data);
 #endif
 
-    while (the_lock->lock_value || __sync_lock_test_and_set(&the_lock->lock_value, 1) != 0)
+    int state = __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1);
+    while (state != 0)
     {
         if (*get_preempted_count(the_lock))
         {
-            __sync_fetch_and_add(&the_lock->waiter_count, 1);
-            futex_wait((void *)&the_lock->lock_value, 1);
-            __sync_fetch_and_sub(&the_lock->waiter_count, 1);
+            if (state != 2)
+                state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
+            if (state != 0)
+            {
+                futex_wait((void *)&the_lock->lock_value, 2);
+                state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
+            }
         }
         else
+        {
             PAUSE;
+            state = __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1);
+        }
     }
 
     // UNLOCK MCS
@@ -207,12 +215,13 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 void hybridv2_unlock(hybridv2_lock_t *the_lock)
 {
     COMPILER_BARRIER;
-    the_lock->lock_value = 0;
-    MEM_BARRIER;
-
-    if (the_lock->waiter_count > 0)
+    if (__sync_fetch_and_sub(&the_lock->lock_value, 1) != 1)
+    {
+        the_lock->lock_value = 0;
         futex_wake((void *)&the_lock->lock_value, 1);
+    }
 
+    MEM_BARRIER;
 #ifdef BPF
 #ifdef HYBRIDV2_LOCAL_PREEMPTIONS
     qnode_allocation_array[thread_id].locking_id = -1; // Assuming qnode has already been initialized.
