@@ -59,15 +59,14 @@ static inline hybrid_qnode_ptr get_me()
         thread_id = atomic_fetch_add(&thread_count, 1);
         CHECK_NUMBER_THREADS_FATAL(thread_id);
 
+        hybrid_qnode_ptr qnode = &qnode_allocation_array[thread_id];
+
 #ifdef BPF
         // Register thread in BPF map
         __u32 tid = gettid();
         int err = bpf_map__update_elem(nodes_map, &tid, sizeof(tid), &thread_id, sizeof(thread_id), BPF_ANY);
         if (err)
             fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
-#endif
-
-        hybrid_qnode_ptr qnode = &qnode_allocation_array[thread_id];
 
 #ifdef HYBRIDV2_LOCAL_PREEMPTIONS
         qnode->locking_id = -1;
@@ -76,6 +75,7 @@ static inline hybrid_qnode_ptr get_me()
 #endif
 
         qnode->is_running = 1;
+#endif
 
 #ifdef HYBRID_TICKET
         qnode->ticket = 0;
@@ -184,12 +184,14 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
                 PAUSE;
         }
 
+#ifdef BPF
         if (!qnode->next->is_running)
         {
             if (!the_lock->next_waiter_preempted)
                 __sync_fetch_and_add(get_preempted_count(the_lock), 1);
             the_lock->next_waiter_preempted = the_lock->queue;
         }
+#endif
 
         qnode->next->waiting = 0;
 
@@ -211,10 +213,12 @@ void hybridv2_unlock(hybridv2_lock_t *the_lock)
     if (the_lock->waiter_count > 0)
         futex_wake((void *)&the_lock->lock_value, 1);
 
+#ifdef BPF
 #ifdef HYBRIDV2_LOCAL_PREEMPTIONS
     qnode_allocation_array[thread_id].locking_id = -1; // Assuming qnode has already been initialized.
 #else
     qnode_allocation_array[thread_id].is_locking = 0; // Assuming qnode has already been initialized.
+#endif
 #endif
 }
 

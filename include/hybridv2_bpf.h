@@ -47,6 +47,7 @@ typedef struct hybrid_qnode_t
       volatile struct hybrid_qnode_t *volatile next;
 #endif
 
+#ifdef BPF
 #ifdef HYBRIDV2_LOCAL_PREEMPTIONS
       volatile int locking_id;
 #else
@@ -54,6 +55,7 @@ typedef struct hybrid_qnode_t
 #endif
 
       volatile uint8_t is_running;
+#endif
     };
 
     uint8_t padding[CACHE_LINE_SIZE];
