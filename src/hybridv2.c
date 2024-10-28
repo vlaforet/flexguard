@@ -221,8 +221,8 @@ void hybridv2_unlock(hybridv2_lock_t *the_lock)
         futex_wake((void *)&the_lock->lock_value, 1);
     }
 
-    MEM_BARRIER;
 #ifdef BPF
+    MEM_BARRIER;
 #ifdef HYBRIDV2_LOCAL_PREEMPTIONS
     qnode_allocation_array[thread_id].locking_id = -1; // Assuming qnode has already been initialized.
 #else
