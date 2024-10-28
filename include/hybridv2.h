@@ -71,7 +71,7 @@ typedef struct hybridv2_lock_t
       preempted_count_t *preempted_count;
 #endif
 
-      hybrid_qnode_ptr next_waiter_preempted;
+      uint8_t next_waiter_preempted;
       volatile uint64_t waiter_count;
 
 #ifdef TRACING

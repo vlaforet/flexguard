@@ -189,29 +189,35 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         {
             // Trying to fix global pointer
             if (__sync_val_compare_and_swap(&the_lock->queue, qnode, NULL) == qnode)
-                goto clean_up_next_waiter_preempted;
+            {
+#ifdef BPF
+                if (the_lock->next_waiter_preempted)
+                {
+                    __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
+                    the_lock->next_waiter_preempted = false;
+                }
+#endif
+                return;
+            }
 
             while (!qnode->next)
                 PAUSE;
         }
 
 #ifdef BPF
-        if (!qnode->next->is_running)
+        if (!qnode->next->is_running && !the_lock->next_waiter_preempted)
         {
-            if (!the_lock->next_waiter_preempted)
-                __sync_fetch_and_add(get_preempted_count(the_lock), 1);
-            the_lock->next_waiter_preempted = the_lock->queue;
+            __sync_fetch_and_add(get_preempted_count(the_lock), 1);
+            the_lock->next_waiter_preempted = true;
+        }
+        else if (qnode->next->is_running && the_lock->next_waiter_preempted)
+        {
+            __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
+            the_lock->next_waiter_preempted = false;
         }
 #endif
 
         qnode->next->waiting = 0;
-
-    clean_up_next_waiter_preempted:
-        if (the_lock->next_waiter_preempted == qnode)
-        {
-            __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
-            the_lock->next_waiter_preempted = NULL;
-        }
     }
 }
 
