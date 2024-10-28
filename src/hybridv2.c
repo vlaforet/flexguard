@@ -107,7 +107,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
     MEM_BARRIER;
 #endif
 
-    if (!the_lock->lock_value && __sync_lock_test_and_set(&the_lock->lock_value, 1) == 0)
+    if (!the_lock->lock_value && __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1) == 0)
     {
 #ifdef TRACING
         if (the_lock->tracing_fn)
