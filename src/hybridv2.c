@@ -159,12 +159,14 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         the_lock->tracing_fn(getticks(), enqueued ? TRACING_EVENT_ACQUIRED_SPIN : TRACING_EVENT_ACQUIRED_BLOCK, NULL, the_lock->tracing_fn_data);
 #endif
 
-    int state = __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1);
+    int state = the_lock->lock_value;
+    if (state == 0)
+        state = __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1);
     while (state != 0)
     {
         if (*get_preempted_count(the_lock))
         {
-            if (state != 2)
+            if (the_lock->lock_value != 2)
                 state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
             if (state != 0)
             {
@@ -175,7 +177,8 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         else
         {
             PAUSE;
-            state = __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1);
+            if (the_lock->lock_value == 0)
+                state = __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1);
         }
     }
 
