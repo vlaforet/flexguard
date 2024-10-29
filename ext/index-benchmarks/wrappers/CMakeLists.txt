@@ -19,7 +19,7 @@ macro(add_wrapper)
   target_include_directories(${WRAPPER_NAME}_wrapper PRIVATE ${WRAPPER_INCLUDE})
   target_compile_definitions(${WRAPPER_NAME}_wrapper PUBLIC ${WRAPPER_DEFINITIONS})
   if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    target_link_libraries(${WRAPPER_NAME}_wrapper ${JEMALLOC_LIBRARIES})
+    #target_link_libraries(${WRAPPER_NAME}_wrapper ${JEMALLOC_LIBRARIES})
   endif ()
 endmacro()
 
