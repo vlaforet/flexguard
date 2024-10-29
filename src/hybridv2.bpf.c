@@ -149,7 +149,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	/*
 	 * Optimization: No map lookup if prev is a kernel thread.
 	 */
-	if (prev->flags & 0x00200000 || next->flags & 0x00200000) // PF_KTHREAD
+	if (prev->flags & 0x00200000) // PF_KTHREAD
 		return 0;
 
 	if (get_task_state(prev) & ((((TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE | TASK_STOPPED | TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE | TASK_PARKED) + 1) << 1) - 1))
