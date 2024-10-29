@@ -1,12 +1,13 @@
 import os
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
 
 
 class SchedulingExperiment(ExperimentCore):
+    tests = []
+
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -29,7 +30,7 @@ class SchedulingExperiment(ExperimentCore):
                         "num-threads": 180,
                         "step-duration": 5000,
                         "cache-lines": 5,
-                        "thread-step": 1,
+                        "thread-step": 10,
                         "increasing-only": 1,
                     },
                 }

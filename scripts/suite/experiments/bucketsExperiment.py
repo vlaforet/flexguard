@@ -2,6 +2,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class BucketsExperiment(ExperimentCore):
+    tests = []
+
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 

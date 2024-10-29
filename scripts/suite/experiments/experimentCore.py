@@ -9,10 +9,6 @@ class ExperimentCore:
     name = "core"
     registry = {}
 
-    tests = []
-    """Contains all of the tests to run for this experiment.
-    The `__init__` method can be used to populate the list."""
-
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.name = cls.__name__.replace("Experiment", "").lower()

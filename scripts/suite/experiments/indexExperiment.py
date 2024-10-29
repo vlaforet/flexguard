@@ -1,12 +1,13 @@
 import os
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
 
 
 class IndexExperiment(ExperimentCore):
+    tests = []
+
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -20,10 +21,10 @@ class IndexExperiment(ExperimentCore):
         }
 
         if self.with_debugging:
-            indexes["B+-tree BPF Hybrid Lock noBPF blocking"] = "btreelc_bhl"
+            indexes["B+-tree BPF Hybrid Lock debug"] = "btreelc_bhl"
 
-        # threads = [1, 2] + [i for i in range(10, 182, 10)]
-        threads = [40, 60, 70, 180]
+        threads = [1, 2] + [i for i in range(10, 182, 10)]
+        # threads = [40, 60, 70, 180]
         # threads = [10, 20]
 
         for label, index in indexes.items():
@@ -64,6 +65,7 @@ class IndexExperiment(ExperimentCore):
         plt.title("Succeeded Operations by Threads (artlc Indexes)")
         plt.legend(title="Index")
         plt.grid(True)
+        plt.ylim(bottom=0)
 
         output_path = os.path.join(exp_dir, "artlc.png")
         plt.savefig(output_path, dpi=600, bbox_inches="tight")
@@ -85,6 +87,7 @@ class IndexExperiment(ExperimentCore):
         plt.title("Succeeded Operations by Threads (btreelc Indexes)")
         plt.legend(title="Index")
         plt.grid(True)
+        plt.ylim(bottom=0)
 
         output_path = os.path.join(exp_dir, "btreelc.png")
         plt.savefig(output_path, dpi=600, bbox_inches="tight")
