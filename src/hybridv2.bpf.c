@@ -139,7 +139,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 			{
 #endif
 				if (bpf_map_delete_elem(&is_preempted_map, &key) == 0)
-					__sync_fetch_and_sub(&get_preempted_count(lock_id), 1);
+					__sync_fetch_and_add(&get_preempted_count(lock_id), -1);
 #ifdef HYBRIDV2_LOCAL_PREEMPTIONS
 			}
 #endif
