@@ -54,7 +54,9 @@ typedef struct hybrid_qnode_t
       volatile uint8_t is_locking;
 #endif
 
+#ifndef HYBRIDV2_NO_NEXT_WAITER_DETECTION
       volatile uint8_t is_running;
+#endif
 #endif
     };
 

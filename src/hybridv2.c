@@ -74,7 +74,9 @@ static inline hybrid_qnode_ptr get_me()
         qnode->is_locking = 0;
 #endif
 
+#ifndef HYBRIDV2_NO_NEXT_WAITER_DETECTION
         qnode->is_running = 1;
+#endif
 #endif
 
 #ifdef HYBRID_TICKET
@@ -190,7 +192,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
             // Trying to fix global pointer
             if (__sync_val_compare_and_swap(&the_lock->queue, qnode, NULL) == qnode)
             {
-#ifdef BPF
+#if defined(BPF) && !defined(HYBRIDV2_NO_NEXT_WAITER_DETECTION)
                 if (the_lock->next_waiter_preempted)
                 {
                     __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
@@ -204,7 +206,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
                 PAUSE;
         }
 
-#ifdef BPF
+#if defined(BPF) && !defined(HYBRIDV2_NO_NEXT_WAITER_DETECTION)
         if (!qnode->next->is_running && !the_lock->next_waiter_preempted)
         {
             __sync_fetch_and_add(get_preempted_count(the_lock), 1);
@@ -316,7 +318,10 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
 
     the_lock->lock_value = 0;
     the_lock->waiter_count = 0;
+
+#if defined(BPF) && !defined(HYBRIDV2_NO_NEXT_WAITER_DETECTION)
     the_lock->next_waiter_preempted = 0;
+#endif
 
     static volatile uint8_t init_lock = 0;
     if (exactly_once(&init_lock) == 0)

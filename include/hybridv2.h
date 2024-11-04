@@ -71,7 +71,9 @@ typedef struct hybridv2_lock_t
       preempted_count_t *preempted_count;
 #endif
 
+#if defined(BPF) && !defined(HYBRIDV2_NO_NEXT_WAITER_DETECTION)
       uint8_t next_waiter_preempted;
+#endif
       volatile uint64_t waiter_count;
 
 #ifdef TRACING

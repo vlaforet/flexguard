@@ -131,7 +131,9 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		thread_id = bpf_map_lookup_elem(&nodes_map, &key);
 		if (thread_id && *thread_id >= 0 && *thread_id < MAX_NUMBER_THREADS && (qnode = &qnodes[*thread_id]))
 		{
+#ifndef HYBRIDV2_NO_NEXT_WAITER_DETECTION
 			qnode->is_running = 1;
+#endif
 
 #ifdef HYBRIDV2_LOCAL_PREEMPTIONS
 			lock_id = qnode->locking_id;
@@ -163,7 +165,9 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (!thread_id || *thread_id < 0 || *thread_id >= MAX_NUMBER_THREADS || !(qnode = &qnodes[*thread_id]))
 		return 0;
 
+#ifndef HYBRIDV2_NO_NEXT_WAITER_DETECTION
 	qnode->is_running = 0;
+#endif
 
 	/*
 	 * Ignore preemption if the thread was not locking.
