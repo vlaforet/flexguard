@@ -85,9 +85,10 @@ typedef struct thread_data
         struct
         {
             int id;
-            double cs_time;
-            int reset;
-            int stop;
+            ticks last_measurement_at;
+            unsigned long op_count;
+            uint8_t started;
+            uint8_t stop;
         };
         uint8_t padding[CACHE_LINE_SIZE];
     };
@@ -95,15 +96,15 @@ typedef struct thread_data
 
 void *test(void *data)
 {
-    long long unsigned int t1, t2;
-    int cs_count = 0, i = 0;
+    int i = 0;
     dummy_array_t *arr = &dummy_array[rand() % dummy_array_size];
 
     thread_data_t *d = (thread_data_t *)data;
+    d->last_measurement_at = getticks();
+    d->started = 1;
 
     while (!d->stop)
     {
-        t1 = __builtin_ia32_rdtsc();
         libslock_lock(&the_lock);
 
         for (i = 0; i < dummy_array_size; i++)
@@ -113,17 +114,8 @@ void *test(void *data)
         }
 
         libslock_unlock(&the_lock);
-        t2 = __builtin_ia32_rdtsc();
 
-        if (d->reset)
-        {
-            cs_count = 0;
-            d->cs_time = 0;
-            d->reset = 0;
-        }
-        cs_count++;
-
-        d->cs_time = (d->cs_time * (cs_count - 1) + (t2 - t1)) / cs_count;
+        d->op_count++;
 
         if (!d->stop)
             cpause(contention);
@@ -142,6 +134,7 @@ void measurement(thread_data_t *data, int len)
     static double tmp;
     static double sum;
     static int id = 0;
+    static ticks now, last_measurement_at;
 
     sum = 0;
     thread_count = 0;
@@ -149,16 +142,21 @@ void measurement(thread_data_t *data, int len)
     // Always go through all threads as they won't stop in any particular order.
     for (int i = 0; i < len; i++)
     {
-        tmp = data[i].cs_time;
-        if (tmp > 0 && !data[i].reset && !data[i].stop)
-        {
-            thread_count++;
-            sum += tmp;
-            data[i].reset = 1;
-        }
+        if (data[i].stop || !data[i].started)
+            continue;
+
+        tmp = data[i].op_count;
+        now = getticks();
+        data[i].op_count = 0;
+
+        last_measurement_at = data[i].last_measurement_at;
+        data[i].last_measurement_at = now;
+
+        sum += tmp / (now - last_measurement_at);
+        thread_count++;
     }
 
-    printf("%d, %d, %f\n", id++, thread_count, thread_count == 0 ? .0 : sum / thread_count / get_tsc_frequency());
+    printf("%d, %d, %f\n", id++, thread_count, sum * get_tsc_frequency());
 }
 
 /* ################################################################### *
@@ -305,9 +303,10 @@ int main(int argc, char **argv)
     for (i = 0; i < max_threads; i++)
     {
         data[i].id = i;
-        data[i].cs_time = 0;
-        data[i].reset = 1;
+        data[i].op_count = 0;
+        data[i].last_measurement_at = 0;
         data[i].stop = 0;
+        data[i].started = 0;
     }
 
     pthread_attr_t attr;

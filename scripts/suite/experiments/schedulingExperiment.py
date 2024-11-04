@@ -47,11 +47,10 @@ class SchedulingExperiment(ExperimentCore):
             markers=True,
         )
 
-        plt.title("Threads vs CS/s")
+        plt.title("Single-lock Microbenchmark (Higher is better)")
         plt.xlabel("Threads")
-        plt.ylabel("CS/s")
+        plt.ylabel("Throughput (OPs/s)")
         plt.grid(True)
-        plt.ylim(bottom=0, top=0.2)
 
         output_path = os.path.join(exp_dir, "scheduling.png")
         plt.savefig(output_path, dpi=600, bbox_inches="tight")
