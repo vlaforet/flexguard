@@ -13,7 +13,7 @@ class BucketsExperiment(ExperimentCore):
 
         locks = {
             "BPF Hybrid Lock": "hybridv2",
-            "MCS/TAS": "mcstas",
+            "BPF Hybrid Lock No Next Waiter Sleeping Detection": "hybridv2_no_next_waiter_detection",
             "MCS": "mcs",
             "Pthread Mutex": "mutex",
         }
@@ -53,7 +53,7 @@ class BucketsExperiment(ExperimentCore):
             f"{results['buckets'].get(0)} Buckets Hashtable Benchmark (Higher is better)"
         )
         plt.xlabel("Threads")
-        plt.ylabel("Ops/s")
+        plt.ylabel("Throughput (OPs/s)")
         plt.grid(True)
         plt.yscale("log")
 
