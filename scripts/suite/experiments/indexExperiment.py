@@ -49,6 +49,9 @@ class IndexExperiment(ExperimentCore):
                 )
 
     def report(self, results, exp_dir):
+        if "seconds" in results.columns:
+            results["succeeded"] = results["succeeded"] / results["seconds"]
+
         artlc_data = results[results["index"].str.startswith("artlc")]
         plt.figure(figsize=(10, 6))
         sns.lineplot(
@@ -61,8 +64,8 @@ class IndexExperiment(ExperimentCore):
         )
 
         plt.xlabel("Threads")
-        plt.ylabel("Operations succeeded")
-        plt.title("Succeeded Operations by Threads (artlc Indexes)")
+        plt.ylabel("Ops/s")
+        plt.title("ARTLC Indexes Benchmark (Higher is better)")
         plt.legend(title="Index")
         plt.grid(True)
         plt.ylim(bottom=0)
@@ -83,8 +86,8 @@ class IndexExperiment(ExperimentCore):
         )
 
         plt.xlabel("Threads")
-        plt.ylabel("Operations succeeded")
-        plt.title("Succeeded Operations by Threads (btreelc Indexes)")
+        plt.ylabel("Throughput (OPs/s)")
+        plt.title("B+-tree Indexes Benchmark (Higher is better)")
         plt.legend(title="Index")
         plt.grid(True)
         plt.ylim(bottom=0)
