@@ -168,6 +168,14 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     INCLUDE "${ROOT_DIR}/include"
   )
 
+  add_wrapper(
+    NAME btreelc_bhl_no_next_waiter_detection${page_size_suffix}
+    SOURCE btreeolc_wrapper.cpp
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL no next waiter detection" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF HYBRIDV2_NO_NEXT_WAITER_DETECTION
+    LIBRARIES "${ROOT_DIR}/libsyncbhlnonextwaiterdetection.a" elf
+    INCLUDE "${ROOT_DIR}/include"
+  )
+
   # add_wrapper(
   #   NAME btreelc_mcsrw_cwp${page_size_suffix}
   #   SOURCE btreeolc_wrapper.cpp

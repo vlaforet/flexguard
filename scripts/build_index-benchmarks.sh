@@ -21,6 +21,8 @@ make -j40 libsync.a LOCK_VERSION=FUTEX ADD_PADDING=0 DEBUG=${DEBUG}
 mv libsync.a libsyncfutex.a
 make -j40 libsync.a LOCK_VERSION=HYBRIDV2 ADD_PADDING=0 DEBUG=${DEBUG}
 mv libsync.a libsyncbhl.a
+make -j40 libsync.a LOCK_VERSION=HYBRIDV2 ADD_PADDING=0 HYBRIDV2_NO_NEXT_WAITER_DETECTION=1 DEBUG=${DEBUG}
+mv libsync.a libsyncbhlnonextwaiterdetection.a
 
 cd ext/index-benchmarks
 mkdir -p build && cd build
