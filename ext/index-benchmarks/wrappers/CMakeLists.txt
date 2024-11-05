@@ -148,7 +148,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_mcstas${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCSTAS" USE_MCSTAS_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncmcstas.a"
+    LIBRARIES "${ROOT_DIR}/libsyncmcstasnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -156,7 +156,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_futex${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="FUTEX" USE_FUTEX_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncfutex.a"
+    LIBRARIES "${ROOT_DIR}/libsyncfutexnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -164,7 +164,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_bhl${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF
-    LIBRARIES "${ROOT_DIR}/libsyncbhl.a" elf
+    LIBRARIES "${ROOT_DIR}/libsyncbhlnopad.a" elf
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -172,7 +172,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_bhl_no_next_waiter_detection${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL no next waiter detection" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF HYBRIDV2_NO_NEXT_WAITER_DETECTION
-    LIBRARIES "${ROOT_DIR}/libsyncbhlnonextwaiterdetection.a" elf
+    LIBRARIES "${ROOT_DIR}/libsyncbhlnonextwaiterdetectionnopad.a" elf
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -309,7 +309,7 @@ add_wrapper(
   NAME artlc_mcstas
   SOURCE artolc_wrapper.cpp
   DEFINITIONS RWLOCK LIBSLOCK_LOCK ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCSTAS" USE_MCSTAS_LOCKS
-  LIBRARIES artlc_mcstas tbb numa "${ROOT_DIR}/libsyncmcstas.a"
+  LIBRARIES artlc_mcstas tbb numa "${ROOT_DIR}/libsyncmcstasnopad.a"
   INCLUDE "${ROOT_DIR}/include"
 )
 
@@ -317,7 +317,7 @@ add_wrapper(
   NAME artlc_bhl
   SOURCE artolc_wrapper.cpp
   DEFINITIONS RWLOCK LIBSLOCK_LOCK ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF
-  LIBRARIES artlc_bhl tbb numa "${ROOT_DIR}/libsyncbhl.a" elf
+  LIBRARIES artlc_bhl tbb numa "${ROOT_DIR}/libsyncbhlnopad.a" elf
   INCLUDE "${ROOT_DIR}/include"
 )
 

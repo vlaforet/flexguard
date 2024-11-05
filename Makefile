@@ -148,5 +148,8 @@ all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
 	@echo "############### CFLAGS =" $(INCLUDES) $(DEFINED)
 
 clean:
-	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s *.a *.odump test_correctness scheduling buckets
+	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s libsync.a *.odump test_correctness scheduling buckets
 	$(MAKE) -C litl/ clean
+
+cleanall: clean
+	rm -rf interpose_*.so interpose_*.sh libsync*.a test_correctness_* scheduling_* buckets_*
