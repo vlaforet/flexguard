@@ -12,7 +12,9 @@ __pycache__
 /.output
 /#README.md#
 /interpose.so
+/interpose_*.so
 /interpose.sh
+/interpose_*.sh
 
 /scheduling
 /scheduling_*
