@@ -118,7 +118,7 @@ interpose.sh: interpose.in interpose.so
 	cat interpose.in | sed -e "s/@base_dir@/$$(echo $$(cd .; pwd) | sed -e 's/\([\/&]\)/\\\1/g')/g" > $@
 	chmod a+x $@
 
-interpose.so: libsync.a include/atomic_ops.h include/utils.h include/lock_if.h interpose.o
+interpose.so: include/atomic_ops.h include/utils.h include/lock_if.h interpose.o libsync.a
 	$(GCC) -shared -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o interpose.so $(LIBS) -Wl,--version-script=src/interpose.map
 
 libsync.a: $(OBJ_FILES) $(LIBBPF_OBJ) include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
