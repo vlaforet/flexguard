@@ -62,12 +62,12 @@ class RecordCommand:
                     if self.cache and os.path.exists(cache_file):
                         res = pd.read_csv(cache_file)
                         print(
-                            f"[{test_id}/{tests_count}] Retrieved cached test: {test['name']}"
+                            f"[{test_id}/{tests_count}] Retrieved cached test: {test['name']} #{i}"
                         )
                     else:
                         b = getBenchmark(test["benchmark"], self.base_dir)
 
-                        print(f"[{test_id}/{tests_count}] Running test: {test['name']}")
+                        print(f"[{test_id}/{tests_count}] Running test: {test['name']} #{i}")
                         res = b.run(**test["kwargs"])
                         if res is None:
                             print(f"Test {test['name']} failed")
