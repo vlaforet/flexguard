@@ -36,68 +36,70 @@
 
 #include "padding.h"
 #define LOCK_ALGORITHM "LIBSLOCK"
-#define NEED_CONTEXT 1
+#define NEED_CONTEXT 0
 #define SUPPORT_WAITING 0
 #define LIBSLOCK_COND_VAR 0
 
-typedef struct libslock_mutex_t {
+typedef struct litllibslock_mutex_t {
 #if COND_VAR && !LIBSLOCK_COND_VAR
     pthread_mutex_t posix_lock;
     char __pad[pad_to_cache_line(sizeof(pthread_mutex_t))];
 #endif
-    lock_global_data lock __attribute__((aligned(CACHE_LINE_SIZE)));
-} libslock_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
+    libslock_t lock __attribute__((aligned(CACHE_LINE_SIZE)));
+} litllibslock_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
-typedef struct libslock_context_t {
-    uint8_t init;
-    lock_local_data me __attribute__((aligned(CACHE_LINE_SIZE)));
-} libslock_context_t __attribute__((aligned(CACHE_LINE_SIZE)));
+typedef void *litllibslock_context_t; // Unused, take the less space as possible
 
 #if LIBSLOCK_COND_VAR
-typedef lock_condvar_t libslock_cond_t;
+typedef libslock_cond_t litllibslock_cond_t;
 #else
-typedef pthread_cond_t libslock_cond_t;
+typedef pthread_cond_t litllibslock_cond_t;
 #endif
 
-libslock_mutex_t *libslock_mutex_create(const pthread_mutexattr_t *attr);
-int libslock_mutex_lock(libslock_mutex_t *impl, libslock_context_t *me);
-int libslock_mutex_trylock(libslock_mutex_t *impl, libslock_context_t *me);
-void libslock_mutex_unlock(libslock_mutex_t *impl, libslock_context_t *me);
-int libslock_mutex_destroy(libslock_mutex_t *lock);
-int libslock_cond_init(libslock_cond_t *cond, const pthread_condattr_t *attr);
-int libslock_cond_timedwait(libslock_cond_t *cond, libslock_mutex_t *lock,
-                            libslock_context_t *me, const struct timespec *ts);
-int libslock_cond_wait(libslock_cond_t *cond, libslock_mutex_t *lock,
-                       libslock_context_t *me);
-int libslock_cond_signal(libslock_cond_t *cond);
-int libslock_cond_broadcast(libslock_cond_t *cond);
-int libslock_cond_destroy(libslock_cond_t *cond);
-void libslock_thread_start(void);
-void libslock_thread_exit(void);
-void libslock_application_init(void);
-void libslock_application_exit(void);
-void libslock_init_context(libslock_mutex_t *impl, libslock_context_t *context,
-                           int number);
+litllibslock_mutex_t *
+litllibslock_mutex_create(const pthread_mutexattr_t *attr);
+int litllibslock_mutex_lock(litllibslock_mutex_t *impl,
+                            litllibslock_context_t *me);
+int litllibslock_mutex_trylock(litllibslock_mutex_t *impl,
+                                   litllibslock_context_t *me);
+void litllibslock_mutex_unlock(litllibslock_mutex_t *impl,
+                               litllibslock_context_t *me);
+int litllibslock_mutex_destroy(litllibslock_mutex_t *lock);
+int litllibslock_cond_init(litllibslock_cond_t *cond,
+                           const pthread_condattr_t *attr);
+int litllibslock_cond_timedwait(litllibslock_cond_t *cond,
+                                litllibslock_mutex_t *lock,
+                                litllibslock_context_t *me,
+                                const struct timespec *ts);
+int litllibslock_cond_wait(litllibslock_cond_t *cond,
+                           litllibslock_mutex_t *lock,
+                           litllibslock_context_t *me);
+int litllibslock_cond_signal(litllibslock_cond_t *cond);
+int litllibslock_cond_broadcast(litllibslock_cond_t *cond);
+int litllibslock_cond_destroy(litllibslock_cond_t *cond);
+void litllibslock_thread_start(void);
+void litllibslock_thread_exit(void);
+void litllibslock_application_init(void);
+void litllibslock_application_exit(void);
 
-typedef libslock_mutex_t lock_mutex_t;
-typedef libslock_context_t lock_context_t;
-typedef libslock_cond_t lock_cond_t;
+typedef litllibslock_mutex_t lock_mutex_t;
+typedef litllibslock_context_t lock_context_t;
+typedef litllibslock_cond_t lock_cond_t;
 
-#define lock_mutex_create libslock_mutex_create
-#define lock_mutex_lock libslock_mutex_lock
-#define lock_mutex_trylock libslock_mutex_trylock
-#define lock_mutex_unlock libslock_mutex_unlock
-#define lock_mutex_destroy libslock_mutex_destroy
-#define lock_cond_init libslock_cond_init
-#define lock_cond_timedwait libslock_cond_timedwait
-#define lock_cond_wait libslock_cond_wait
-#define lock_cond_signal libslock_cond_signal
-#define lock_cond_broadcast libslock_cond_broadcast
-#define lock_cond_destroy libslock_cond_destroy
-#define lock_thread_start libslock_thread_start
-#define lock_thread_exit libslock_thread_exit
-#define lock_application_init libslock_application_init
-#define lock_application_exit libslock_application_exit
-#define lock_init_context libslock_init_context
+#define lock_mutex_create litllibslock_mutex_create
+#define lock_mutex_lock litllibslock_mutex_lock
+#define lock_mutex_trylock litllibslock_mutex_trylock
+#define lock_mutex_unlock litllibslock_mutex_unlock
+#define lock_mutex_destroy litllibslock_mutex_destroy
+#define lock_cond_init litllibslock_cond_init
+#define lock_cond_timedwait litllibslock_cond_timedwait
+#define lock_cond_wait litllibslock_cond_wait
+#define lock_cond_signal litllibslock_cond_signal
+#define lock_cond_broadcast litllibslock_cond_broadcast
+#define lock_cond_destroy litllibslock_cond_destroy
+#define lock_thread_start litllibslock_thread_start
+#define lock_thread_exit litllibslock_thread_exit
+#define lock_application_init litllibslock_application_init
+#define lock_application_exit litllibslock_application_exit
 
 #endif // __LIBSLOCK_H__
