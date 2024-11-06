@@ -39,6 +39,8 @@ compile_and_suffix() {
     suffix="$1"
     cmd="make -j40 all DEBUG=${DEBUG} $2"
 
+    make clean >/dev/null
+
     echo "Building $suffix: $cmd"
     if [ $VERBOSE -eq 1 ]; then
         eval $cmd
@@ -54,14 +56,10 @@ compile_and_suffix() {
     mv interpose.so interpose_${suffix}${USUFFIX}.so
 }
 
-make clean >/dev/null
-
 compile_and_suffix "mcstasnopad" "LOCK_VERSION=MCSTAS ADD_PADDING=0"
 compile_and_suffix "futexnopad" "LOCK_VERSION=FUTEX ADD_PADDING=0"
 compile_and_suffix "bhlnopad" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=0"
 compile_and_suffix "bhlnonextwaiterdetectionnopad" "LOCK_VERSION=HYBRIDV2 HYBRIDV2_NO_NEXT_WAITER_DETECTION=1 ADD_PADDING=0"
-
-make clean >/dev/null
 
 compile_and_suffix "mcstas" "LOCK_VERSION=MCSTAS ADD_PADDING=1"
 compile_and_suffix "mutex" "LOCK_VERSION=MUTEX ADD_PADDING=1"
