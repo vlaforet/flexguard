@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import sys
+import uuid
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
@@ -9,8 +10,8 @@ from benchmarks.benchmarkCore import BenchmarkCore
 
 class LevelDBBenchmark(BenchmarkCore):
 
-    def __init__(self, base_dir):
-        super().__init__(base_dir)
+    def __init__(self, base_dir, temp_dir):
+        super().__init__(base_dir, temp_dir)
         self.leveldb_dir = os.path.join(self.base_dir, "ext", "leveldb")
         self.bin = os.path.join(self.leveldb_dir, "build/db_bench")
 
@@ -36,6 +37,7 @@ class LevelDBBenchmark(BenchmarkCore):
         if "benchmarks" in kwargs:
             args.append(f"--benchmarks={','.join(kwargs['benchmarks'])}")
 
+        db_path = os.path.join(self.temp_dir, f"{uuid.uuid4()}.db")
         commands = [
             c
             for c in [
@@ -46,7 +48,7 @@ class LevelDBBenchmark(BenchmarkCore):
                 ),
                 self.bin,
                 *args,
-                "--db=/tmp/level.db",
+                f"--db={db_path}",
             ]
             if c is not None
         ]
@@ -56,6 +58,11 @@ class LevelDBBenchmark(BenchmarkCore):
         if result.returncode != 0:
             print(f"Failed to run LevelDB ({result.returncode}):", result.stderr)
             return None
+
+        try:
+            os.remove(db_path)
+        except:
+            pass
 
         results = {}
         for match in self.pattern.finditer(result.stdout):

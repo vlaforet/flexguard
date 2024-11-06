@@ -56,6 +56,13 @@ def record_arguments(parser):
         default=True,
         help="Ignore cache",
     )
+    parser.add_argument(
+        "--tmp",
+        dest="temp_dir",
+        type=str,
+        default="/tmp",
+        help=f"Temporary directory used by benchmarks. Ideally tmpfs. (default=/tmp)",
+    )
 
 
 def report_arguments(parser):
@@ -97,6 +104,7 @@ if __name__ == "__main__":
     if args.command == "record" or args.command == "recport":
         record = RecordCommand(
             base_dir,
+            args.temp_dir,
             args.results_dir,
             experiments,
             args.replication,

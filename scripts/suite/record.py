@@ -12,12 +12,14 @@ class RecordCommand:
     def __init__(
         self,
         base_dir: str,
+        temp_dir: str,
         results_dir: str,
         experiments: List[ExperimentCore],
         replication: int,
         cache: bool,
     ):
         self.base_dir = base_dir
+        self.temp_dir = temp_dir
         self.results_dir = results_dir
         self.experiments = experiments
         self.replication = replication
@@ -29,7 +31,7 @@ class RecordCommand:
         time_estimate = 0
         for exp in self.experiments:
             for test in exp.tests:
-                b = getBenchmark(test["benchmark"], self.base_dir)
+                b = getBenchmark(test["benchmark"], self.base_dir, self.temp_dir)
                 time_estimate += b.estimate_runtime(**test["kwargs"]) or 0
 
         return sum(len(exp.tests) for exp in self.experiments), time_estimate
@@ -65,9 +67,13 @@ class RecordCommand:
                             f"[{test_id}/{tests_count}] Retrieved cached test: {test['name']} #{i}"
                         )
                     else:
-                        b = getBenchmark(test["benchmark"], self.base_dir)
+                        b = getBenchmark(
+                            test["benchmark"], self.base_dir, self.temp_dir
+                        )
 
-                        print(f"[{test_id}/{tests_count}] Running test: {test['name']} #{i}")
+                        print(
+                            f"[{test_id}/{tests_count}] Running test: {test['name']} #{i}"
+                        )
                         res = b.run(**test["kwargs"])
                         if res is None:
                             print(f"Test {test['name']} failed")
@@ -86,7 +92,7 @@ class RecordCommand:
                 if k not in results:
                     continue
 
-                b = getBenchmark(test["benchmark"], self.base_dir)
+                b = getBenchmark(test["benchmark"], self.base_dir, self.temp_dir)
 
                 row = {
                     "test_name": test["name"],

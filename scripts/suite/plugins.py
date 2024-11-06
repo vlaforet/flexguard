@@ -44,7 +44,7 @@ def getExperiments(names: List[str], with_debugging=False) -> List[ExperimentCor
 benchmark_instances = {}
 
 
-def getBenchmark(name: str, base_dir) -> BenchmarkCore:
+def getBenchmark(name: str, base_dir, temp_dir) -> BenchmarkCore:
     if name not in benchmark_instances:
         import_plugins(benchmarks, "Benchmark")
 
@@ -52,6 +52,6 @@ def getBenchmark(name: str, base_dir) -> BenchmarkCore:
             print(f"Unknown benchmark {name}")
             sys.exit(1)
 
-        benchmark_instances[name] = BenchmarkCore.registry[name](base_dir)
+        benchmark_instances[name] = BenchmarkCore.registry[name](base_dir, temp_dir)
 
     return benchmark_instances[name]

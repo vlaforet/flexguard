@@ -9,8 +9,8 @@ from benchmarks.benchmarkCore import BenchmarkCore
 class SchedulingBenchmark(BenchmarkCore):
     pattern = re.compile(r"(\d+),\s*(\d+),\s*([+-]?\d*\.\d+)")
 
-    def __init__(self, base_dir):
-        super().__init__(base_dir)
+    def __init__(self, base_dir, temp_dir):
+        super().__init__(base_dir, temp_dir)
 
     def estimate_runtime(self, **kwargs):
         steps = 0

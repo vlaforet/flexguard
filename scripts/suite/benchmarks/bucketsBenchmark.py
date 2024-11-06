@@ -10,8 +10,8 @@ class BucketsBenchmark(BenchmarkCore):
     pattern_global = re.compile(r"#Throughput:\s*([\d\.]+)\s*CS/s")
     pattern_local = re.compile(r"#Local result for Thread\s+(\d+):\s*([\d\.]+)\s*CS/s")
 
-    def __init__(self, base_dir):
-        super().__init__(base_dir)
+    def __init__(self, base_dir, temp_dir):
+        super().__init__(base_dir, temp_dir)
 
     def estimate_runtime(self, **kwargs):
         if "duration" in kwargs:

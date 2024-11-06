@@ -11,8 +11,8 @@ class IndexBenchmark(BenchmarkCore):
     opTypes = ["Insert", "Read", "Update", "Remove", "Scan"]
     finishTypes = ["completed", "succeeded"]
 
-    def __init__(self, base_dir):
-        super().__init__(base_dir)
+    def __init__(self, base_dir, temp_dir):
+        super().__init__(base_dir, temp_dir)
         self.index_dir = os.path.join(self.base_dir, "ext", "index-benchmarks")
 
         self.patterns = {

@@ -9,8 +9,8 @@ from benchmarks.benchmarkCore import BenchmarkCore
 class CorrectnessBenchmark(BenchmarkCore):
     pattern = re.compile(r"Counter total\s*:\s*(\d+),\s*Expected\s*:\s*(\d+)")
 
-    def __init__(self, base_dir):
-        super().__init__(base_dir)
+    def __init__(self, base_dir, temp_dir):
+        super().__init__(base_dir, temp_dir)
 
     def estimate_runtime(self, **kwargs):
         if "duration" in kwargs:

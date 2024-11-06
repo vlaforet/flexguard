@@ -14,8 +14,9 @@ class BenchmarkCore:
         cls.name = cls.__name__.replace("Benchmark", "").lower()
         BenchmarkCore.registry[cls.name] = cls
 
-    def __init__(self, base_dir: str):
+    def __init__(self, base_dir: str, temp_dir: str):
         self.base_dir = base_dir
+        self.temp_dir = temp_dir
 
     @abc.abstractmethod
     def estimate_runtime(self, **kwargs) -> float | None:
