@@ -62,7 +62,7 @@ compile_and_suffix "bhlnopad" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=0"
 compile_and_suffix "bhlnonextwaiterdetectionnopad" "LOCK_VERSION=HYBRIDV2 HYBRIDV2_NO_NEXT_WAITER_DETECTION=1 ADD_PADDING=0"
 
 compile_and_suffix "mcstas" "LOCK_VERSION=MCSTAS ADD_PADDING=1"
-compile_and_suffix "mutex" "LOCK_VERSION=MUTEX ADD_PADDING=1"
+compile_and_suffix "mutex" "LOCK_VERSION=MUTEX ADD_PADDING=1 USE_REAL_PTHREAD=1"
 compile_and_suffix "futex" "LOCK_VERSION=FUTEX ADD_PADDING=1"
 compile_and_suffix "mcs" "LOCK_VERSION=MCS ADD_PADDING=1"
 compile_and_suffix "hybridv2" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=1"
