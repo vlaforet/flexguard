@@ -13,7 +13,7 @@ class BucketsExperiment(ExperimentCore):
 
         locks = {
             "BPF Hybrid Lock": "hybridv2",
-            "BPF Hybrid Lock No Next Waiter Sleeping Detection": "hybridv2_no_next_waiter_detection",
+            "BPF Hybrid Lock No Next Waiter Sleeping Detection": "hybridv2nonextwaiterdetection",
             "MCS": "mcs",
             "Pthread Mutex": "mutex",
         }
