@@ -47,6 +47,7 @@
 #define DEFAULT_DUMMY_ARRAY_SIZE 1
 #define DEFAULT_THREAD_STEP 1
 #define DEFAULT_INCREASING_ONLY 1
+#define DEFAULT_IS_LATENCY 0
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -57,6 +58,7 @@
 
 int contention = DEFAULT_CONTENTION;
 int dummy_array_size = DEFAULT_DUMMY_ARRAY_SIZE;
+uint8_t is_latency = DEFAULT_IS_LATENCY;
 
 libslock_t the_lock;
 
@@ -85,8 +87,10 @@ typedef struct thread_data
         struct
         {
             int id;
+            double cs_time;
             ticks last_measurement_at;
             unsigned long op_count;
+            uint8_t reset;
             uint8_t started;
             uint8_t stop;
         };
@@ -96,15 +100,20 @@ typedef struct thread_data
 
 void *test(void *data)
 {
-    int i = 0;
+    long long unsigned int t1 = 0, t2 = 0;
+    int cs_count = 0, i = 0;
     dummy_array_t *arr = &dummy_array[rand() % dummy_array_size];
 
     thread_data_t *d = (thread_data_t *)data;
-    d->last_measurement_at = getticks();
+    if (!is_latency)
+        d->last_measurement_at = getticks();
     d->started = 1;
 
     while (!d->stop)
     {
+        if (is_latency)
+            t1 = __builtin_ia32_rdtsc();
+
         libslock_lock(&the_lock);
 
         for (i = 0; i < dummy_array_size; i++)
@@ -115,7 +124,22 @@ void *test(void *data)
 
         libslock_unlock(&the_lock);
 
-        d->op_count++;
+        if (is_latency)
+        {
+            t2 = __builtin_ia32_rdtsc();
+
+            if (d->reset)
+            {
+                cs_count = 0;
+                d->cs_time = 0;
+                d->reset = 0;
+            }
+            cs_count++;
+
+            d->cs_time = (d->cs_time * (cs_count - 1) + (t2 - t1)) / cs_count;
+        }
+        else
+            d->op_count++;
 
         if (!d->stop)
             cpause(contention);
@@ -145,18 +169,34 @@ void measurement(thread_data_t *data, int len)
         if (data[i].stop || !data[i].started)
             continue;
 
-        tmp = data[i].op_count;
-        now = getticks();
-        data[i].op_count = 0;
+        if (is_latency)
+        {
+            if (data[i].reset)
+                continue;
 
-        last_measurement_at = data[i].last_measurement_at;
-        data[i].last_measurement_at = now;
+            tmp = data[i].cs_time;
+            data[i].reset = 1;
+            sum += tmp;
+        }
+        else
+        {
+            tmp = data[i].op_count;
+            now = getticks();
+            data[i].op_count = 0;
 
-        sum += tmp / (now - last_measurement_at);
+            last_measurement_at = data[i].last_measurement_at;
+            data[i].last_measurement_at = now;
+
+            sum += tmp / (now - last_measurement_at);
+        }
         thread_count++;
     }
 
-    printf("%d, %d, %f\n", id++, thread_count, sum * get_tsc_frequency());
+    if (is_latency)
+        tmp = !thread_count ? .0 : sum / thread_count / get_tsc_frequency();
+    else
+        tmp = sum * get_tsc_frequency();
+    printf("%d, %d, %f\n", id++, thread_count, tmp);
 }
 
 /* ################################################################### *
@@ -182,12 +222,13 @@ int main(int argc, char **argv)
         {"cache-lines", required_argument, NULL, 't'},
         {"thread-step", required_argument, NULL, 's'},
         {"increasing-only", required_argument, NULL, 'i'},
+        {"latency", required_argument, NULL, 'l'},
         {NULL, 0, NULL, 0}};
 
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hb:c:d:n:t:s:i:", long_options, &i);
+        c = getopt_long(argc, argv, "hb:c:d:n:t:s:i:l:", long_options, &i);
 
         if (c == -1)
             break;
@@ -223,6 +264,8 @@ int main(int argc, char **argv)
             printf("        A measurement will be taken every x thread step (default=" XSTR(DEFAULT_THREAD_STEP) ")\n");
             printf("  -i, --increasing-only <int>\n");
             printf("        Whether to increase then decrease or only increase thread count (default=" XSTR(DEFAULT_INCREASING_ONLY) ")\n");
+            printf("  -l, --latency <int>\n");
+            printf("        If true, measure cs latency else measure total throughput (default=" XSTR(DEFAULT_IS_LATENCY) ")\n");
             exit(0);
         case 'b':
             base_threads = atoi(optarg);
@@ -245,6 +288,9 @@ int main(int argc, char **argv)
         case 'i':
             increasing_only = atoi(optarg);
             break;
+        case 'l':
+            is_latency = atoi(optarg);
+            break;
         case '?':
             printf("Use -h or --help for help\n");
             exit(0);
@@ -259,6 +305,7 @@ int main(int argc, char **argv)
     printf("Contention: %d\n", contention);
     printf("Cache lines: %d\n", dummy_array_size);
     printf("Thread step: %d\n", thread_step);
+    printf("Measure: %s\n", is_latency ? "latency" : "throughput");
     printf("TSC frequency: %ld\n", get_tsc_frequency());
 
     thread_data_t *data;
@@ -303,8 +350,10 @@ int main(int argc, char **argv)
     for (i = 0; i < max_threads; i++)
     {
         data[i].id = i;
+        data[i].cs_time = 0;
         data[i].op_count = 0;
         data[i].last_measurement_at = 0;
+        data[i].reset = 0;
         data[i].stop = 0;
         data[i].started = 0;
     }

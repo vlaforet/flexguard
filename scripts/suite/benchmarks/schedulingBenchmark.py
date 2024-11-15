@@ -53,7 +53,7 @@ class SchedulingBenchmark(BenchmarkCore):
             {
                 "id": int(m.group(1)),
                 "threads": int(m.group(2)),
-                "throughput": float(m.group(3)),
+                "value": float(m.group(3)),
             }
             for line in result.stdout.splitlines()
             if (m := self.pattern.match(line))

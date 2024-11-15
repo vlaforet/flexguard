@@ -13,7 +13,7 @@ class SchedulingExperiment(ExperimentCore):
 
         locks = {
             "BPF Hybrid Lock": "hybridv2",
-            "BPF Hybrid Lock No Next Waiter Sleeping Detection": "hybridv2_no_next_waiter_detection",
+            "BPF Hybrid Lock No Next Waiter Sleeping Detection": "hybridv2nonextwaiterdetection",
             "MCS": "mcs",
             "Pthread Mutex": "mutex",
         }
@@ -26,6 +26,7 @@ class SchedulingExperiment(ExperimentCore):
                     "label": label,
                     "kwargs": {
                         "lock": lock,
+                        "latency": 1,
                         "base-threads": 0,
                         "num-threads": 180,
                         "step-duration": 5000,
@@ -36,22 +37,68 @@ class SchedulingExperiment(ExperimentCore):
                 }
             )
 
-    def report(self, results, exp_dir):
+    def report_latency(self, results, exp_dir):
+        results_ylim = results[~results["lock"].isin(["mcs"])]
+
+        plt.figure(figsize=(10, 6))
+        ax = sns.lineplot(
+            data=results_ylim,
+            x="threads",
+            y="value",
+            hue="label",
+            style="label",
+            markers=True,
+        )
+        _, ymax = ax.get_ylim()
+        ax.remove()
+
+        ax2 = sns.lineplot(
+            data=results,
+            x="threads",
+            y="value",
+            hue="label",
+            style="label",
+            markers=True,
+        )
+        ax2.set_ylim(0, ymax)
+
+        plt.title("Single-lock Latency Microbenchmark (Lower is better)")
+        plt.xlabel("Threads")
+        plt.ylabel("Critical Section Latency (micros/cs)")
+        plt.grid(True)
+
+        output_path = os.path.join(exp_dir, "latency.png")
+        plt.savefig(output_path, dpi=600, bbox_inches="tight")
+        print(f"Wrote plot to {output_path}")
+
+    def report_throughput(self, results, exp_dir):
         plt.figure(figsize=(10, 6))
         sns.lineplot(
             data=results,
             x="threads",
-            y="throughput",
+            y="value",
             hue="label",
             style="label",
             markers=True,
         )
 
-        plt.title("Single-lock Microbenchmark (Higher is better)")
+        plt.title("Single-lock Throughput Microbenchmark (Higher is better)")
         plt.xlabel("Threads")
         plt.ylabel("Throughput (OPs/s)")
         plt.grid(True)
 
-        output_path = os.path.join(exp_dir, "scheduling.png")
+        output_path = os.path.join(exp_dir, "throughput.png")
         plt.savefig(output_path, dpi=600, bbox_inches="tight")
         print(f"Wrote plot to {output_path}")
+
+    def report(self, results, exp_dir):
+        if "latency" not in results.columns:
+            return self.report_throughput(results, exp_dir)
+
+        latency_data = results[results["latency"] != 0 & ~results["latency"].isna()]
+        if not latency_data.empty:
+            return self.report_latency(latency_data, exp_dir)
+
+        throughput_data = results[results["latency"] == 0 | results["latency"].isna()]
+        if not throughput_data.empty:
+            return self.report_throughput(throughput_data, exp_dir)
