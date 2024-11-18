@@ -1,6 +1,7 @@
 import os
 
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
 
@@ -32,18 +33,18 @@ class SchedulingExperiment(ExperimentCore):
                         "step-duration": 5000,
                         "cache-lines": 5,
                         "thread-step": 10,
-                        "increasing-only": 1,
+                        "increasing-only": 0,
                     },
                 }
             )
 
-    def report_latency(self, results, exp_dir):
+    def report_latency(self, results: pd.DataFrame, exp_dir):
         results_ylim = results[~results["lock"].isin(["mcs"])]
 
         plt.figure(figsize=(10, 6))
         ax = sns.lineplot(
             data=results_ylim,
-            x="threads",
+            x="id",
             y="value",
             hue="label",
             style="label",
@@ -54,13 +55,16 @@ class SchedulingExperiment(ExperimentCore):
 
         ax2 = sns.lineplot(
             data=results,
-            x="threads",
+            x="id",
             y="value",
             hue="label",
             style="label",
             markers=True,
         )
         ax2.set_ylim(0, ymax)
+
+        id_threads = results.groupby("id")["threads"].first()
+        ax2.set_xticklabels([id_threads.get(t, None) for t in ax2.get_xticks()])
 
         plt.title("Single-lock Latency Microbenchmark (Lower is better)")
         plt.xlabel("Threads")
@@ -71,16 +75,19 @@ class SchedulingExperiment(ExperimentCore):
         plt.savefig(output_path, dpi=600, bbox_inches="tight")
         print(f"Wrote plot to {output_path}")
 
-    def report_throughput(self, results, exp_dir):
+    def report_throughput(self, results: pd.DataFrame, exp_dir):
         plt.figure(figsize=(10, 6))
-        sns.lineplot(
+        ax = sns.lineplot(
             data=results,
-            x="threads",
+            x="id",
             y="value",
             hue="label",
             style="label",
             markers=True,
         )
+
+        id_threads = results.groupby("id")["threads"].first()
+        ax.set_xticklabels([id_threads.get(t, None) for t in ax.get_xticks()])
 
         plt.title("Single-lock Throughput Microbenchmark (Higher is better)")
         plt.xlabel("Threads")
