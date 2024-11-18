@@ -154,9 +154,6 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (prev->flags & 0x00200000) // PF_KTHREAD
 		return 0;
 
-	if (get_task_state(prev) & ((((TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE | TASK_STOPPED | TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE | TASK_PARKED) + 1) << 1) - 1))
-		return 0;
-
 	/*
 	 * Retrieve prev's qnode.
 	 */
@@ -168,6 +165,9 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 #ifndef HYBRIDV2_NO_NEXT_WAITER_DETECTION
 	qnode->is_running = 0;
 #endif
+
+	if (get_task_state(prev) & ((((TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE | TASK_STOPPED | TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE | TASK_PARKED) + 1) << 1) - 1))
+		return 0;
 
 	/*
 	 * Ignore preemption if the thread was not locking.
