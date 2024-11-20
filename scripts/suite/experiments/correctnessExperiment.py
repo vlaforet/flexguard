@@ -14,16 +14,28 @@ class CorrectnessExperiment(ExperimentCore):
             "Pthread Mutex": "mutex",
         }
 
+        threads = [1, 2] + [x for x in range(10, 190, 20)]
+
         for label, lock in locks.items():
-            self.tests.append(
-                {
-                    "benchmark": "correctness",
-                    "name": f"Correctness of {label} lock",
-                    "label": label,
-                    "kwargs": {
-                        "lock": lock,
-                        "num-threads": 50,
-                        "duration": 10000,
-                    },
-                }
-            )
+            for thread in threads:
+                self.tests.append(
+                    {
+                        "benchmark": "correctness",
+                        "name": f"Correctness of {label} lock with {thread} threads",
+                        "label": label,
+                        "kwargs": {
+                            "lock": lock,
+                            "num-threads": thread,
+                            "duration": 10000,
+                        },
+                    }
+                )
+
+    def report(self, results, exp_dir):
+        failed = results[results["correct"] == False]
+        if failed.empty:
+            print("All locks correct")
+        else:
+            print("Failed correctness tests:")
+            for _, test in failed.iterrows():
+                print(f" - {test['test_name']}")
