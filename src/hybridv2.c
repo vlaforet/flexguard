@@ -74,7 +74,7 @@ static inline hybrid_qnode_ptr get_me()
         qnode->is_locking = 0;
 #endif
 
-#ifndef HYBRIDV2_NO_NEXT_WAITER_DETECTION
+#ifdef HYBRIDV2_NEXT_WAITER_DETECTION
         qnode->is_running = 1;
 #endif
 #endif
@@ -191,32 +191,16 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         {
             // Trying to fix global pointer
             if (__sync_val_compare_and_swap(&the_lock->queue, qnode, NULL) == qnode)
-            {
-#if defined(BPF) && !defined(HYBRIDV2_NO_NEXT_WAITER_DETECTION)
-                if (the_lock->next_waiter_preempted)
-                {
-                    __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
-                    the_lock->next_waiter_preempted = false;
-                }
-#endif
                 return;
-            }
 
             while (!qnode->next)
                 PAUSE;
         }
 
-#if defined(BPF) && !defined(HYBRIDV2_NO_NEXT_WAITER_DETECTION)
-        if (!qnode->next->is_running && !the_lock->next_waiter_preempted)
-        {
+#if defined(BPF) && defined(HYBRIDV2_NEXT_WAITER_DETECTION)
+        // If next is not running
+        if (!qnode->next->is_running && !__sync_lock_test_and_set(&the_lock->next_waiter_preempted, true))
             __sync_fetch_and_add(get_preempted_count(the_lock), 1);
-            the_lock->next_waiter_preempted = true;
-        }
-        else if (qnode->next->is_running && the_lock->next_waiter_preempted)
-        {
-            __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
-            the_lock->next_waiter_preempted = false;
-        }
 #endif
 
         qnode->next->waiting = 0;
@@ -236,6 +220,11 @@ void hybridv2_unlock(hybridv2_lock_t *the_lock)
 #else
     qnode_allocation_array[thread_id].is_locking = 0; // Assuming qnode has already been initialized.
 #endif
+#endif
+
+#if defined(BPF) && defined(HYBRIDV2_NEXT_WAITER_DETECTION)
+    if (__sync_lock_test_and_set(&the_lock->next_waiter_preempted, false))
+        __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
 #endif
 }
 
@@ -319,7 +308,7 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
     the_lock->lock_value = 0;
     the_lock->waiter_count = 0;
 
-#if defined(BPF) && !defined(HYBRIDV2_NO_NEXT_WAITER_DETECTION)
+#if defined(BPF) && defined(HYBRIDV2_NEXT_WAITER_DETECTION)
     the_lock->next_waiter_preempted = 0;
 #endif
 
