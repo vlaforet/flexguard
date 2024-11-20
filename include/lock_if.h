@@ -36,6 +36,8 @@
 
 #ifdef USE_MCS_LOCKS
 #include "mcs.h"
+#elif defined(USE_MCSBLOCK_LOCKS)
+#include "mcsblock.h"
 #elif defined(USE_MCSTAS_LOCKS)
 #include "mcstas.h"
 #elif defined(USE_SPINLOCK_LOCKS)
