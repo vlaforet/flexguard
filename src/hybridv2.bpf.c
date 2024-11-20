@@ -169,10 +169,10 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (get_task_state(prev) & ((((TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE | TASK_STOPPED | TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE | TASK_PARKED) + 1) << 1) - 1))
 		return 0;
 
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
 	/*
 	 * Ignore preemption if the thread was not locking.
 	 */
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
 	lock_id = qnode->locking_id;
 	if (lock_id < 0 || lock_id >= MAX_NUMBER_LOCKS)
 		return 0;

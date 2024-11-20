@@ -59,6 +59,7 @@ compile_and_suffix() {
 compile_and_suffix "mcstasnopad" "LOCK_VERSION=MCSTAS ADD_PADDING=0"
 compile_and_suffix "futexnopad" "LOCK_VERSION=FUTEX ADD_PADDING=0"
 compile_and_suffix "bhlnopad" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=0"
+compile_and_suffix "bhllocalnopad" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=0 HYBRIDV2_LOCAL_PREEMPTIONS=1"
 compile_and_suffix "bhlnextwaiterdetectionnopad" "LOCK_VERSION=HYBRIDV2 HYBRIDV2_NEXT_WAITER_DETECTION=1 ADD_PADDING=0"
 
 compile_and_suffix "mcstas" "LOCK_VERSION=MCSTAS ADD_PADDING=1"
@@ -66,4 +67,5 @@ compile_and_suffix "mutex" "LOCK_VERSION=MUTEX ADD_PADDING=1 USE_REAL_PTHREAD=1"
 compile_and_suffix "futex" "LOCK_VERSION=FUTEX ADD_PADDING=1"
 compile_and_suffix "mcs" "LOCK_VERSION=MCS ADD_PADDING=1"
 compile_and_suffix "hybridv2" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=1"
+compile_and_suffix "hybridv2local" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=1 HYBRIDV2_LOCAL_PREEMPTIONS=1"
 compile_and_suffix "hybridv2nextwaiterdetection" "LOCK_VERSION=HYBRIDV2 HYBRIDV2_NEXT_WAITER_DETECTION=1 ADD_PADDING=1"

@@ -169,6 +169,14 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
   )
 
   add_wrapper(
+    NAME btreelc_bhl_local${page_size_suffix}
+    SOURCE btreeolc_wrapper.cpp
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL Local Switch" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF HYBRIDV2_LOCAL_PREEMPTIONS
+    LIBRARIES "${ROOT_DIR}/libsyncbhllocalnopad.a" elf
+    INCLUDE "${ROOT_DIR}/include"
+  )
+
+  add_wrapper(
     NAME btreelc_bhl_next_waiter_detection${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL next waiter detection" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF HYBRIDV2_NEXT_WAITER_DETECTION

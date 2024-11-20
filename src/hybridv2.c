@@ -299,11 +299,13 @@ static void deploy_bpf_code()
 int hybridv2_init(hybridv2_lock_t *the_lock)
 {
     the_lock->id = atomic_fetch_add(&lock_count, 1);
+#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
     if (the_lock->id >= MAX_NUMBER_LOCKS)
     {
         fprintf(stderr, "Too many locks. Increase MAX_NUMBER_LOCKS in platform_defs.h.\n");
         exit(EXIT_FAILURE);
     }
+#endif
 
     the_lock->lock_value = 0;
     the_lock->waiter_count = 0;
