@@ -46,6 +46,10 @@ preempted_count_t *preempted_count;
 #define get_preempted_count(the_lock) preempted_count
 #endif
 
+#ifndef BLOCKING_CONDITION
+#define BLOCKING_CONDITION(the_lock) *get_preempted_count(the_lock)
+#endif
+
 __thread int thread_id = -1;
 
 #ifdef BPF
@@ -121,7 +125,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
     // LOCK MCS
     uint8_t enqueued = 0;
-    if (!*get_preempted_count(the_lock))
+    if (!BLOCKING_CONDITION(the_lock))
     {
         enqueued = 1;
         DASSERT(the_lock->queue != qnode);
@@ -148,7 +152,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
             MEM_BARRIER;
             pred->next = qnode; // make pred point to me
 
-            while (qnode->waiting != 0 && !*get_preempted_count(the_lock))
+            while (qnode->waiting != 0 && !BLOCKING_CONDITION(the_lock))
                 PAUSE;
         }
 #ifdef BPF
@@ -166,7 +170,7 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         state = __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1);
     while (state != 0)
     {
-        if (*get_preempted_count(the_lock))
+        if (BLOCKING_CONDITION(the_lock))
         {
             if (the_lock->lock_value != 2)
                 state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
@@ -386,7 +390,7 @@ int hybridv2_cond_wait(hybridv2_cond_t *cond, hybridv2_lock_t *the_lock)
 
     while (target > seq)
     {
-        if (*get_preempted_count(the_lock))
+        if (BLOCKING_CONDITION(the_lock))
             futex_wait(&cond->seq, seq);
         else
             PAUSE;
