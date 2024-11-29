@@ -16,7 +16,7 @@ class IdealExperiment(ExperimentCore):
             "MCS": "mcs",
             "MCS-Block": "mcsblock",
             "Pthread Mutex": "mutex",
-            "Futex": "futex",
+            "Pure Blocking Lock": "futex",
             "MCS-TP": "mcstp",
         }
 
@@ -33,7 +33,7 @@ class IdealExperiment(ExperimentCore):
                         "num-threads": 120,
                         "step-duration": 5000,
                         "cache-lines": 5,
-                        "thread-step": 10,
+                        "thread-step": 1,
                         "increasing-only": 0,
                     },
                 }
@@ -57,7 +57,15 @@ class IdealExperiment(ExperimentCore):
         ideal_results["lock"] = "ideal"
         ideal_results["label"] = "Ideal Hybrid Lock"
 
-        full_results = pd.concat([agg_results, ideal_results], ignore_index=True)
+        full_results_tmp = pd.concat([agg_results, ideal_results], ignore_index=True)
+        full_results = full_results_tmp[full_results_tmp["id"] < 12]
+
+        mutex_values = full_results.loc[full_results["lock"] == "futex"].set_index(
+            "id"
+        )["value"]
+        full_results["normalized_value"] = full_results["value"] / full_results[
+            "id"
+        ].map(mutex_values)
 
         results_ylim = full_results[
             ~full_results["lock"].isin(["mcs", "mcsblock", "mcstp"])
@@ -65,18 +73,18 @@ class IdealExperiment(ExperimentCore):
         ax2 = sns.lineplot(
             data=results_ylim,
             x="id",
-            y="value",
+            y="normalized_value",
             hue="label",
             style="label",
             markers=True,
         )
-        _, ymax = ax2.get_ylim()
+        ymin, ymax = ax2.get_ylim()
 
         plt.figure(figsize=(10, 6))
         ax = sns.lineplot(
             data=full_results,
             x="id",
-            y="value",
+            y="normalized_value",
             hue="label",
             style="label",
             markers=True,
@@ -89,10 +97,14 @@ class IdealExperiment(ExperimentCore):
 
         plt.title("Single-lock Latency Microbenchmark (Lower is better)")
         plt.xlabel("Threads")
-        plt.ylabel("Critical Section Latency (micros/cs)")
+        plt.ylabel(
+            "Normalized Critical Section Latency (compared to Pure Blocking Lock)"
+        )
         plt.grid(True)
-        # plt.yscale("log")
-        plt.ylim(0, ymax)
+        plt.xlim(0, 11)
+        plt.yscale("log")
+        # plt.ylim(ymin, ymax * 1.1)
+        # plt.ylim(0, ymax)
 
         output_path = os.path.join(exp_dir, "ideal.png")
         plt.savefig(output_path, dpi=600, bbox_inches="tight")
