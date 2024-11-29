@@ -222,7 +222,6 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
 void hybridv2_unlock(hybridv2_lock_t *the_lock)
 {
-    COMPILER_BARRIER;
     if (__sync_lock_test_and_set(&the_lock->lock_value, 0) != 1)
         futex_wake((void *)&the_lock->lock_value, 1);
 
