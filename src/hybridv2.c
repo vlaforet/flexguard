@@ -46,6 +46,10 @@ preempted_count_t *preempted_count;
 #define get_preempted_count(the_lock) preempted_count
 #endif
 
+#if defined(BPF) && HYBRIDV2_NEXT_WAITER_DETECTION == 2 // Local
+#define BLOCKING_CONDITION(the_lock) (*get_preempted_count(the_lock) || the_lock->next_waiter_preempted)
+#endif
+
 #ifndef BLOCKING_CONDITION
 #define BLOCKING_CONDITION(the_lock) *get_preempted_count(the_lock)
 #endif
@@ -201,10 +205,15 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
                 PAUSE;
         }
 
-#if defined(BPF) && defined(HYBRIDV2_NEXT_WAITER_DETECTION)
+#ifdef BPF
+#if HYBRIDV2_NEXT_WAITER_DETECTION == 1 // Global
         // If next is not running
         if (!qnode->next->is_running && !__sync_lock_test_and_set(&the_lock->next_waiter_preempted, true))
             __sync_fetch_and_add(get_preempted_count(the_lock), 1);
+#elif HYBRIDV2_NEXT_WAITER_DETECTION == 2 // Local
+        if (!qnode->next->is_running)
+            the_lock->next_waiter_preempted = true;
+#endif
 #endif
 
         qnode->next->waiting = 0;
@@ -224,11 +233,14 @@ void hybridv2_unlock(hybridv2_lock_t *the_lock)
 #else
     qnode_allocation_array[thread_id].is_locking = 0; // Assuming qnode has already been initialized.
 #endif
-#endif
 
-#if defined(BPF) && defined(HYBRIDV2_NEXT_WAITER_DETECTION)
+#if HYBRIDV2_NEXT_WAITER_DETECTION == 1 // Global
     if (__sync_lock_test_and_set(&the_lock->next_waiter_preempted, false))
         __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
+#elif HYBRIDV2_NEXT_WAITER_DETECTION == 2 // Local
+    if (the_lock->next_waiter_preempted)
+        the_lock->next_waiter_preempted = false;
+#endif
 #endif
 }
 
