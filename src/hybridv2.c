@@ -127,6 +127,8 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
         return;
     }
 
+mcs_enqueue:
+
     // LOCK MCS
     uint8_t enqueued = 0;
     if (!BLOCKING_CONDITION(the_lock))
@@ -177,6 +179,11 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
             {
                 futex_wait((void *)&the_lock->lock_value, 2);
                 state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
+                if (state != 0)
+                {
+                    if (!BLOCKING_CONDITION(the_lock) && !enqueued)
+                        goto mcs_enqueue;
+                }
             }
         }
         else
