@@ -119,11 +119,6 @@ void hybridv2_lock(hybridv2_lock_t *the_lock)
 
     if (!the_lock->lock_value && __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1) == 0)
     {
-#ifdef TRACING
-        if (the_lock->tracing_fn)
-            the_lock->tracing_fn(getticks(), TRACING_EVENT_ACQUIRED_STOLEN, NULL, the_lock->tracing_fn_data);
-#endif
-
         return;
     }
 
