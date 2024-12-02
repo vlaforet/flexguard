@@ -102,6 +102,32 @@ static inline hybrid_qnode_ptr get_me()
     return &qnode_allocation_array[thread_id];
 }
 
+inline void mcs_unlock(hybridv2_lock_t *the_lock, hybrid_qnode_ptr qnode)
+{
+    if (!qnode->next) // I seem to have no successor
+    {
+        // Trying to fix global pointer
+        if (__sync_val_compare_and_swap(&the_lock->queue, qnode, NULL) == qnode)
+            return;
+
+        while (!qnode->next)
+            PAUSE;
+    }
+
+#ifdef BPF
+#if HYBRIDV2_NEXT_WAITER_DETECTION == 1 // Global
+    // If next is not running
+    if (!qnode->next->is_running && !__sync_lock_test_and_set(&the_lock->next_waiter_preempted, true))
+        __sync_fetch_and_add(get_preempted_count(the_lock), 1);
+#elif HYBRIDV2_NEXT_WAITER_DETECTION == 2 // Local
+    if (!qnode->next->is_running)
+        the_lock->next_waiter_preempted = true;
+#endif
+#endif
+
+    qnode->next->waiting = 0;
+}
+
 void hybridv2_lock(hybridv2_lock_t *the_lock)
 {
     hybrid_qnode_ptr qnode = get_me();
@@ -168,6 +194,11 @@ mcs_enqueue:
     {
         if (BLOCKING_CONDITION(the_lock))
         {
+            if (enqueued)
+            {
+                mcs_unlock(the_lock, qnode);
+                enqueued = 0;
+            }
             if (the_lock->lock_value != 2)
                 state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
             if (state != 0)
@@ -176,7 +207,7 @@ mcs_enqueue:
                 state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
                 if (state != 0)
                 {
-                    if (!BLOCKING_CONDITION(the_lock) && !enqueued)
+                    if (!BLOCKING_CONDITION(the_lock))
                         goto mcs_enqueue;
                 }
             }
@@ -191,30 +222,7 @@ mcs_enqueue:
 
     // UNLOCK MCS
     if (enqueued)
-    {
-        if (!qnode->next) // I seem to have no successor
-        {
-            // Trying to fix global pointer
-            if (__sync_val_compare_and_swap(&the_lock->queue, qnode, NULL) == qnode)
-                return;
-
-            while (!qnode->next)
-                PAUSE;
-        }
-
-#ifdef BPF
-#if HYBRIDV2_NEXT_WAITER_DETECTION == 1 // Global
-        // If next is not running
-        if (!qnode->next->is_running && !__sync_lock_test_and_set(&the_lock->next_waiter_preempted, true))
-            __sync_fetch_and_add(get_preempted_count(the_lock), 1);
-#elif HYBRIDV2_NEXT_WAITER_DETECTION == 2 // Local
-        if (!qnode->next->is_running)
-            the_lock->next_waiter_preempted = true;
-#endif
-#endif
-
-        qnode->next->waiting = 0;
-    }
+        mcs_unlock(the_lock, qnode);
 }
 
 void hybridv2_unlock(hybridv2_lock_t *the_lock)
