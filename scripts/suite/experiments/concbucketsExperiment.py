@@ -17,7 +17,7 @@ class ConcBucketsExperiment(ExperimentCore):
             "Pthread Mutex": "mutex",
         }
 
-        threads = [1] + [x for x in range(0, 300, 5)]
+        threads = [1] + [x for x in range(5, 300, 5)]
 
         for label, lock in locks.items():
             for thread in threads:
