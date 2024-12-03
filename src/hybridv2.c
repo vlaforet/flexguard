@@ -102,7 +102,7 @@ static inline hybrid_qnode_ptr get_me()
     return &qnode_allocation_array[thread_id];
 }
 
-inline void mcs_unlock(hybridv2_lock_t *the_lock, hybrid_qnode_ptr qnode)
+static inline void mcs_unlock(hybridv2_lock_t *the_lock, hybrid_qnode_ptr qnode)
 {
     if (!qnode->next) // I seem to have no successor
     {
