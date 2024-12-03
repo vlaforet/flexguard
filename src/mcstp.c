@@ -64,7 +64,7 @@
 #include "interpose.h"
 #include "utils.h"
 
-extern __thread unsigned int cur_thread_id;
+static __thread unsigned int cur_thread_id = -1;
 typedef enum
 {
   INIT,
@@ -78,16 +78,15 @@ typedef enum
 
 static mcs_tp_node_t *get_me(mcs_tp_mutex_t *impl)
 {
-  static __thread int thread_id = -1;
   static volatile int thread_count = 0;
 
-  if (UNLIKELY(thread_id < 0))
+  if (UNLIKELY(cur_thread_id < 0))
   {
-    thread_id = __sync_fetch_and_add(&thread_count, 1);
-    CHECK_NUMBER_THREADS_FATAL(thread_id);
+    cur_thread_id = __sync_fetch_and_add(&thread_count, 1);
+    CHECK_NUMBER_THREADS_FATAL(cur_thread_id);
   }
 
-  return &impl->nodes[thread_id];
+  return &impl->nodes[cur_thread_id];
 }
 
 void mcs_tp_mutex_lock(mcs_tp_mutex_t *impl)
