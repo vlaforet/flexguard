@@ -6,6 +6,7 @@ from typing import List
 import pandas as pd
 from experiments.experimentCore import ExperimentCore
 from plugins import getBenchmark
+from multiprocessing import Process
 
 
 class RecordCommand:
@@ -74,7 +75,24 @@ class RecordCommand:
                         print(
                             f"[{test_id}/{tests_count}] Running test: {test['name']} #{i}"
                         )
+
+                        if "concurrent" in test:
+                            c = getBenchmark(
+                                test["concurrent"]["benchmark"],
+                                self.base_dir,
+                                self.temp_dir,
+                            )
+
+                            cproc = Process(
+                                target=lambda: c.run(**test["concurrent"]["kwargs"])
+                            )
+                            cproc.start()
+
                         res = b.run(**test["kwargs"])
+
+                        if "concurrent" in test:
+                            cproc.kill()
+
                         if res is None:
                             print(f"Test {test['name']} failed")
                             continue
@@ -100,6 +118,12 @@ class RecordCommand:
                     "replications": len(results[k]),
                     **test["kwargs"],
                 }
+
+                if "concurrent" in test:
+                    row["concurrent_benchmark"] = test["concurrent"]["benchmark"]
+                    for key, val in test["concurrent"]["kwargs"].items():
+                        row[f"concurrent_{key}"] = val
+
                 rows.append(
                     pd.merge(pd.concat(results[k]), pd.DataFrame([row]), "cross")
                 )
