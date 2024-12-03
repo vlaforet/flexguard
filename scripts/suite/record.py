@@ -93,9 +93,9 @@ class RecordCommand:
 
                         if "concurrent" in test:
                             psproc = psutil.Process(cproc.pid)
+                            psproc.kill()
                             for child in psproc.children(recursive=True):
                                 child.kill()
-                            psproc.kill()
                             cproc.join()
 
                         if res is None:
