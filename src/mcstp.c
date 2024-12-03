@@ -64,7 +64,7 @@
 #include "interpose.h"
 #include "utils.h"
 
-static __thread unsigned int cur_thread_id = -1;
+__thread unsigned int cur_thread_id = -1;
 typedef enum
 {
   INIT,
