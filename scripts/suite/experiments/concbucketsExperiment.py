@@ -17,7 +17,7 @@ class ConcBucketsExperiment(ExperimentCore):
             "Pthread Mutex": "mutex",
         }
 
-        threads = [1, 2] + [x for x in range(10, 180, 20)]
+        threads = [1] + [x for x in range(0, 300, 5)]
 
         for label, lock in locks.items():
             for thread in threads:
@@ -38,7 +38,7 @@ class ConcBucketsExperiment(ExperimentCore):
                         "kwargs": {
                             "lock": lock,
                             "duration": 10000,
-                            "num-threads": 32,
+                            "num-threads": 52,
                             "buckets": 100,
                             "max-value": 100000,
                             "offset-changes": 40,
