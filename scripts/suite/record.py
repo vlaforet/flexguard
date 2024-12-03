@@ -1,12 +1,13 @@
 import hashlib
 import json
 import os
+from multiprocessing import Process
 from typing import List
 
 import pandas as pd
+import psutil
 from experiments.experimentCore import ExperimentCore
 from plugins import getBenchmark
-from multiprocessing import Process
 
 
 class RecordCommand:
@@ -91,7 +92,11 @@ class RecordCommand:
                         res = b.run(**test["kwargs"])
 
                         if "concurrent" in test:
-                            cproc.kill()
+                            psproc = psutil.Process(cproc.pid)
+                            for child in psproc.children(recursive=True):
+                                child.kill()
+                            psproc.kill()
+                            cproc.join()
 
                         if res is None:
                             print(f"Test {test['name']} failed")
