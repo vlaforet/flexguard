@@ -19,11 +19,10 @@ class IdealExperiment(ExperimentCore):
             "POSIX": "mutex",
             "Pure blocking lock": "futex",
             "MCS-TP": "mcstp",
-            "Spin-Then-Park 30 cycles": "spinpark30",
-            "Spin-Then-Park 300 cycles": "spinpark300",
-            "Spin-Then-Park 3000 cycles": "spinpark3000",
-            "Spin-Then-Park 30000 cycles": "spinpark30000",
-            "Spin-Then-Park 300000 cycles": "spinpark300000",
+            "Spin-Then-Park": "spinpark",
+            "Shfllock": "shuffle",
+            "Malthusian": "malthusian",
+            "CBO-MCS": "cbomcs",
         }
 
         for label, lock in locks.items():
