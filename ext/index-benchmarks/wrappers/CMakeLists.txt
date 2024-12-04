@@ -169,20 +169,43 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
   )
 
   add_wrapper(
-    NAME btreelc_bhl_local${page_size_suffix}
+    NAME btreelc_malthusian${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
-    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL Local Switch" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF HYBRIDV2_LOCAL_PREEMPTIONS
-    LIBRARIES "${ROOT_DIR}/libsyncbhllocalnopad.a" elf
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Malthusian" USE_MUTEX_LOCKS
+    LIBRARIES "${ROOT_DIR}/litl/lib/libmalthusian_spinlock.so" "${ROOT_DIR}/libsyncmalthusian.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
   add_wrapper(
-    NAME btreelc_bhl_next_waiter_detection${page_size_suffix}
+    NAME btreelc_cbomcs${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
-    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL next waiter detection" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF HYBRIDV2_NEXT_WAITER_DETECTION
-    LIBRARIES "${ROOT_DIR}/libsyncbhlnextwaiterdetectionnopad.a" elf
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="CBOMCS" USE_MUTEX_LOCKS
+    LIBRARIES "${ROOT_DIR}/litl/lib/libcbomcs_spinlock.so" "${ROOT_DIR}/libsyncmalthusian.a"
     INCLUDE "${ROOT_DIR}/include"
   )
+
+  add_wrapper(
+    NAME btreelc_concurrency${page_size_suffix}
+    SOURCE btreeolc_wrapper.cpp
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Concurrency" USE_MUTEX_LOCKS
+    LIBRARIES "${ROOT_DIR}/litl/lib/libconcurrency_original.so" "${ROOT_DIR}/libsyncmalthusian.a"
+    INCLUDE "${ROOT_DIR}/include"
+  )
+
+  # add_wrapper(
+  # NAME btreelc_bhl_local${page_size_suffix}
+  # SOURCE btreeolc_wrapper.cpp
+  # DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL Local Switch" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF HYBRIDV2_LOCAL_PREEMPTIONS
+  # LIBRARIES "${ROOT_DIR}/libsyncbhllocalnopad.a" elf
+  # INCLUDE "${ROOT_DIR}/include"
+  # )
+  # add_wrapper(
+  # NAME btreelc_bhl_next_waiter_detection${page_size_suffix}
+  # SOURCE btreeolc_wrapper.cpp
+  # DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="BHL next waiter detection" USE_HYBRIDV2_LOCKS HYBRID_MCS BPF HYBRIDV2_NEXT_WAITER_DETECTION
+  # LIBRARIES "${ROOT_DIR}/libsyncbhlnextwaiterdetectionnopad.a" elf
+  # INCLUDE "${ROOT_DIR}/include"
+  # )
 
   # add_wrapper(
   #   NAME btreelc_mcsrw_cwp${page_size_suffix}

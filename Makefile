@@ -10,6 +10,12 @@ else
 	COMPILE_FLAGS += -O3
 endif
 
+ifdef USE_LITL_LIBRARY
+	USE_REAL_PTHREAD=0
+	LOCK_VERSION=MUTEX
+	LITL_SHARED_LIBRARY=$(abspath ./litl/lib/lib$(USE_LITL_LIBRARY).so)
+endif
+
 ifneq ($(ADD_PADDING),0)
 	DEFINED += -DADD_PADDING
 endif
@@ -91,7 +97,7 @@ ifeq ($(NOBPF), 0)
 	LIBS += -lelf -lz
 endif
 
-INCLUDES := $(BPFINCLUDES) -I$(abspath ./include/)
+INCLUDES += $(BPFINCLUDES) -I$(abspath ./include/)
 
 ifeq ($(NOBPF), 0)
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
@@ -118,8 +124,8 @@ $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 	$(BPFTOOL) gen skeleton $< > $@
 endif
 
-litl: include/lock_if.h libsync.a
-	$(MAKE) -C litl/ EXTERNAL_CFLAGS="$(DEFINED) $(INCLUDES)"
+$(abspath ./litl/lib/lib%.so):
+	$(MAKE) -C litl/
 
 interpose.sh: interpose.in interpose.so
 	cat interpose.in | sed -e "s/@base_dir@/$$(echo $$(cd .; pwd) | sed -e 's/\([\/&]\)/\\\1/g')/g" > $@
@@ -141,13 +147,13 @@ ifeq ($(ASSEMBLY_DUMP),1) # Produces a %.s and %.odump files containing the comp
 	objdump -d $@ > ${@}dump
 endif
 
-scheduling: bmarks/scheduling.c libsync.a
+scheduling: bmarks/scheduling.c libsync.a $(LITL_SHARED_LIBRARY)
 	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
 
-buckets: src/hash_map.c bmarks/buckets.c libsync.a
+buckets: src/hash_map.c bmarks/buckets.c libsync.a $(LITL_SHARED_LIBRARY)
 	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ -lm $(LIBS)
 
-test_correctness: bmarks/test_correctness.c libsync.a
+test_correctness: bmarks/test_correctness.c libsync.a $(LITL_SHARED_LIBRARY)
 	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
 
 all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
