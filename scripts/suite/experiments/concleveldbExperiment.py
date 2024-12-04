@@ -14,8 +14,14 @@ class ConcLevelDBExperiment(ExperimentCore):
 
         locks = {
             "LoadRunner": "hybridv2",
-            "POSIX": "mutex",
             "MCS": "mcs",
+            "POSIX": "mutex",
+            "MCS-TAS": "mcstas",
+            "Pure blocking lock": "futex",
+            "MCS-TP": "mcstp",
+            "Spin-Then-Park": "spinpark",
+            "Shfllock": "shuffle",
+            "Malthusian": "malthusian",
         }
 
         threads = [

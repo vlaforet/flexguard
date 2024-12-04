@@ -12,13 +12,8 @@ class KyotoCabinetExperiment(ExperimentCore):
         super().__init__(with_debugging)
 
         locks = {
-            "BPF Hybrid Lock": ("hybridv2", [100000, 10000, 1000]),
-            "BPF Hybrid Lock No Next Waiter Sleeping Detection": (
-                "hybridv2nonextwaiterdetection",
-                [100000, 10000, 1000],
-            ),
-            "Pthread Mutex": ("mutex", [100000, 10000, 1000]),
-            # "Stock": ("stock", [100000, 10000, 1000]),
+            "LoadRunner": ("hybridv2", [100000, 10000, 1000]),
+            "POSIX": ("mutex", [100000, 10000, 1000]),
             "MCS": ("mcs", [100000, 1000, 10, 10, 10]),
         }
 
@@ -37,13 +32,14 @@ class KyotoCabinetExperiment(ExperimentCore):
                             "lock": lock,
                             "threads": t,
                             "num": steps[min(k // num_step, len(steps) - 1)],
+                            "benchmarks": ["fillrandom", "readrandom"],
                         },
                     }
                 )
 
     def report(self, results, exp_dir):
         results_ylim = results[
-            ~results["lock"].isin(["mcs", "hybridv2nonextwaiterdetection"])
+            ~results["lock"].isin(["mcs", "hybridv2nextwaiterdetection"])
         ]
 
         for col in [col for col in results.columns if col.startswith("latency_")]:

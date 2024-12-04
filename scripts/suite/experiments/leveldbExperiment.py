@@ -12,21 +12,36 @@ class LevelDBExperiment(ExperimentCore):
         super().__init__(with_debugging)
 
         locks = {
-            "BPF Hybrid Lock": ("hybridv2", [100000, 10000, 1000]),
-            "BPF Hybrid Lock No Next Waiter Sleeping Detection": (
-                "hybridv2nonextwaiterdetection",
-                [100000, 10000, 1000],
-            ),
-            "Pthread Mutex": ("mutex", [100000, 10000, 1000]),
-            # "Stock": ("stock", [100000, 10000, 1000]),
-            "MCS": ("mcs", [100000, 1000, 10, 10, 10]),
+            "LoadRunner": ("hybridv2", [1000000, 100000, 10000, 10000]),
+            "POSIX": ("mutex", [1000000, 100000, 10000, 1000]),
+            "MCS": ("mcs", [1000000, 100000, 1000, 1000, 0, 0]),
         }
 
-        threads = [1, 2] + [i for i in range(10, 182, 10)]
+        threads = [
+            1,
+            5,
+            10,
+            15,
+            20,
+            25,
+            30,
+            40,
+            50,
+            60,
+            70,
+            80,
+            90,
+            100,
+            110,
+            130,
+            150,
+        ]
 
         for label, (lock, steps) in locks.items():
             num_step = max((len(threads) + 1) // len(steps), 1)
             for k, t in enumerate(threads):
+                if lock == "mcs" and t > 100:
+                    continue
 
                 self.tests.append(
                     {
@@ -37,14 +52,19 @@ class LevelDBExperiment(ExperimentCore):
                             "lock": lock,
                             "threads": t,
                             "num": steps[min(k // num_step, len(steps) - 1)],
+                            "benchmarks": [
+                                "fillseq",
+                                "fillsync",
+                                "fillrandom",
+                                "overwrite",
+                                "readrandom",
+                            ],
                         },
                     }
                 )
 
     def report(self, results, exp_dir):
-        results_ylim = results[
-            ~results["lock"].isin(["mcs", "hybridv2nonextwaiterdetection"])
-        ]
+        results_ylim = results[~results["lock"].isin(["mcs"])]
 
         for col in [col for col in results.columns if col.startswith("latency_")]:
             bench_name = col.removeprefix("latency_")

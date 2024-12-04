@@ -14,7 +14,13 @@ class ConcBucketsExperiment(ExperimentCore):
         locks = {
             "LoadRunner": "hybridv2",
             "MCS": "mcs",
-            "Pthread Mutex": "mutex",
+            "POSIX": "mutex",
+            "MCS-TAS": "mcstas",
+            "Pure blocking lock": "futex",
+            "MCS-TP": "mcstp",
+            "Spin-Then-Park": "spinpark",
+            "Shfllock": "shuffle",
+            "Malthusian": "malthusian",
         }
 
         threads = [1] + [x for x in range(5, 300, 5)]
@@ -65,7 +71,6 @@ class ConcBucketsExperiment(ExperimentCore):
         )
         plt.ylabel("Throughput (OPs/s)")
         plt.grid(True)
-        plt.yscale("log")
 
         output_path = os.path.join(exp_dir, "concbuckets.png")
         plt.savefig(output_path, dpi=600, bbox_inches="tight")

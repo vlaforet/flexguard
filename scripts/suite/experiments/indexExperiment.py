@@ -12,21 +12,17 @@ class IndexExperiment(ExperimentCore):
         super().__init__(with_debugging)
 
         indexes = {
-            "B+-tree BPF Hybrid Lock": "btreelc_bhl",
-            "BPF Hybrid Lock No Next Waiter Sleeping Detection": "btreelc_bhl_no_next_waiter_detection",
-            "B+-tree Pthread Mutex": "btreelc_mutex",
-            "B+-tree MCSRW": "btreelc_mcsrw",
-            # "ART BPF Hybrid Lock": "artlc_bhl",
-            # "ART MCS/TAS": "artlc_mcstas",
-            # "ART Pthread Mutex": "artlc_mutex",
+            "LoadRunner": "btreelc_bhl",
+            "MCS": "btreelc_mcsrw",
+            "POSIX": "btreelc_mutex",
+            "MCS-TAS": "btreelc_mcstas",
+            "Pure blocking lock": "btreelc_futex",
+            "MCS-TP": "btreelc_mcstp",
+            "Shfllock": "btreelc_shuffle",
+            "Malthusian": "btreelc_malthusian",
         }
 
-        if self.with_debugging:
-            indexes["B+-tree BPF Hybrid Lock debug"] = "btreelc_bhl"
-
-        threads = [1, 2] + [i for i in range(10, 182, 10)]
-        # threads = [40, 60, 70, 180]
-        # threads = [10, 20]
+        threads = [1] + [i for i in range(5, 300, 5)]
 
         for label, index in indexes.items():
             for t in threads:
