@@ -125,7 +125,7 @@ $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 endif
 
 $(abspath ./litl/lib/lib%.so):
-	$(MAKE) -C litl/
+	$(MAKE) -C litl/ >/dev/null 2>&1
 
 interpose.sh: interpose.in interpose.so
 	cat interpose.in | sed -e "s/@base_dir@/$$(echo $$(cd .; pwd) | sed -e 's/\([\/&]\)/\\\1/g')/g" > $@
