@@ -84,7 +84,7 @@ class ConcLevelDBExperiment(ExperimentCore):
             plt.figure(figsize=(10, 6))
             ax = sns.lineplot(
                 data=results_ylim,
-                x="concurrent_threads",
+                x="concurrent_num-threads",
                 y=col,
                 hue="label",
                 style="label",
@@ -97,7 +97,7 @@ class ConcLevelDBExperiment(ExperimentCore):
 
             ax2 = sns.lineplot(
                 data=results,
-                x="concurrent_threads",
+                x="concurrent_num-threads",
                 y=col,
                 hue="label",
                 style="label",
