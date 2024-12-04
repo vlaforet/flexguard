@@ -43,7 +43,7 @@ class ConcLevelDBExperiment(ExperimentCore):
 
         for label, lock in locks.items():
             for t in threads:
-                if lock == "MCS" and t + bthreads > 100:
+                if lock == "MCS" and t + bthreads > 70:
                     continue
 
                 self.tests.append(
