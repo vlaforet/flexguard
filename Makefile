@@ -1,10 +1,11 @@
 GCC:=gcc
 LIBS := -lrt -lpthread -lnuma
-COMPILE_FLAGS=-fPIC -Wall
+COMPILE_FLAGS := -fPIC -Wall
+DEFINED := -D_GNU_SOURCE
 
 ifeq ($(DEBUG),1)
 	COMPILE_FLAGS += -O0 -fno-inline -ggdb
-	DEFINED := -DDEBUG
+	DEFINED += -DDEBUG
 else
 	COMPILE_FLAGS += -O3
 endif
@@ -125,7 +126,7 @@ interpose.sh: interpose.in interpose.so
 	chmod a+x $@
 
 interpose.so: include/atomic_ops.h include/utils.h include/lock_if.h interpose.o libsync.a
-	$(GCC) -shared -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o interpose.so $(LIBS) -Wl,--version-script=src/interpose.map
+	$(GCC) -shared $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o interpose.so $(LIBS) -Wl,--version-script=src/interpose.map
 
 libsync.a: $(OBJ_FILES) $(LIBBPF_OBJ) include/atomic_ops.h include/utils.h include/lock_if.h $(BPF_SKELETON)
 	ar -rc libsync.a $(OBJ_FILES)
@@ -134,20 +135,20 @@ ifneq ($(LIBBPF_OBJ),) # Add libbpf to the archive
 endif
 
 %.o: src/%.c $(BPF_SKELETON)
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $(filter %.c,$^) -o $@ $(LIBS)
+	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $(filter %.c,$^) -o $@ $(LIBS)
 ifeq ($(ASSEMBLY_DUMP),1) # Produces a %.s and %.odump files containing the compiled-unassembled code
-	$(GCC) -S -fverbose-asm -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $(filter %.c,$^) $(LIBS)
+	$(GCC) -S -fverbose-asm $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $(filter %.c,$^) $(LIBS)
 	objdump -d $@ > ${@}dump
 endif
 
 scheduling: bmarks/scheduling.c libsync.a
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
+	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
 
 buckets: src/hash_map.c bmarks/buckets.c libsync.a
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ -lm $(LIBS)
+	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ -lm $(LIBS)
 
 test_correctness: bmarks/test_correctness.c libsync.a
-	$(GCC) -D_GNU_SOURCE $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
+	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
 
 all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
 	@echo "############### Used lock:" $(LOCK_VERSION)
