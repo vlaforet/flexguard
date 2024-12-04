@@ -14,10 +14,16 @@ class IdealExperiment(ExperimentCore):
 
         locks = {
             "MCS": "mcs",
+            "MCS-TAS": "mcstas",
             "MCS-Block": "mcsblock",
-            "Pthread Mutex": "mutex",
-            "Pure Blocking Lock": "futex",
+            "POSIX": "mutex",
+            "Pure blocking lock": "futex",
             "MCS-TP": "mcstp",
+            "Spin-Then-Park 30 cycles": "spinpark30",
+            "Spin-Then-Park 300 cycles": "spinpark300",
+            "Spin-Then-Park 3000 cycles": "spinpark3000",
+            "Spin-Then-Park 30000 cycles": "spinpark30000",
+            "Spin-Then-Park 300000 cycles": "spinpark300000",
         }
 
         for label, lock in locks.items():
@@ -29,12 +35,12 @@ class IdealExperiment(ExperimentCore):
                     "kwargs": {
                         "lock": lock,
                         "latency": 1,
-                        "base-threads": 0,
+                        "base-threads": 1,
                         "num-threads": 120,
-                        "step-duration": 5000,
+                        "step-duration": 2000,
                         "cache-lines": 5,
-                        "thread-step": 1,
-                        "increasing-only": 0,
+                        "thread-step": 3,
+                        "increasing-only": 1,
                     },
                 }
             )
@@ -47,7 +53,10 @@ class IdealExperiment(ExperimentCore):
         clean_results = results[~(zero_rows & max_id_rows)]
 
         agg_results = clean_results.groupby(["lock", "id"], as_index=False).agg(
-            {"value": "mean", **{c: "first" for c in clean_results.columns}}
+            {
+                "value": "mean",
+                **{c: "first" for c in clean_results.columns if c != "value"},
+            }
         )
 
         filtered_results = agg_results[agg_results["lock"].isin(["mcs", "futex"])]
@@ -58,7 +67,8 @@ class IdealExperiment(ExperimentCore):
         ideal_results["label"] = "Ideal Hybrid Lock"
 
         full_results_tmp = pd.concat([agg_results, ideal_results], ignore_index=True)
-        full_results = full_results_tmp[full_results_tmp["id"] < 12]
+        full_results = full_results_tmp[full_results_tmp["id"] < 120]
+        # full_results = full_results_tmp
 
         mutex_values = full_results.loc[full_results["lock"] == "futex"].set_index(
             "id"
@@ -66,19 +76,7 @@ class IdealExperiment(ExperimentCore):
         full_results["normalized_value"] = full_results["value"] / full_results[
             "id"
         ].map(mutex_values)
-
-        results_ylim = full_results[
-            ~full_results["lock"].isin(["mcs", "mcsblock", "mcstp"])
-        ]
-        ax2 = sns.lineplot(
-            data=results_ylim,
-            x="id",
-            y="normalized_value",
-            hue="label",
-            style="label",
-            markers=True,
-        )
-        ymin, ymax = ax2.get_ylim()
+        full_results.to_csv("/tmp/out.csv")
 
         plt.figure(figsize=(10, 6))
         ax = sns.lineplot(
@@ -87,7 +85,7 @@ class IdealExperiment(ExperimentCore):
             y="normalized_value",
             hue="label",
             style="label",
-            markers=True,
+            markers=False,
         )
 
         id_threads = full_results.groupby("id")["threads"].first()
@@ -101,9 +99,9 @@ class IdealExperiment(ExperimentCore):
             "Normalized Critical Section Latency (compared to Pure Blocking Lock)"
         )
         plt.grid(True)
-        plt.xlim(0, 11)
+        # plt.xlim(0, 11)
         plt.yscale("log")
-        # plt.ylim(ymin, ymax * 1.1)
+        plt.ylim(0.5, 1.5)
         # plt.ylim(0, ymax)
 
         output_path = os.path.join(exp_dir, "ideal.png")
