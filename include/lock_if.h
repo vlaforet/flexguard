@@ -54,6 +54,8 @@
 #include "mutex.h"
 #elif defined(USE_FUTEX_LOCKS)
 #include "futex.h"
+#elif defined(USE_SPINPARK_LOCKS)
+#include "spinpark.h"
 #elif defined(USE_CLH_LOCKS)
 #include "clh.h"
 #else
