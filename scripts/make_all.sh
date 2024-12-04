@@ -86,3 +86,5 @@ compile_and_suffix "mcsblock" "LOCK_VERSION=MCSBLOCK ADD_PADDING=1"
 compile_and_suffix "hybridv2" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=1"
 #compile_and_suffix "hybridv2local" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=1 HYBRIDV2_LOCAL_PREEMPTIONS=1"
 #compile_and_suffix "hybridv2nextwaiterdetection" "LOCK_VERSION=HYBRIDV2 HYBRIDV2_NEXT_WAITER_DETECTION=2 ADD_PADDING=1"
+
+make -C litl >/dev/null
