@@ -89,6 +89,8 @@
 #include <mutexee.h>
 #elif defined(LIBSLOCK)
 #include <libslock.h>
+#elif defined(AQMWONODE)
+#include <aqmwonode.h>
 #else
 #error "No lock algorithm known"
 #endif
