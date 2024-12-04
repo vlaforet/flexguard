@@ -10,6 +10,7 @@ class ConcLevelDBExperiment(ExperimentCore):
 
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
+        bthreads = 32
 
         locks = {
             "LoadRunner": "hybridv2",
@@ -42,6 +43,9 @@ class ConcLevelDBExperiment(ExperimentCore):
 
         for label, lock in locks.items():
             for t in threads:
+                if lock == "MCS" and t + bthreads > 100:
+                    continue
+
                 self.tests.append(
                     {
                         "benchmark": "leveldb",
@@ -58,7 +62,7 @@ class ConcLevelDBExperiment(ExperimentCore):
                         "label": label,
                         "kwargs": {
                             "lock": lock,
-                            "threads": 32,
+                            "threads": bthreads,
                             "num": 100000,
                             "benchmarks": [
                                 "fillseq",
