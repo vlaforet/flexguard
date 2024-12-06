@@ -92,11 +92,14 @@ class RecordCommand:
                         res = b.run(**test["kwargs"])
 
                         if "concurrent" in test:
-                            psproc = psutil.Process(cproc.pid)
-                            psproc.kill()
-                            for child in psproc.children(recursive=True):
-                                child.kill()
-                            cproc.join()
+                            try:
+                                psproc = psutil.Process(cproc.pid)
+                                psproc.kill()
+                                cproc.join()
+                                for child in psproc.children(recursive=True):
+                                    child.kill()
+                            except:
+                                pass
 
                         if res is None:
                             print(f"Test {test['name']} failed")
