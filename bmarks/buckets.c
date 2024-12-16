@@ -52,6 +52,7 @@
 #define DEFAULT_BUCKET_COUNT 100
 #define DEFAULT_OFFSET_CHANGES 40
 #define DEFAULT_TRACING false
+#define DEFAULT_NON_CRITICAL_CYCLES 0
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -64,6 +65,7 @@ int bucket_count = DEFAULT_BUCKET_COUNT;
 int max_value = DEFAULT_MAX_VALUE;
 int value_offset = 0;
 bool tracing = false;
+int non_critical_cycles = DEFAULT_NON_CRITICAL_CYCLES;
 
 typedef struct bucket_t
 {
@@ -227,6 +229,9 @@ void *test(void *data)
 
         if (tracing)
             printf("accessed_value, %ld, %d\n", t1, *value);
+
+        if (non_critical_cycles)
+            cpause(non_critical_cycles);
     }
 
     return NULL;
@@ -252,12 +257,13 @@ int main(int argc, char **argv)
         {"max-value", required_argument, NULL, 'm'},
         {"offset-changes", required_argument, NULL, 'o'},
         {"trace", no_argument, NULL, 't'},
+        {"non-critical-cycles", required_argument, NULL, 'c'},
         {NULL, 0, NULL, 0}};
 
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hd:n:b:m:o:t", long_options, &i);
+        c = getopt_long(argc, argv, "hd:n:b:m:o:tc:", long_options, &i);
 
         if (c == -1)
             break;
@@ -289,6 +295,8 @@ int main(int argc, char **argv)
             printf("        Maximum value (default=" XSTR(DEFAULT_MAX_VALUE) ")\n");
             printf("  -o, --offset-changes <int>\n");
             printf("        Number of time to change the offset (default=" XSTR(DEFAULT_OFFSET_CHANGES) ")\n");
+            printf("  -c, --non-critical-cycles <int>\n");
+            printf("        Number of cycles between critical sections (default=" XSTR(DEFAULT_NON_CRITICAL_CYCLES) ")\n");
             printf("  -t, --trace\n");
             printf("        Enable tracing (default=" XSTR(DEFAULT_TRACING) ")\n");
 #ifndef TRACING
@@ -311,6 +319,9 @@ int main(int argc, char **argv)
         case 'o':
             offset_changes = atoi(optarg);
             break;
+        case 'c':
+            non_critical_cycles = atoi(optarg);
+            break;
         case 't':
             tracing = true;
 #ifndef TRACING
@@ -331,6 +342,7 @@ int main(int argc, char **argv)
     printf("#Buckets: %d\n", bucket_count);
     printf("#Max value: %d\n", max_value);
     printf("#Offset changes: %d\n", offset_changes);
+    printf("#Non critical cycles: %d\n", non_critical_cycles);
     printf("#Tracing: %s\n", tracing ? "enabled" : "disabled");
     printf("#TSC frequency: %ld\n", get_tsc_frequency());
 
