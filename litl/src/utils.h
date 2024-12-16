@@ -34,7 +34,7 @@
 
 #include <topology.h>
 
-#define MAX_THREADS 256
+#define MAX_THREADS 512
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
 #define COMPILER_BARRIER() asm volatile("" : : : "memory")
 #define MEMORY_BARRIER() __sync_synchronize()
