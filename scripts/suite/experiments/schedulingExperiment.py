@@ -13,15 +13,17 @@ class SchedulingExperiment(ExperimentCore):
         super().__init__(with_debugging)
 
         locks = {
-            "LoadRunner": "hybridv2",
             "MCS": "mcs",
+            # "MCS-TAS": "mcstas",
+            # "MCS-Block": "mcsblock",
             "POSIX": "mutex",
-            "MCS-TAS": "mcstas",
             "Pure blocking lock": "futex",
             "MCS-TP": "mcstp",
-            "Spin-Then-Park": "spinpark",
+            # "Spin-Then-Park": "spinpark",
             "Shfllock": "shuffle",
             "Malthusian": "malthusian",
+            "LoadRunner": "hybridv2",
+            # "CBO-MCS": "cbomcs",
         }
 
         for label, lock in locks.items():
@@ -33,11 +35,11 @@ class SchedulingExperiment(ExperimentCore):
                     "kwargs": {
                         "lock": lock,
                         "latency": 1,
-                        "base-threads": 0,
-                        "num-threads": 180,
-                        "step-duration": 5000,
+                        "base-threads": 1,
+                        "num-threads": 250,
+                        "step-duration": 2500,
                         "cache-lines": 5,
-                        "thread-step": 10,
+                        "thread-step": 1,
                         "increasing-only": 0,
                     },
                 }

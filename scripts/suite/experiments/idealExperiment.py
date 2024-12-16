@@ -22,7 +22,8 @@ class IdealExperiment(ExperimentCore):
             "Spin-Then-Park": "spinpark",
             "Shfllock": "shuffle",
             "Malthusian": "malthusian",
-            "CBO-MCS": "cbomcs",
+            "LoadRunner": "hybridv2",
+            # "CBO-MCS": "cbomcs",
         }
 
         for label, lock in locks.items():
@@ -36,9 +37,9 @@ class IdealExperiment(ExperimentCore):
                         "latency": 1,
                         "base-threads": 1,
                         "num-threads": 120,
-                        "step-duration": 2000,
+                        "step-duration": 2500,
                         "cache-lines": 5,
-                        "thread-step": 3,
+                        "thread-step": 1,
                         "increasing-only": 1,
                     },
                 }

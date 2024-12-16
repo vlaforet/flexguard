@@ -12,13 +12,18 @@ class BucketsExperiment(ExperimentCore):
         super().__init__(with_debugging)
 
         locks = {
-            "BPF Hybrid Lock": "hybridv2",
-            "BPF Hybrid Lock No Next Waiter Sleeping Detection": "hybridv2nonextwaiterdetection",
+            "LoadRunner": "hybridv2",
             "MCS": "mcs",
-            "Pthread Mutex": "mutex",
+            "POSIX": "mutex",
+            # "MCS-TAS": "mcstas",
+            "Pure blocking lock": "futex",
+            # "MCS-TP": "mcstp",
+            # "Spin-Then-Park": "spinpark",
+            "Shfllock": "shuffle",
+            "Malthusian": "malthusian",
         }
 
-        threads = [1, 2] + [x for x in range(10, 190, 20)]
+        threads = [1, 2] + [x for x in range(10, 301, 20)]
 
         for label, lock in locks.items():
             for thread in threads:

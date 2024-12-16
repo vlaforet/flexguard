@@ -12,16 +12,23 @@ class KyotoCabinetExperiment(ExperimentCore):
         super().__init__(with_debugging)
 
         locks = {
-            "LoadRunner": ("hybridv2", [100000, 10000, 1000]),
-            "POSIX": ("mutex", [100000, 10000, 1000]),
-            "MCS": ("mcs", [100000, 1000, 10, 10, 10]),
+            "LoadRunner": "hybridv2",
+            "MCS": "mcs",
+            "POSIX": "mutex",
+            # "MCS-TAS": "mcstas",
+            "Pure blocking lock": "futex",
+            "MCS-TP": "mcstp",
+            # "Spin-Then-Park": "spinpark",
+            "Shfllock": "shuffle",
+            "Malthusian": "malthusian",
         }
 
-        threads = [1, 2] + [i for i in range(10, 182, 10)]
+        threads = [1, 2, 4, 8, 16, 32, 48, 64, 72, 102, 104, 106, 128, 256]
 
-        for label, (lock, steps) in locks.items():
-            num_step = max((len(threads) + 1) // len(steps), 1)
-            for k, t in enumerate(threads):
+        for label, lock in locks.items():
+            for t in threads:
+                if t >= 104 and lock in ["mcs", "mcstp", "malthusian"]:
+                    continue
 
                 self.tests.append(
                     {
@@ -31,16 +38,17 @@ class KyotoCabinetExperiment(ExperimentCore):
                         "kwargs": {
                             "lock": lock,
                             "threads": t,
-                            "num": steps[min(k // num_step, len(steps) - 1)],
-                            "benchmarks": ["fillrandom", "readrandom"],
+                            "num": 50000,
+                            "benchmarks": [
+                                "fillrandom",
+                                "readrandom",
+                            ],
                         },
                     }
                 )
 
     def report(self, results, exp_dir):
-        results_ylim = results[
-            ~results["lock"].isin(["mcs", "hybridv2nextwaiterdetection"])
-        ]
+        results_ylim = results[~results["lock"].isin(["mcs"])]
 
         for col in [col for col in results.columns if col.startswith("latency_")]:
             bench_name = col.removeprefix("latency_")

@@ -12,53 +12,35 @@ class LevelDBExperiment(ExperimentCore):
         super().__init__(with_debugging)
 
         locks = {
-            "LoadRunner": ("hybridv2", [1000000, 100000, 10000, 10000]),
-            "POSIX": ("mutex", [1000000, 100000, 10000, 1000]),
-            "MCS": ("mcs", [1000000, 100000, 1000, 1000, 0, 0]),
+            "LoadRunner": "hybridv2",
+            "MCS": "mcs",
+            "POSIX": "mutex",
+            # "MCS-TAS": "mcstas",
+            "Pure blocking lock": "futex",
+            "MCS-TP": "mcstp",
+            # "Spin-Then-Park": "spinpark",
+            "Shfllock": "shuffle",
+            "Malthusian": "malthusian",
         }
 
-        threads = [
-            1,
-            5,
-            10,
-            15,
-            20,
-            25,
-            30,
-            40,
-            50,
-            60,
-            70,
-            80,
-            90,
-            100,
-            110,
-            130,
-            150,
-        ]
+        threads = [1, 2, 4, 8, 16, 32, 48, 64, 72, 102, 104, 106, 128, 192, 256, 448, 512]
 
-        for label, (lock, steps) in locks.items():
-            num_step = max((len(threads) + 1) // len(steps), 1)
-            for k, t in enumerate(threads):
-                if lock == "mcs" and t > 100:
-                    continue
+        for label, lock in locks.items():
+            for t in threads:
+                #if t >= 104 and lock in ["mcs", "mcstp", "malthusian"]:
+                #    continue
 
                 self.tests.append(
                     {
                         "benchmark": "leveldb",
-                        "name": f"LevelDB with {label} lock and {t} threads",
+                        "name": f"LevelDB with {label} lock and with {t} threads",
                         "label": label,
                         "kwargs": {
                             "lock": lock,
                             "threads": t,
-                            "num": steps[min(k // num_step, len(steps) - 1)],
-                            "benchmarks": [
-                                "fillseq",
-                                "fillsync",
-                                "fillrandom",
-                                "overwrite",
-                                "readrandom",
-                            ],
+                            "time_ms": 30000,
+                            "init_db": True,
+                            "benchmarks": ["readrandom"],
                         },
                     }
                 )

@@ -10,46 +10,25 @@ class ConcLevelDBExperiment(ExperimentCore):
 
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
-        bthreads = 32
+        bthreads = 52
 
         locks = {
             "LoadRunner": "hybridv2",
             "MCS": "mcs",
             "POSIX": "mutex",
-            "MCS-TAS": "mcstas",
+            # "MCS-TAS": "mcstas",
             "Pure blocking lock": "futex",
             "MCS-TP": "mcstp",
-            "Spin-Then-Park": "spinpark",
+            # "Spin-Then-Park": "spinpark",
             "Shfllock": "shuffle",
             "Malthusian": "malthusian",
         }
 
-        threads = [
-            1,
-            5,
-            10,
-            15,
-            20,
-            25,
-            30,
-            40,
-            50,
-            60,
-            70,
-            80,
-            90,
-            100,
-            110,
-            130,
-            150,
-            170,
-            190,
-            210,
-        ]
+        threads = [1, 2, 4, 8, 16, 32, 48, 50, 52, 54, 64, 128, 256]
 
         for label, lock in locks.items():
             for t in threads:
-                if lock == "mcs" and t + bthreads > 70:
+                if t + bthreads >= 104 and lock in ["mcs", "mcstp", "malthusian"]:
                     continue
 
                 self.tests.append(
@@ -61,7 +40,7 @@ class ConcLevelDBExperiment(ExperimentCore):
                                 "lock": "mcstas",
                                 "base-threads": t,
                                 "num-threads": t,
-                                "step-duration": 100000000000,  # Will be killed when LevelDB finishes
+                                "step-duration": 30000,  # Will be killed when LevelDB finishes
                             },
                         },
                         "name": f"LevelDB with {label} lock and concurrent workload with {t} threads",
@@ -69,14 +48,9 @@ class ConcLevelDBExperiment(ExperimentCore):
                         "kwargs": {
                             "lock": lock,
                             "threads": bthreads,
-                            "num": 100000,
-                            "benchmarks": [
-                                "fillseq",
-                                "fillsync",
-                                "fillrandom",
-                                "overwrite",
-                                "readrandom",
-                            ],
+                            "time_ms": 30000,
+                            "init_db": True,
+                            "benchmarks": ["readrandom"],
                         },
                     }
                 )

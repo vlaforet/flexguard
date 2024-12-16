@@ -15,17 +15,24 @@ class IndexExperiment(ExperimentCore):
             "LoadRunner": "btreelc_bhl",
             "MCS": "btreelc_mcsrw",
             "POSIX": "btreelc_mutex",
-            "MCS-TAS": "btreelc_mcstas",
+            # "MCS-TAS": "btreelc_mcstas",
             "Pure blocking lock": "btreelc_futex",
             "MCS-TP": "btreelc_mcstp",
             "Shfllock": "btreelc_shuffle",
             "Malthusian": "btreelc_malthusian",
         }
 
-        threads = [1] + [i for i in range(5, 300, 5)]
+        threads = [1] + [i for i in range(5, 301, 5)]
 
         for label, index in indexes.items():
             for t in threads:
+                if t > 110 and index in [
+                    "btreelc_mcsrw",
+                    "btreelc_mcstp",
+                    "btreelc_malthusian",
+                ]:
+                    continue
+
                 self.tests.append(
                     {
                         "benchmark": "index",

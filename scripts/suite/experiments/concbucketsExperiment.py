@@ -15,15 +15,15 @@ class ConcBucketsExperiment(ExperimentCore):
             "LoadRunner": "hybridv2",
             "MCS": "mcs",
             "POSIX": "mutex",
-            "MCS-TAS": "mcstas",
+            # "MCS-TAS": "mcstas",
             "Pure blocking lock": "futex",
             "MCS-TP": "mcstp",
-            "Spin-Then-Park": "spinpark",
+            # "Spin-Then-Park": "spinpark",
             "Shfllock": "shuffle",
             "Malthusian": "malthusian",
         }
 
-        threads = [1] + [x for x in range(5, 300, 5)]
+        threads = [1] + [x for x in range(5, 301, 5)]
 
         for label, lock in locks.items():
             for thread in threads:
