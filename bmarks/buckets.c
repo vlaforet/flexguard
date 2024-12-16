@@ -38,6 +38,7 @@
 #include <time.h>
 #include <malloc.h>
 #include <assert.h>
+#include <sched.h>
 #include "atomic_ops.h"
 #include "utils.h"
 #include "lock_if.h"
@@ -53,6 +54,7 @@
 #define DEFAULT_OFFSET_CHANGES 40
 #define DEFAULT_TRACING false
 #define DEFAULT_NON_CRITICAL_CYCLES 0
+#define DEFAULT_PIN_THREADS false
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -66,6 +68,7 @@ int max_value = DEFAULT_MAX_VALUE;
 int value_offset = 0;
 bool tracing = false;
 int non_critical_cycles = DEFAULT_NON_CRITICAL_CYCLES;
+bool pin_threads = DEFAULT_PIN_THREADS;
 
 typedef struct bucket_t
 {
@@ -193,6 +196,18 @@ void *test(void *data)
     int i = 0, bucket_id = 0, *value;
     thread_data_t *d = (thread_data_t *)data;
 
+    if (pin_threads)
+    {
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        CPU_SET(1 + (d->id) % (63), &mask);
+        if (sched_setaffinity(0, sizeof(cpu_set_t), &mask) == -1)
+        {
+            perror("sched_setaffinity");
+            assert(false);
+        }
+    }
+
     while (!*d->start)
         futex_wait((void *)d->start, false);
 
@@ -258,12 +273,13 @@ int main(int argc, char **argv)
         {"offset-changes", required_argument, NULL, 'o'},
         {"trace", no_argument, NULL, 't'},
         {"non-critical-cycles", required_argument, NULL, 'c'},
+        {"pin-threads", required_argument, NULL, 'p'},
         {NULL, 0, NULL, 0}};
 
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hd:n:b:m:o:tc:", long_options, &i);
+        c = getopt_long(argc, argv, "hd:n:b:m:o:tc:p:", long_options, &i);
 
         if (c == -1)
             break;
@@ -297,6 +313,8 @@ int main(int argc, char **argv)
             printf("        Number of time to change the offset (default=" XSTR(DEFAULT_OFFSET_CHANGES) ")\n");
             printf("  -c, --non-critical-cycles <int>\n");
             printf("        Number of cycles between critical sections (default=" XSTR(DEFAULT_NON_CRITICAL_CYCLES) ")\n");
+            printf("  -p, --pin-threads <int>\n");
+            printf("        Enable thread pinning (default=" XSTR(DEFAULT_PIN_THREADS) ")\n");
             printf("  -t, --trace\n");
             printf("        Enable tracing (default=" XSTR(DEFAULT_TRACING) ")\n");
 #ifndef TRACING
@@ -322,6 +340,9 @@ int main(int argc, char **argv)
         case 'c':
             non_critical_cycles = atoi(optarg);
             break;
+        case 'p':
+            pin_threads = atoi(optarg) != 0;
+            break;
         case 't':
             tracing = true;
 #ifndef TRACING
@@ -343,8 +364,21 @@ int main(int argc, char **argv)
     printf("#Max value: %d\n", max_value);
     printf("#Offset changes: %d\n", offset_changes);
     printf("#Non critical cycles: %d\n", non_critical_cycles);
+    printf("#Thread pinning: %s\n", pin_threads ? "enabled" : "disabled");
     printf("#Tracing: %s\n", tracing ? "enabled" : "disabled");
     printf("#TSC frequency: %ld\n", get_tsc_frequency());
+
+    if (pin_threads)
+    {
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        CPU_SET(0, &mask);
+        if (sched_setaffinity(0, sizeof(cpu_set_t), &mask) == -1)
+        {
+            perror("sched_setaffinity");
+            assert(false);
+        }
+    }
 
     thread_data_t *data;
     pthread_t *threads;
