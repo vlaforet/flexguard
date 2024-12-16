@@ -69,45 +69,50 @@ class RecordCommand:
                             f"[{test_id}/{tests_count}] Retrieved cached test: {test['name']} #{i}"
                         )
                     else:
-                        b = getBenchmark(
-                            test["benchmark"], self.base_dir, self.temp_dir
-                        )
-
-                        print(
-                            f"[{test_id}/{tests_count}] Running test: {test['name']} #{i}"
-                        )
-
-                        if "concurrent" in test:
-                            c = getBenchmark(
-                                test["concurrent"]["benchmark"],
-                                self.base_dir,
-                                self.temp_dir,
+                        try:
+                            b = getBenchmark(
+                                test["benchmark"], self.base_dir, self.temp_dir
                             )
 
-                            cproc = Process(
-                                target=lambda: c.run(**test["concurrent"]["kwargs"])
+                            print(
+                                f"[{test_id}/{tests_count}] Running test: {test['name']} #{i}"
                             )
-                            cproc.start()
 
-                        res = b.run(**test["kwargs"])
+                            b.init(**test["kwargs"])
 
-                        if "concurrent" in test:
-                            try:
-                                psproc = psutil.Process(cproc.pid)
-                                psproc.kill()
-                                cproc.join()
-                                for child in psproc.children(recursive=True):
-                                    child.kill()
-                            except:
-                                pass
+                            if "concurrent" in test:
+                                c = getBenchmark(
+                                    test["concurrent"]["benchmark"],
+                                    self.base_dir,
+                                    self.temp_dir,
+                                )
 
-                        if res is None:
-                            print(f"Test {test['name']} failed")
+                                cproc = Process(
+                                    target=lambda: c.run(**test["concurrent"]["kwargs"])
+                                )
+                                cproc.start()
+
+                            res = b.run(**test["kwargs"])
+
+                            if "concurrent" in test:
+                                try:
+                                    psproc = psutil.Process(cproc.pid)
+                                    psproc.kill()
+                                    cproc.join()
+                                    for child in psproc.children(recursive=True):
+                                        child.kill()
+                                except:
+                                    pass
+
+                            if res is None:
+                                raise Exception()
+
+                            res["replication_id"] = i
+                            if self.cache:
+                                res.to_csv(cache_file, index=False)
+                        except Exception as e:
+                            print(f"Test {test['name']} #{i} failed: {e}")
                             continue
-
-                        res["replication_id"] = i
-                        if self.cache:
-                            res.to_csv(cache_file, index=False)
 
                     if k not in results:
                         results[k] = []

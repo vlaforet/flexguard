@@ -24,6 +24,11 @@ class BenchmarkCore:
         return the estimated runtime. Return `None` if cannot be estimated."""
         raise NotImplementedError
 
+    def init(self, **kwargs) -> None:
+        """This method can be used to initialize the the benchmark before a
+        run with the arguments passed as `kwargs`."""
+        return None
+
     @abc.abstractmethod
     def run(self, **kwargs) -> pd.DataFrame | None:
         """This method should run the benchmark with the arguments passed as `kwargs`."""
