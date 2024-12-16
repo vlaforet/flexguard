@@ -80,7 +80,7 @@ class LevelDBBenchmark(BenchmarkCore):
                 commands,
                 capture_output=True,
                 text=True,
-                timeout=1.5 * self.estimate_runtime(),
+                timeout=1.5 / 1000 * self.estimate_runtime(**kwargs),
             )
             if result.returncode != 0:
                 print(f"Failed to run LevelDB ({result.returncode}):", result.stderr)
