@@ -51,6 +51,7 @@ compile_and_suffix() {
     mv libsync.a libsync${suffix}${USUFFIX}.a
     mv buckets buckets_${suffix}${USUFFIX}
     mv test_correctness test_correctness_${suffix}${USUFFIX}
+    mv test_init test_init_${suffix}${USUFFIX}
     mv scheduling scheduling_${suffix}${USUFFIX}
     mv interpose.sh interpose_${suffix}${USUFFIX}.sh
     mv interpose.so interpose_${suffix}${USUFFIX}.so

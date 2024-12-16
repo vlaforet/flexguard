@@ -20,5 +20,7 @@ __pycache__
 /scheduling_*
 /test_correctness
 /test_correctness_*
+/test_init
+/test_init_*
 /buckets
 /buckets_*

@@ -156,13 +156,16 @@ buckets: src/hash_map.c bmarks/buckets.c libsync.a $(LITL_SHARED_LIBRARY)
 test_correctness: bmarks/test_correctness.c libsync.a $(LITL_SHARED_LIBRARY)
 	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
 
-all: scheduling test_correctness buckets libsync.a interpose.so interpose.sh
+test_init: bmarks/test_init.c libsync.a $(LITL_SHARED_LIBRARY)
+	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
+
+all: scheduling test_correctness test_init buckets libsync.a interpose.so interpose.sh
 	@echo "############### Used lock:" $(LOCK_VERSION)
 	@echo "############### CFLAGS =" $(INCLUDES) $(DEFINED)
 
 clean:
-	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s libsync.a *.odump test_correctness scheduling buckets
+	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s libsync.a *.odump test_correctness test_init scheduling buckets
 	$(MAKE) -C litl/ clean
 
 cleanall: clean
-	rm -rf interpose_*.so interpose_*.sh libsync*.a test_correctness_* scheduling_* buckets_*
+	rm -rf interpose_*.so interpose_*.sh libsync*.a test_correctness_* test_init_* scheduling_* buckets_*
