@@ -169,6 +169,14 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
   )
 
   add_wrapper(
+    NAME btreelc_mcstp${page_size_suffix}
+    SOURCE btreeolc_wrapper.cpp
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCS-TP" USE_MUTEX_LOCKS
+    LIBRARIES "${ROOT_DIR}/litl/lib/libmcstp_original.so" "${ROOT_DIR}/libsyncmalthusian.a"
+    INCLUDE "${ROOT_DIR}/include"
+  )
+
+  add_wrapper(
     NAME btreelc_malthusian${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Malthusian" USE_MUTEX_LOCKS
@@ -180,7 +188,15 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_cbomcs${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="CBOMCS" USE_MUTEX_LOCKS
-    LIBRARIES "${ROOT_DIR}/litl/lib/libcbomcs_spinlock.so" "${ROOT_DIR}/libsyncmalthusian.a"
+    LIBRARIES "${ROOT_DIR}/litl/lib/libcbomcs_spinlock.so" "${ROOT_DIR}/libsynccbomcs.a"
+    INCLUDE "${ROOT_DIR}/include"
+  )
+
+  add_wrapper(
+    NAME btreelc_shuffle${page_size_suffix}
+    SOURCE btreeolc_wrapper.cpp
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Shuffle" USE_MUTEX_LOCKS
+    LIBRARIES "${ROOT_DIR}/litl/lib/libaqmwonode_spin_then_park.so" "${ROOT_DIR}/libsyncshuffle.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -188,7 +204,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_concurrency${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Concurrency" USE_MUTEX_LOCKS
-    LIBRARIES "${ROOT_DIR}/litl/lib/libconcurrency_original.so" "${ROOT_DIR}/libsyncmalthusian.a"
+    LIBRARIES "${ROOT_DIR}/litl/lib/libconcurrency_original.so" "${ROOT_DIR}/libsyncconcurrency.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
