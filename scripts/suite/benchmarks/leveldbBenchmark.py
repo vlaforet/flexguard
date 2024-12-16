@@ -12,8 +12,8 @@ class LevelDBBenchmark(BenchmarkCore):
 
     def __init__(self, base_dir, temp_dir):
         super().__init__(base_dir, temp_dir)
-        self.leveldb_dir = os.path.join(self.base_dir, "ext", "leveldb")
-        self.bin = os.path.join(self.leveldb_dir, "build/db_bench")
+        self.leveldb_dir = os.path.join(self.base_dir, "ext", "leveldb-1.20")
+        self.bin = os.path.join(self.leveldb_dir, "out-static/db_bench")
 
         self.pattern = re.compile(
             r"(?P<name>\w+)\s+:\s+(?P<micros>\d+\.\d+)\s+micros/op;"
