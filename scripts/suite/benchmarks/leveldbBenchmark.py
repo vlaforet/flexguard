@@ -26,18 +26,38 @@ class LevelDBBenchmark(BenchmarkCore):
             print("LevelDB binary permission denied")
             sys.exit(1)
 
+    def init(self, **kwargs):
+        self.db_path = os.path.join(self.temp_dir, f"{uuid.uuid4()}.db")
+
+        try:
+            subprocess.run(
+                [
+                    self.bin,
+                    f"--db={self.db_path}",
+                    "--benchmarks=fillseq",
+                    "--threads=1",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except Exception as e:
+            print(f"Failed to init LevelDB:", e)
+            sys.exit(1)
+
     def estimate_runtime(self, **kwargs):
-        return None
+        return kwargs["time_ms"] if "time_ms" in kwargs else 30000
 
     def run(self, **kwargs):
         args = [
-            f"--{k}={w}" for k, w in kwargs.items() if k != "lock" and k != "benchmarks"
+            f"--{k}={w}"
+            for k, w in kwargs.items()
+            if k not in ["lock", "benchmarks", "init_db", "use_existing_db"]
         ]
 
         if "benchmarks" in kwargs:
             args.append(f"--benchmarks={','.join(kwargs['benchmarks'])}")
 
-        db_path = os.path.join(self.temp_dir, f"{uuid.uuid4()}.db")
         commands = [
             c
             for c in [
@@ -48,19 +68,27 @@ class LevelDBBenchmark(BenchmarkCore):
                 ),
                 self.bin,
                 *args,
-                f"--db={db_path}",
+                f"--db={self.db_path}",
+                "--use_existing_db=1",
             ]
             if c is not None
         ]
         print(" ".join(commands))
 
-        result = subprocess.run(commands, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"Failed to run LevelDB ({result.returncode}):", result.stderr)
-            return None
+        try:
+            result = subprocess.run(
+                commands,
+                capture_output=True,
+                text=True,
+                timeout=1.5 * self.estimate_runtime(),
+            )
+            if result.returncode != 0:
+                print(f"Failed to run LevelDB ({result.returncode}):", result.stderr)
+        except Exception as e:
+            print(f"Failed to run LevelDB:", e)
 
         try:
-            os.remove(db_path)
+            os.remove(self.db_path)
         except:
             pass
 
