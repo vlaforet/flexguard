@@ -75,9 +75,15 @@ compile_and_suffix "spinpark" "LOCK_VERSION=SPINPARK ADD_PADDING=1"
 compile_and_suffix "mcs" "LOCK_VERSION=MCS ADD_PADDING=1"
 compile_and_suffix "mcstp" "LOCK_VERSION=MCSTP ADD_PADDING=1"
 compile_and_suffix "malthusian" "USE_LITL_LIBRARY=malthusian_spinlock ADD_PADDING=1"
+cp litl/libmalthusian_spinlock.sh interpose_malthusian.sh
 compile_and_suffix "concurrency" "USE_LITL_LIBRARY=concurrency_original ADD_PADDING=1"
+cp litl/libconcurrency_original.sh interpose_concurrency.sh
 compile_and_suffix "shuffle" "USE_LITL_LIBRARY=aqmwonode_spin_then_park ADD_PADDING=1"
+cp litl/libaqmwonode_spin_then_park.sh interpose_shuffle.sh
+compile_and_suffix "mcslitl" "USE_LITL_LIBRARY=mcs_spinlock ADD_PADDING=1"
+cp litl/libmcs_spinlock.sh interpose_mcslitl.sh
 compile_and_suffix "cbomcs" "USE_LITL_LIBRARY=cbomcs_spinlock ADD_PADDING=1"
+cp litl/libcbomcs_spinlock.sh interpose_cbomcs.sh
 compile_and_suffix "mcsblock" "LOCK_VERSION=MCSBLOCK ADD_PADDING=1"
 compile_and_suffix "hybridv2" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=1"
 #compile_and_suffix "hybridv2local" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=1 HYBRIDV2_LOCAL_PREEMPTIONS=1"
