@@ -29,9 +29,21 @@ class BucketsBenchmark(BenchmarkCore):
         ]
         print(" ".join(commands))
 
-        result = subprocess.run(commands, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"Failed to run buckets ({result.returncode}):", result.stderr)
+        est_runtime = self.estimate_runtime(**kwargs)
+        try:
+            result = subprocess.run(
+                commands,
+                capture_output=True,
+                text=True,
+                timeout=max(
+                    2 / 1000 * est_runtime if est_runtime is not None else 60, 10
+                ),
+            )
+            if result.returncode != 0:
+                print(f"Failed to run buckets ({result.returncode}):", result.stderr)
+                return None
+        except Exception as e:
+            print(f"Failed to run buckets:", e)
             return None
 
         results = {}

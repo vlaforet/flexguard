@@ -54,9 +54,18 @@ class IndexBenchmark(BenchmarkCore):
         ]
         print(" ".join(commands))
 
-        result = subprocess.run(commands, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"Failed to run PiBench ({result.returncode}):", result.stderr)
+        try:
+            result = subprocess.run(
+                commands,
+                capture_output=True,
+                text=True,
+                timeout=10 / 1000 * self.estimate_runtime(**kwargs),
+            )
+            if result.returncode != 0:
+                print(f"Failed to run PiBench ({result.returncode}):", result.stderr)
+                return None
+        except Exception as e:
+            print(f"Failed to run PiBench:", e)
             return None
 
         results = {}
