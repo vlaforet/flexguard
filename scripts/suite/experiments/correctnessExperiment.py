@@ -11,6 +11,7 @@ class CorrectnessExperiment(ExperimentCore):
             "BPF Hybrid Lock": "hybridv2",
             "MCS/TAS": "mcstas",
             "MCS": "mcs",
+            "Spin Extend Time Slice": "spinextend",
             "Pthread Mutex": "mutex",
         }
 

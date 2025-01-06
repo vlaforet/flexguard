@@ -14,6 +14,7 @@ class BucketsExperiment(ExperimentCore):
         locks = {
             "LoadRunner": "hybridv2",
             "MCS": "mcs",
+            "Spin Extend Time Slice": "spinextend",
             "POSIX": "mutex",
             # "MCS-TAS": "mcstas",
             "Pure blocking lock": "futex",

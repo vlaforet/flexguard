@@ -69,6 +69,7 @@ compile_and_suffix "cbomcsnopad" "USE_LITL_LIBRARY=cbomcs_spinlock ADD_PADDING=0
 #compile_and_suffix "bhlnextwaiterdetectionnopad" "LOCK_VERSION=HYBRIDV2 HYBRIDV2_NEXT_WAITER_DETECTION=2 ADD_PADDING=0"
 
 compile_and_suffix "mcstas" "LOCK_VERSION=MCSTAS ADD_PADDING=1"
+compile_and_suffix "spinextend" "LOCK_VERSION=SPINEXTEND ADD_PADDING=1"
 compile_and_suffix "mutex" "LOCK_VERSION=MUTEX ADD_PADDING=1 USE_REAL_PTHREAD=1"
 compile_and_suffix "futex" "LOCK_VERSION=FUTEX ADD_PADDING=1"
 compile_and_suffix "spinpark" "LOCK_VERSION=SPINPARK ADD_PADDING=1"

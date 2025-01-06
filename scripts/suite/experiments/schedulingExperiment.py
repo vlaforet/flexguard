@@ -14,6 +14,7 @@ class SchedulingExperiment(ExperimentCore):
 
         locks = {
             "MCS": "mcs",
+            "Spin Extend Time Slice": "spinextend",
             # "MCS-TAS": "mcstas",
             # "MCS-Block": "mcsblock",
             "POSIX": "mutex",
