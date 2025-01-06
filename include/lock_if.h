@@ -44,6 +44,8 @@
 #include "mcstas.h"
 #elif defined(USE_SPINLOCK_LOCKS)
 #include "spinlock.h"
+#elif defined(USE_SPINEXTEND_LOCKS)
+#include "spinextend.h"
 #elif defined(USE_HYBRIDLOCK_LOCKS)
 #include "hybridlock.h"
 #elif defined(USE_HYBRIDV2_LOCKS)
