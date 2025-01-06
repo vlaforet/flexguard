@@ -24,11 +24,29 @@ class LevelDBExperiment(ExperimentCore):
             "Malthusian": "malthusian",
         }
 
-        threads = [1, 2, 4, 8, 16, 32, 48, 64, 72, 102, 104, 106, 128, 192, 256, 448, 512]
+        threads = [
+            1,
+            2,
+            4,
+            8,
+            16,
+            32,
+            48,
+            64,
+            72,
+            102,
+            104,
+            106,
+            128,
+            192,
+            256,
+            448,
+            512,
+        ]
 
         for label, lock in locks.items():
             for t in threads:
-                #if t >= 104 and lock in ["mcs", "mcstp", "malthusian"]:
+                # if t >= 104 and lock in ["mcs", "mcstp", "malthusian"]:
                 #    continue
 
                 self.tests.append(
