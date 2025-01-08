@@ -36,6 +36,8 @@
 
 #ifdef USE_MCS_LOCKS
 #include "mcs.h"
+#elif defined(USE_MCSEXTEND_LOCKS)
+#include "mcsextend.h"
 #elif defined(USE_MCSTP_LOCKS)
 #include "mcstp.h"
 #elif defined(USE_MCSBLOCK_LOCKS)

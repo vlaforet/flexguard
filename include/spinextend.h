@@ -42,6 +42,7 @@
 #include <pthread.h>
 #include "atomic_ops.h"
 #include "utils.h"
+#include "extend.h"
 
 #define UNLOCKED 0
 #define LOCKED 1
@@ -65,12 +66,6 @@ typedef struct spinextend_lock_t
       NULL                     \
     }                          \
   }
-
-struct extend_map
-{
-  unsigned long flags;
-};
-#define EXTEND_SCHED_FS "/sys/kernel/extend_sched"
 
 /*
  *  Declarations
