@@ -15,6 +15,7 @@ class LevelDBExperiment(ExperimentCore):
             "LoadRunner": "hybridv2",
             "MCS": "mcs",
             "Spin Extend Time Slice": "spinextend",
+            "MCS Extend Time Slice": "mcsextend",
             "POSIX": "mutex",
             # "MCS-TAS": "mcstas",
             "Pure blocking lock": "futex",
