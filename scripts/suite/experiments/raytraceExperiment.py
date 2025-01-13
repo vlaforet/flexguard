@@ -6,8 +6,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class RaytraceExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -26,12 +24,14 @@ class RaytraceExperiment(ExperimentCore):
                     continue
                 self.tests.append(
                     {
-                        "benchmark": "raytrace",
                         "name": f"Raytrace with {label} lock and {t} threads",
                         "label": label,
-                        "kwargs": {
-                            "lock": lock,
-                            "threads": t,
+                        "benchmark": {
+                            "id": "raytrace",
+                            "args": {
+                                "lock": lock,
+                                "threads": t,
+                            },
                         },
                     }
                 )

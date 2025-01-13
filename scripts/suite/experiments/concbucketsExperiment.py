@@ -6,8 +6,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class ConcBucketsExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -29,25 +27,27 @@ class ConcBucketsExperiment(ExperimentCore):
             for thread in threads:
                 self.tests.append(
                     {
-                        "benchmark": "buckets",
+                        "name": f"Buckets using {label} lock and concurrent workload with {thread} threads",
+                        "label": label,
+                        "benchmark": {
+                            "id": "buckets",
+                            "args": {
+                                "lock": lock,
+                                "duration": 10000,
+                                "num-threads": 52,
+                                "buckets": 100,
+                                "max-value": 100000,
+                                "offset-changes": 40,
+                            },
+                        },
                         "concurrent": {
-                            "benchmark": "scheduling",
-                            "kwargs": {
+                            "id": "scheduling",
+                            "args": {
                                 "lock": "mcstas",
                                 "base-threads": thread,
                                 "num-threads": thread,
                                 "step-duration": 15000,
                             },
-                        },
-                        "name": f"Buckets using {label} lock and concurrent workload with {thread} threads",
-                        "label": label,
-                        "kwargs": {
-                            "lock": lock,
-                            "duration": 10000,
-                            "num-threads": 52,
-                            "buckets": 100,
-                            "max-value": 100000,
-                            "offset-changes": 40,
                         },
                     }
                 )

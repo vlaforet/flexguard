@@ -2,8 +2,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class HackbenchExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -16,34 +14,31 @@ class HackbenchExperiment(ExperimentCore):
 
         self.tests = [
             {
-                "benchmark": "hackbench",
+                "name": "Hackbench Hybridv2",
+                "label": "LoadRunner",
+                "benchmark": {"id": "hackbench", "args": hackbench_kwargs},
                 "concurrent": {
-                    "benchmark": "init",
-                    "kwargs": {
+                    "id": "init",
+                    "args": {
                         "lock": "hybridv2",
                     },
                 },
-                "name": "Hackbench Hybridv2",
-                "label": "LoadRunner",
-                "kwargs": hackbench_kwargs,
             },
             {
-                "benchmark": "hackbench",
+                "name": f"Hackbench",
+                "label": "POSIX",
+                "benchmark": {"id": "hackbench", "args": hackbench_kwargs},
                 "concurrent": {
-                    "benchmark": "init",
-                    "kwargs": {
+                    "id": "init",
+                    "args": {
                         "lock": "mutex",
                     },
                 },
-                "name": f"Hackbench",
-                "label": "POSIX",
-                "kwargs": hackbench_kwargs,
             },
             {
-                "benchmark": "hackbench",
                 "name": f"Hackbench",
                 "label": "Default",
-                "kwargs": hackbench_kwargs,
+                "benchmark": {"id": "hackbench", "args": hackbench_kwargs},
             },
         ]
 

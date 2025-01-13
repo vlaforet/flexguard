@@ -6,8 +6,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class ConcLevelDBExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
         bthreads = 52
@@ -33,24 +31,26 @@ class ConcLevelDBExperiment(ExperimentCore):
 
                 self.tests.append(
                     {
-                        "benchmark": "leveldb",
+                        "name": f"LevelDB with {label} lock and concurrent workload with {t} threads",
+                        "label": label,
+                        "benchmark": {
+                            "id": "leveldb",
+                            "args": {
+                                "lock": lock,
+                                "threads": bthreads,
+                                "time_ms": 30000,
+                                "init_db": True,
+                                "benchmarks": ["readrandom"],
+                            },
+                        },
                         "concurrent": {
-                            "benchmark": "scheduling",
-                            "kwargs": {
+                            "id": "scheduling",
+                            "args": {
                                 "lock": "mcstas",
                                 "base-threads": t,
                                 "num-threads": t,
                                 "step-duration": 30000,  # Will be killed when LevelDB finishes
                             },
-                        },
-                        "name": f"LevelDB with {label} lock and concurrent workload with {t} threads",
-                        "label": label,
-                        "kwargs": {
-                            "lock": lock,
-                            "threads": bthreads,
-                            "time_ms": 30000,
-                            "init_db": True,
-                            "benchmarks": ["readrandom"],
                         },
                     }
                 )

@@ -4,6 +4,7 @@ import subprocess
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
+from utils import sha256_hash_file
 
 
 class BucketsBenchmark(BenchmarkCore):
@@ -19,6 +20,15 @@ class BucketsBenchmark(BenchmarkCore):
         if "d" in kwargs:
             return kwargs["d"]
         return None
+
+    def get_run_hash(self, **kwargs):
+        exec_hash = sha256_hash_file(
+            os.path.join(self.base_dir, f"buckets_{kwargs['lock']}")
+        )
+        if exec_hash is None:
+            raise Exception("Failed to hash executable.")
+
+        return super().get_run_hash(exec_hash=exec_hash, kwargs=kwargs)
 
     def run(self, **kwargs):
         buckets_args = [f"--{k}={w}" for k, w in kwargs.items() if k != "lock"]

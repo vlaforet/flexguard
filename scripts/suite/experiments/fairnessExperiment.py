@@ -6,8 +6,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class FairnessExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -19,7 +17,7 @@ class FairnessExperiment(ExperimentCore):
             "POSIX": "mutex",
             # "MCS-TAS": "mcstas",
             "Pure blocking lock": "futex",
-            #"MCS-TP": "mcstp",
+            # "MCS-TP": "mcstp",
             # "Spin-Then-Park": "spinpark",
             "Shfllock": "shuffle",
             "Malthusian": "malthusian",
@@ -45,35 +43,39 @@ class FairnessExperiment(ExperimentCore):
                 for label, lock in locks.items():
                     self.tests.append(
                         {
-                            "benchmark": "buckets",
                             "name": f"Short-term fairness buckets with {lock} lock and {cycle} cycles and {t} threads",
                             "label": label,
-                            "kwargs": {
-                                "lock": lock,
-                                "duration": 1000,
-                                "num-threads": t,
-                                "buckets": 1,
-                                "max-value": 100000,
-                                "offset-changes": 1,
-                                "non-critical-cycles": cycle,
-                                "pin-threads": 1,
+                            "benchmark": {
+                                "id": "buckets",
+                                "args": {
+                                    "lock": lock,
+                                    "duration": 1000,
+                                    "num-threads": t,
+                                    "buckets": 1,
+                                    "max-value": 100000,
+                                    "offset-changes": 1,
+                                    "non-critical-cycles": cycle,
+                                    "pin-threads": 1,
+                                },
                             },
                         }
                     )
                     self.tests.append(
                         {
-                            "benchmark": "buckets",
                             "name": f"Long-term fairness buckets with {lock} lock and {cycle} cycles and {t} threads",
                             "label": label,
-                            "kwargs": {
-                                "lock": lock,
-                                "duration": 10000,
-                                "num-threads": t,
-                                "buckets": 1,
-                                "max-value": 100000,
-                                "offset-changes": 1,
-                                "non-critical-cycles": cycle,
-                                "pin-threads": 1,
+                            "benchmark": {
+                                "id": "buckets",
+                                "args": {
+                                    "lock": lock,
+                                    "duration": 10000,
+                                    "num-threads": t,
+                                    "buckets": 1,
+                                    "max-value": 100000,
+                                    "offset-changes": 1,
+                                    "non-critical-cycles": cycle,
+                                    "pin-threads": 1,
+                                },
                             },
                         },
                     )

@@ -1,13 +1,19 @@
-import hashlib
-import json
 import os
 from multiprocessing import Process
-from typing import List
+from typing import Any, List, TypedDict
 
 import pandas as pd
 import psutil
+from benchmarks.benchmarkCore import BenchmarkCore
 from experiments.experimentCore import ExperimentCore
 from plugins import getBenchmark
+from utils import hash_dict_sha256
+
+
+class BenchmarkInstance(TypedDict):
+    id: str
+    args: dict[str, Any]
+    instance: BenchmarkCore
 
 
 class RecordCommand:
@@ -27,16 +33,46 @@ class RecordCommand:
         self.replication = replication
         self.cache = cache
 
+        self.cache_dir = os.path.join(self.results_dir, "cache")
+        os.makedirs(self.cache_dir, exist_ok=True)
+
     def estimations(self):
         """Returns estimations for the runtime and number of tests
         for one replication."""
         time_estimate = 0
         for exp in self.experiments:
             for test in exp.tests:
-                b = getBenchmark(test["benchmark"], self.base_dir, self.temp_dir)
-                time_estimate += b.estimate_runtime(**test["kwargs"]) or 0
+                b = getBenchmark(test["benchmark"]["id"], self.base_dir, self.temp_dir)
+                time_estimate += b.estimate_runtime(**test["benchmark"]["args"]) or 0
 
         return sum(len(exp.tests) for exp in self.experiments), time_estimate
+
+    def get_cache_file(
+        self,
+        benchmark: BenchmarkInstance,
+        concurrent: BenchmarkInstance | None,
+        replication: int,
+    ):
+        hash = hash_dict_sha256(
+            {
+                "benchmark": benchmark["instance"].get_run_hash(**benchmark["args"]),
+                "concurrent": (
+                    concurrent["instance"].get_run_hash(**concurrent["args"])
+                    if concurrent
+                    else None
+                ),
+            }
+        )
+
+        cache_file = os.path.join(self.cache_dir, f"{hash}_r{replication}.csv")
+        return cache_file
+
+    def get_benchmark_instance(self, bench_config) -> BenchmarkInstance:
+        return {
+            "id": bench_config["id"],
+            "instance": getBenchmark(bench_config["id"], self.base_dir, self.temp_dir),
+            "args": bench_config["args"],
+        }
 
     def run(self):
         tests_count, time_estimate = self.estimations()
@@ -50,51 +86,43 @@ class RecordCommand:
             os.makedirs(os.path.join(exp_dir, "cache"), exist_ok=True)
 
             results = {}
-            for i in range(self.replication):
+            for replication in range(self.replication):
                 for k, test in enumerate(exp.tests):
                     test_id += 1
-                    hash = hashlib.sha256(
-                        json.dumps(test, ensure_ascii=True, sort_keys=True).encode()
-                    ).hexdigest()
-
-                    cache_file = os.path.join(
-                        exp_dir,
-                        "cache",
-                        f"{hash}_r{i}.csv",
+                    print(
+                        f"[{test_id}/{tests_count}] {test['name']} #{replication}: ",
+                        end="",
                     )
+
+                    benchmark = self.get_benchmark_instance(test["benchmark"])
+                    concurrent = (
+                        self.get_benchmark_instance(test["concurrent"])
+                        if "concurrent" in test
+                        else None
+                    )
+                    cache_file = self.get_cache_file(benchmark, concurrent, replication)
 
                     if self.cache and os.path.exists(cache_file):
                         res = pd.read_csv(cache_file)
-                        print(
-                            f"[{test_id}/{tests_count}] Retrieved cached test: {test['name']} #{i}"
-                        )
+                        print("Retrieved")
                     else:
+                        print("Running")
                         try:
-                            b = getBenchmark(
-                                test["benchmark"], self.base_dir, self.temp_dir
-                            )
+                            benchmark["instance"].init(**benchmark["args"])
 
-                            print(
-                                f"[{test_id}/{tests_count}] Running test: {test['name']} #{i}"
-                            )
-
-                            b.init(**test["kwargs"])
-
-                            if "concurrent" in test:
-                                c = getBenchmark(
-                                    test["concurrent"]["benchmark"],
-                                    self.base_dir,
-                                    self.temp_dir,
-                                )
-
+                            if concurrent:
                                 cproc = Process(
-                                    target=lambda: c.run(**test["concurrent"]["kwargs"])
+                                    target=lambda: (
+                                        concurrent["instance"].run(**concurrent["args"])
+                                        if concurrent
+                                        else None
+                                    )
                                 )
                                 cproc.start()
 
-                            res = b.run(**test["kwargs"])
+                            res = benchmark["instance"].run(**benchmark["args"])
 
-                            if "concurrent" in test:
+                            if concurrent:
                                 try:
                                     psproc = psutil.Process(cproc.pid)
                                     psproc.kill()
@@ -107,11 +135,17 @@ class RecordCommand:
                             if res is None:
                                 raise Exception()
 
-                            res["replication_id"] = i
-                            if self.cache:
-                                res.to_csv(cache_file, index=False)
+                            res["replication_id"] = replication
+                            res["benchmark"] = benchmark["id"]
+                            for arg, val in benchmark["args"].items():
+                                res[arg] = val
+                            if concurrent:
+                                for arg, val in concurrent["args"].items():
+                                    res[f"concurrent_{arg}"] = val
+
+                            res.to_csv(cache_file, index=False)
                         except Exception as e:
-                            print(f"Test {test['name']} #{i} failed: {e}")
+                            print(f"Test {test['name']} #{replication} failed: {e}")
                             continue
 
                     if k not in results:
@@ -123,19 +157,11 @@ class RecordCommand:
                 if k not in results:
                     continue
 
-                b = getBenchmark(test["benchmark"], self.base_dir, self.temp_dir)
-
                 row = {
                     "test_name": test["name"],
                     "label": test["label"],
                     "replications": len(results[k]),
-                    **test["kwargs"],
                 }
-
-                if "concurrent" in test:
-                    row["concurrent_benchmark"] = test["concurrent"]["benchmark"]
-                    for key, val in test["concurrent"]["kwargs"].items():
-                        row[f"concurrent_{key}"] = val
 
                 rows.append(
                     pd.merge(pd.concat(results[k]), pd.DataFrame([row]), "cross")

@@ -7,8 +7,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class SchedulingExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -31,18 +29,20 @@ class SchedulingExperiment(ExperimentCore):
         for label, lock in locks.items():
             self.tests.append(
                 {
-                    "benchmark": "scheduling",
                     "name": f"Scheduling using {label} lock",
                     "label": label,
-                    "kwargs": {
-                        "lock": lock,
-                        "latency": 1,
-                        "base-threads": 1,
-                        "num-threads": 250,
-                        "step-duration": 2500,
-                        "cache-lines": 5,
-                        "thread-step": 1,
-                        "increasing-only": 0,
+                    "benchmark": {
+                        "id": "scheduling",
+                        "args": {
+                            "lock": lock,
+                            "latency": 1,
+                            "base-threads": 1,
+                            "num-threads": 250,
+                            "step-duration": 2500,
+                            "cache-lines": 5,
+                            "thread-step": 1,
+                            "increasing-only": 0,
+                        },
                     },
                 }
             )

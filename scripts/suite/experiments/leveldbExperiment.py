@@ -6,8 +6,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class LevelDBExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -52,15 +50,17 @@ class LevelDBExperiment(ExperimentCore):
 
                 self.tests.append(
                     {
-                        "benchmark": "leveldb",
                         "name": f"LevelDB with {label} lock and with {t} threads",
                         "label": label,
-                        "kwargs": {
-                            "lock": lock,
-                            "threads": t,
-                            "time_ms": 30000,
-                            "init_db": True,
-                            "benchmarks": ["readrandom"],
+                        "benchmark": {
+                            "id": "leveldb",
+                            "args": {
+                                "lock": lock,
+                                "threads": t,
+                                "time_ms": 30000,
+                                "init_db": True,
+                                "benchmarks": ["readrandom"],
+                            },
                         },
                     }
                 )

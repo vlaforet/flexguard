@@ -1,6 +1,7 @@
 import abc
 
 import pandas as pd
+from utils import hash_dict_sha256
 
 
 class BenchmarkCore:
@@ -24,8 +25,16 @@ class BenchmarkCore:
         return the estimated runtime. Return `None` if cannot be estimated."""
         raise NotImplementedError
 
+    def get_run_hash(self, **kwargs) -> str:
+        """Using the `kwargs` from the `run` function, this method should
+        return the hash of this run. Raises Exception if run cannot be hashed."""
+        try:
+            return hash_dict_sha256(kwargs)
+        except Exception as e:
+            raise Exception(f"Failed to produce run hash: {e}")
+
     def init(self, **kwargs) -> None:
-        """This method can be used to initialize the the benchmark before a
+        """This method can be used to initialize the benchmark before a
         run with the arguments passed as `kwargs`."""
         return None
 

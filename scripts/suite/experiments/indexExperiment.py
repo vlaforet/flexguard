@@ -6,8 +6,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class IndexExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -35,19 +33,21 @@ class IndexExperiment(ExperimentCore):
 
                 self.tests.append(
                     {
-                        "benchmark": "index",
                         "name": f"Index {label} {t} threads",
                         "label": label,
-                        "kwargs": {
-                            "index": index,
-                            "threads": t,
-                            "mode": "time",
-                            "read_ratio": 0,
-                            "update_ratio": 1,
-                            "seconds": 10,
-                            "records": 100_000_000,
-                            "distribution": "SELFSIMILAR",
-                            "skew": 0.2,
+                        "benchmark": {
+                            "id": "index",
+                            "args": {
+                                "index": index,
+                                "threads": t,
+                                "mode": "time",
+                                "read_ratio": 0,
+                                "update_ratio": 1,
+                                "seconds": 10,
+                                "records": 100_000_000,
+                                "distribution": "SELFSIMILAR",
+                                "skew": 0.2,
+                            },
                         },
                     }
                 )

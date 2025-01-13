@@ -2,8 +2,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class CorrectnessExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -21,13 +19,15 @@ class CorrectnessExperiment(ExperimentCore):
             for thread in threads:
                 self.tests.append(
                     {
-                        "benchmark": "correctness",
                         "name": f"Correctness of {label} lock with {thread} threads",
                         "label": label,
-                        "kwargs": {
-                            "lock": lock,
-                            "num-threads": thread,
-                            "duration": 10000,
+                        "benchmark": {
+                            "id": "correctness",
+                            "args": {
+                                "lock": lock,
+                                "num-threads": thread,
+                                "duration": 10000,
+                            },
                         },
                     }
                 )

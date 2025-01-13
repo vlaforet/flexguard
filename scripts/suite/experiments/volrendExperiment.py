@@ -6,8 +6,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class VolrendExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -26,12 +24,14 @@ class VolrendExperiment(ExperimentCore):
                     continue
                 self.tests.append(
                     {
-                        "benchmark": "volrend",
                         "name": f"Volrend with {label} lock and {t} threads",
                         "label": label,
-                        "kwargs": {
-                            "lock": lock,
-                            "threads": t,
+                        "benchmark": {
+                            "id": "volrend",
+                            "args": {
+                                "lock": lock,
+                                "threads": t,
+                            },
                         },
                     }
                 )

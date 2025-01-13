@@ -6,8 +6,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class ConcKyotoCabinetExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
         bthreads = 52
@@ -33,26 +31,28 @@ class ConcKyotoCabinetExperiment(ExperimentCore):
 
                 self.tests.append(
                     {
-                        "benchmark": "kyotocabinet",
+                        "name": f"KyotoCabinet with {label} lock and concurrent workload with {t} threads",
+                        "label": label,
+                        "benchmark": {
+                            "id": "kyotocabinet",
+                            "args": {
+                                "lock": lock,
+                                "threads": bthreads,
+                                "num": 50000,
+                                "benchmarks": [
+                                    "fillrandom",
+                                    "readrandom",
+                                ],
+                            },
+                        },
                         "concurrent": {
-                            "benchmark": "scheduling",
-                            "kwargs": {
+                            "id": "scheduling",
+                            "args": {
                                 "lock": "mcstas",
                                 "base-threads": t,
                                 "num-threads": t,
                                 "step-duration": 10000000,  # Will be killed when LevelDB finishes
                             },
-                        },
-                        "name": f"KyotoCabinet with {label} lock and concurrent workload with {t} threads",
-                        "label": label,
-                        "kwargs": {
-                            "lock": lock,
-                            "threads": bthreads,
-                            "num": 50000,
-                            "benchmarks": [
-                                "fillrandom",
-                                "readrandom",
-                            ],
                         },
                     }
                 )

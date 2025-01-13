@@ -6,8 +6,6 @@ from experiments.experimentCore import ExperimentCore
 
 
 class KyotoCabinetExperiment(ExperimentCore):
-    tests = []
-
     def __init__(self, with_debugging):
         super().__init__(with_debugging)
 
@@ -32,17 +30,19 @@ class KyotoCabinetExperiment(ExperimentCore):
 
                 self.tests.append(
                     {
-                        "benchmark": "kyotocabinet",
                         "name": f"KyotoCabinet with {label} lock and {t} threads",
                         "label": label,
-                        "kwargs": {
-                            "lock": lock,
-                            "threads": t,
-                            "num": 50000,
-                            "benchmarks": [
-                                "fillrandom",
-                                "readrandom",
-                            ],
+                        "benchmark": {
+                            "id": "kyotocabinet",
+                            "args": {
+                                "lock": lock,
+                                "threads": t,
+                                "num": 50000,
+                                "benchmarks": [
+                                    "fillrandom",
+                                    "readrandom",
+                                ],
+                            },
                         },
                     }
                 )
