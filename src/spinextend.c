@@ -63,3 +63,55 @@ void spinextend_destroy(spinextend_lock_t *the_lock)
 {
     // function not needed
 }
+
+/*
+ *  Condition Variables
+ */
+
+int spinextend_cond_init(spinextend_cond_t *cond)
+{
+    cond->seq = 0;
+    cond->target = 0;
+    return 0;
+}
+
+int spinextend_cond_wait(spinextend_cond_t *cond, spinextend_lock_t *the_lock)
+{
+    // No need for atomic operations, I have the lock
+    uint32_t target = ++cond->target;
+    uint32_t seq = cond->seq;
+    spinextend_unlock(the_lock);
+
+    while (target > seq)
+    {
+        PAUSE;
+        seq = cond->seq;
+    }
+    spinextend_lock(the_lock);
+    return 0;
+}
+
+int spinextend_cond_timedwait(spinextend_cond_t *cond, spinextend_lock_t *the_lock, const struct timespec *ts)
+{
+    fprintf(stderr, "Timedwait not supported yet.\n");
+    exit(EXIT_FAILURE);
+}
+
+int spinextend_cond_signal(spinextend_cond_t *cond)
+{
+    cond->seq++;
+    return 0;
+}
+
+int spinextend_cond_broadcast(spinextend_cond_t *cond)
+{
+    cond->seq = cond->target;
+    return 0;
+}
+
+int spinextend_cond_destroy(spinextend_cond_t *cond)
+{
+    cond->seq = 0;
+    cond->target = 0;
+    return 0;
+}

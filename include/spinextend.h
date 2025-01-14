@@ -67,6 +67,24 @@ typedef struct spinextend_lock_t
     }                          \
   }
 
+typedef union
+{
+  struct
+  {
+    uint32_t seq;
+    uint32_t target;
+  };
+#ifdef ADD_PADDING
+  uint8_t padding[CACHE_LINE_SIZE];
+#endif
+} spinextend_cond_t;
+#define SPINEXTEND_COND_INITIALIZER \
+  {                                 \
+    {                               \
+      0, 0                          \
+    }                               \
+  }
+
 /*
  *  Declarations
  */
@@ -75,6 +93,13 @@ void spinextend_destroy(spinextend_lock_t *the_lock);
 void spinextend_lock(spinextend_lock_t *the_lock);
 int spinextend_trylock(spinextend_lock_t *the_lock);
 void spinextend_unlock(spinextend_lock_t *the_lock);
+
+int spinextend_cond_init(spinextend_cond_t *cond);
+int spinextend_cond_wait(spinextend_cond_t *cond, spinextend_lock_t *the_lock);
+int spinextend_cond_timedwait(spinextend_cond_t *cond, spinextend_lock_t *the_lock, const struct timespec *ts);
+int spinextend_cond_signal(spinextend_cond_t *cond);
+int spinextend_cond_broadcast(spinextend_cond_t *cond);
+int spinextend_cond_destroy(spinextend_cond_t *cond);
 
 /*
  * lock_if.h bindings
@@ -87,5 +112,14 @@ void spinextend_unlock(spinextend_lock_t *the_lock);
 #define LOCKIF_TRYLOCK spinextend_trylock
 #define LOCKIF_UNLOCK spinextend_unlock
 #define LOCKIF_INITIALIZER SPINEXTEND_INITIALIZER
+
+#define LOCKIF_COND_T spinextend_cond_t
+#define LOCKIF_COND_INIT spinextend_cond_init
+#define LOCKIF_COND_DESTROY spinextend_cond_destroy
+#define LOCKIF_COND_WAIT spinextend_cond_wait
+#define LOCKIF_COND_TIMEDWAIT spinextend_cond_timedwait
+#define LOCKIF_COND_SIGNAL spinextend_cond_signal
+#define LOCKIF_COND_BROADCAST spinextend_cond_broadcast
+#define LOCKIF_COND_INITIALIZER SPINEXTEND_COND_INITIALIZER
 
 #endif
