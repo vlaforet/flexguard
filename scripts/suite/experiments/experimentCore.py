@@ -29,8 +29,7 @@ class ExperimentCore:
         cls.name = cls.__name__.replace("Experiment", "").lower()
         ExperimentCore.registry[cls.name] = cls
 
-    def __init__(self, with_debugging=False):
-        self.with_debugging = with_debugging
+    def __init__(self):
         self.tests = []
 
     @abc.abstractmethod

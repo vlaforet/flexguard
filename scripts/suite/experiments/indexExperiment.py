@@ -6,8 +6,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class IndexExperiment(ExperimentCore):
-    def __init__(self, with_debugging):
-        super().__init__(with_debugging)
+    def __init__(self):
+        super().__init__()
 
         indexes = {
             "LoadRunner": "btreelc_bhl",

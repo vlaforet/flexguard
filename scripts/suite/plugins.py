@@ -26,7 +26,7 @@ def import_plugins(namespace, suffix):
 experiments_instances = {}
 
 
-def getExperiments(names: List[str], with_debugging=False) -> List[ExperimentCore]:
+def getExperiments(names: List[str], **kwargs) -> List[ExperimentCore]:
     import_plugins(experiments, "Experiment")
 
     for name in names:
@@ -36,7 +36,7 @@ def getExperiments(names: List[str], with_debugging=False) -> List[ExperimentCor
         if name not in ExperimentCore.registry:
             print(f"Unknown experiment {name}")
             sys.exit(1)
-        experiments_instances[name] = ExperimentCore.registry[name](with_debugging)
+        experiments_instances[name] = ExperimentCore.registry[name](**kwargs)
 
     return [experiments_instances[name] for name in names]
 
