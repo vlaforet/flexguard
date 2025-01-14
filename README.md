@@ -45,7 +45,7 @@ Any of these tags can be added to the make command to compile the desired versio
 ```
 LOCK_VERSION=SPINLOCK
 LOCK_VERSION=HYBRIDLOCK // Hybrid lock
-LOCK_VERSION=HYBRIDV2   // Hybrid lock version 2
+LOCK_VERSION=FLEXGUARD   // Hybrid lock version 2
 LOCK_VERSION=MCS
 LOCK_VERSION=MCSTAS
 LOCK_VERSION=CLH

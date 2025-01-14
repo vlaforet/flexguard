@@ -10,7 +10,7 @@ class BucketsExperiment(ExperimentCore):
         super().__init__()
 
         locks = {
-            "LoadRunner": "hybridv2",
+            "FlexGuard": "flexguard",
             "MCS": "mcs",
             "Spin Extend Time Slice": "spinextend",
             "MCS Extend Time Slice": "mcsextend",

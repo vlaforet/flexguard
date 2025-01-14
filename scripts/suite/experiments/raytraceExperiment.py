@@ -13,7 +13,7 @@ class RaytraceExperiment(ExperimentCore):
             "POSIX": "mutex",
             "Stock": "stock",
             "MCS": "mcs",
-            "BHL": "hybridv2",
+            "FlexGuard": "flexguard",
         }
 
         threads = [1, 2] + [i for i in range(10, 128, 10)] + [128]
@@ -38,7 +38,7 @@ class RaytraceExperiment(ExperimentCore):
 
     def report(self, results, exp_dir):
         results_ylim = results[
-            ~results["lock"].isin(["mcs", "hybridv2nextwaiterdetection"])
+            ~results["lock"].isin(["mcs"])
         ]
 
         plt.figure(figsize=(10, 6))

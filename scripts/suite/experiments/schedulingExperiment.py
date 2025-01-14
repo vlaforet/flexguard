@@ -22,7 +22,7 @@ class SchedulingExperiment(ExperimentCore):
             # "Spin-Then-Park": "spinpark",
             "Shfllock": "shuffle",
             "Malthusian": "malthusian",
-            "LoadRunner": "hybridv2",
+            "FlexGuard": "flexguard",
             # "CBO-MCS": "cbomcs",
         }
 

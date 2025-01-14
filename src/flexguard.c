@@ -1,5 +1,5 @@
 /*
- * File: hybridv2.c
+ * File: flexguard.c
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
@@ -27,18 +27,18 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "hybridv2.h"
+#include "flexguard.h"
 
 #ifdef BPF
 #include <bpf/libbpf.h>
-#include "hybridv2.skel.h"
+#include "flexguard.skel.h"
 #endif
 
 _Atomic(int) thread_count = 1;
 _Atomic(int) lock_count = 0;
-hybrid_qnode_ptr qnode_allocation_array;
+flexguard_qnode_ptr qnode_allocation_array;
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
 hybrid_lock_info_t *lock_info;
 #define get_preempted_count(the_lock) the_lock->preempted_count
 #else
@@ -46,7 +46,7 @@ preempted_count_t *preempted_count;
 #define get_preempted_count(the_lock) preempted_count
 #endif
 
-#if defined(BPF) && HYBRIDV2_NEXT_WAITER_DETECTION == 2 // Local
+#if defined(BPF) && FLEXGUARD_NEXT_WAITER_DETECTION == 2 // Local
 #define BLOCKING_CONDITION(the_lock) (*get_preempted_count(the_lock) || the_lock->next_waiter_preempted)
 #endif
 
@@ -60,14 +60,14 @@ __thread int thread_id = -1;
 struct bpf_map *nodes_map;
 #endif
 
-static inline hybrid_qnode_ptr get_me()
+static inline flexguard_qnode_ptr get_me()
 {
     if (UNLIKELY(thread_id < 0))
     {
         thread_id = atomic_fetch_add(&thread_count, 1);
         CHECK_NUMBER_THREADS_FATAL(thread_id);
 
-        hybrid_qnode_ptr qnode = &qnode_allocation_array[thread_id];
+        flexguard_qnode_ptr qnode = &qnode_allocation_array[thread_id];
 
 #ifdef BPF
         // Register thread in BPF map
@@ -76,13 +76,13 @@ static inline hybrid_qnode_ptr get_me()
         if (err)
             fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
         qnode->locking_id = -1;
 #else
         qnode->is_locking = 0;
 #endif
 
-#ifdef HYBRIDV2_NEXT_WAITER_DETECTION
+#ifdef FLEXGUARD_NEXT_WAITER_DETECTION
         qnode->is_running = 1;
 #endif
 #endif
@@ -102,7 +102,7 @@ static inline hybrid_qnode_ptr get_me()
     return &qnode_allocation_array[thread_id];
 }
 
-static inline void mcs_unlock(hybridv2_lock_t *the_lock, hybrid_qnode_ptr qnode)
+static inline void mcs_unlock(flexguard_lock_t *the_lock, flexguard_qnode_ptr qnode)
 {
     if (!qnode->next) // I seem to have no successor
     {
@@ -115,11 +115,11 @@ static inline void mcs_unlock(hybridv2_lock_t *the_lock, hybrid_qnode_ptr qnode)
     }
 
 #ifdef BPF
-#if HYBRIDV2_NEXT_WAITER_DETECTION == 1 // Global
+#if FLEXGUARD_NEXT_WAITER_DETECTION == 1 // Global
     // If next is not running
     if (!qnode->next->is_running && !__sync_lock_test_and_set(&the_lock->next_waiter_preempted, true))
         __sync_fetch_and_add(get_preempted_count(the_lock), 1);
-#elif HYBRIDV2_NEXT_WAITER_DETECTION == 2 // Local
+#elif FLEXGUARD_NEXT_WAITER_DETECTION == 2 // Local
     if (!qnode->next->is_running)
         the_lock->next_waiter_preempted = true;
 #endif
@@ -128,13 +128,13 @@ static inline void mcs_unlock(hybridv2_lock_t *the_lock, hybrid_qnode_ptr qnode)
     qnode->next->waiting = 0;
 }
 
-void hybridv2_lock(hybridv2_lock_t *the_lock)
+void flexguard_lock(flexguard_lock_t *the_lock)
 {
-    hybrid_qnode_ptr qnode = get_me();
+    flexguard_qnode_ptr qnode = get_me();
 #ifdef BPF
-    __asm__ volatile("bhl_lock:" ::: "memory");
+    __asm__ volatile("fg_lock:" ::: "memory");
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
     qnode->locking_id = the_lock->id;
 #else
     qnode->is_locking = 1;
@@ -162,7 +162,7 @@ mcs_enqueue:
 
         // Register rax stores the current qnode and will contain the previous value of
         // the queue after the xchgq operation.
-        register hybrid_qnode_ptr pred __asm__("rcx") = qnode;
+        register flexguard_qnode_ptr pred __asm__("rcx") = qnode;
 
         /*
          *  Exchange pred (rcx) and queue head.
@@ -172,7 +172,7 @@ mcs_enqueue:
         __asm__ volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(&the_lock->queue) : "memory");
 
 #ifdef BPF
-        __asm__ volatile("bhl_lock_check_rcx_null:" ::: "memory");
+        __asm__ volatile("fg_lock_check_rcx_null:" ::: "memory");
 #endif
         if (pred != NULL) /* lock was not free */
         {
@@ -183,7 +183,7 @@ mcs_enqueue:
                 PAUSE;
         }
 #ifdef BPF
-        __asm__ volatile("bhl_lock_end:" ::: "memory");
+        __asm__ volatile("fg_lock_end:" ::: "memory");
 #endif
     }
 
@@ -225,23 +225,23 @@ mcs_enqueue:
         mcs_unlock(the_lock, qnode);
 }
 
-void hybridv2_unlock(hybridv2_lock_t *the_lock)
+void flexguard_unlock(flexguard_lock_t *the_lock)
 {
     if (__sync_lock_test_and_set(&the_lock->lock_value, 0) != 1)
         futex_wake((void *)&the_lock->lock_value, 1);
 
 #ifdef BPF
     MEM_BARRIER;
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
     qnode_allocation_array[thread_id].locking_id = -1; // Assuming qnode has already been initialized.
 #else
     qnode_allocation_array[thread_id].is_locking = 0; // Assuming qnode has already been initialized.
 #endif
 
-#if HYBRIDV2_NEXT_WAITER_DETECTION == 1 // Global
+#if FLEXGUARD_NEXT_WAITER_DETECTION == 1 // Global
     if (__sync_lock_test_and_set(&the_lock->next_waiter_preempted, false))
         __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
-#elif HYBRIDV2_NEXT_WAITER_DETECTION == 2 // Local
+#elif FLEXGUARD_NEXT_WAITER_DETECTION == 2 // Local
     if (the_lock->next_waiter_preempted)
         the_lock->next_waiter_preempted = false;
 #endif
@@ -262,12 +262,12 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
 #ifdef BPF
 static void deploy_bpf_code()
 {
-    struct hybridv2_bpf *skel;
+    struct flexguard_bpf *skel;
     int err;
 
     // Open BPF skeleton
     libbpf_set_print(libbpf_print_fn);
-    skel = hybridv2_bpf__open();
+    skel = flexguard_bpf__open();
     if (!skel)
     {
         fprintf(stderr, "Failed to open BPF skeleton\n");
@@ -275,17 +275,17 @@ static void deploy_bpf_code()
     }
 
 #ifdef HYBRID_MCS
-    extern char bhl_lock;
-    skel->bss->addresses.lock = &bhl_lock;
+    extern char fg_lock;
+    skel->bss->addresses.lock = &fg_lock;
 
-    extern char bhl_lock_check_rcx_null;
-    skel->bss->addresses.lock_check_rcx_null = &bhl_lock_check_rcx_null;
+    extern char fg_lock_check_rcx_null;
+    skel->bss->addresses.lock_check_rcx_null = &fg_lock_check_rcx_null;
 
-    extern char bhl_lock_end;
-    skel->bss->addresses.lock_end = &bhl_lock_end;
+    extern char fg_lock_end;
+    skel->bss->addresses.lock_end = &fg_lock_end;
 #endif
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
     lock_info = skel->bss->lock_info;
 #else
     preempted_count = &skel->bss->preempted_count;
@@ -294,11 +294,11 @@ static void deploy_bpf_code()
     qnode_allocation_array = skel->bss->qnodes;
 
     // Load BPF skeleton
-    err = hybridv2_bpf__load(skel);
+    err = flexguard_bpf__load(skel);
     if (err)
     {
         fprintf(stderr, "Failed to load and verify BPF skeleton (%d)\n", err);
-        hybridv2_bpf__destroy(skel);
+        flexguard_bpf__destroy(skel);
         exit(EXIT_FAILURE);
     }
 
@@ -306,20 +306,20 @@ static void deploy_bpf_code()
     nodes_map = skel->maps.nodes_map;
 
     // Attach BPF skeleton
-    err = hybridv2_bpf__attach(skel);
+    err = flexguard_bpf__attach(skel);
     if (err)
     {
         fprintf(stderr, "Failed to attach BPF skeleton (%d)\n", err);
-        hybridv2_bpf__destroy(skel);
+        flexguard_bpf__destroy(skel);
         exit(EXIT_FAILURE);
     }
 }
 #endif
 
-int hybridv2_init(hybridv2_lock_t *the_lock)
+int flexguard_init(flexguard_lock_t *the_lock)
 {
     the_lock->id = atomic_fetch_add(&lock_count, 1);
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
     if (the_lock->id >= MAX_NUMBER_LOCKS)
     {
         fprintf(stderr, "Too many locks. Increase MAX_NUMBER_LOCKS in platform_defs.h.\n");
@@ -330,7 +330,7 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
     the_lock->lock_value = 0;
     the_lock->waiter_count = 0;
 
-#if defined(BPF) && defined(HYBRIDV2_NEXT_WAITER_DETECTION)
+#if defined(BPF) && defined(FLEXGUARD_NEXT_WAITER_DETECTION)
     the_lock->next_waiter_preempted = 0;
 #endif
 
@@ -341,9 +341,9 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
         deploy_bpf_code();
 #else
         // Initialize things without BPF
-        qnode_allocation_array = malloc(MAX_NUMBER_THREADS * sizeof(hybrid_qnode_t));
+        qnode_allocation_array = malloc(MAX_NUMBER_THREADS * sizeof(flexguard_qnode_t));
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
         lock_info = malloc(MAX_NUMBER_LOCKS * sizeof(hybrid_lock_info_t));
 #else
         preempted_count = malloc(sizeof(preempted_count_t));
@@ -353,7 +353,7 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
         init_lock = 2;
     }
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
     the_lock->preempted_count = &lock_info[the_lock->id].preempted_count;
     (*the_lock->preempted_count) = 0;
 #endif
@@ -362,7 +362,7 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
     the_lock->ticket_lock.calling = 1;
     the_lock->ticket_lock.next = 0;
 #elif defined(HYBRID_CLH)
-    *(the_lock->queue) = (hybrid_qnode_ptr)malloc(sizeof(hybrid_qnode_t)); // CLH keeps an empty node
+    *(the_lock->queue) = (flexguard_qnode_ptr)malloc(sizeof(flexguard_qnode_t)); // CLH keeps an empty node
     (*the_lock->queue)->done = 1;
     (*the_lock->queue)->pred = NULL;
 #elif defined(HYBRID_MCS)
@@ -373,13 +373,13 @@ int hybridv2_init(hybridv2_lock_t *the_lock)
     return 0;
 }
 
-void hybridv2_destroy(hybridv2_lock_t *the_lock)
+void flexguard_destroy(flexguard_lock_t *the_lock)
 {
     // Nothing to do
 }
 
 #ifdef TRACING
-void set_tracing_fn(hybridv2_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data)
+void set_tracing_fn(flexguard_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data)
 {
     the_lock->tracing_fn_data = tracing_fn_data;
     the_lock->tracing_fn = tracing_fn;
@@ -390,19 +390,19 @@ void set_tracing_fn(hybridv2_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, in
  *  Condition Variables
  */
 
-int hybridv2_cond_init(hybridv2_cond_t *cond)
+int flexguard_cond_init(flexguard_cond_t *cond)
 {
     cond->seq = 0;
     cond->target = 0;
     return 0;
 }
 
-int hybridv2_cond_wait(hybridv2_cond_t *cond, hybridv2_lock_t *the_lock)
+int flexguard_cond_wait(flexguard_cond_t *cond, flexguard_lock_t *the_lock)
 {
     // No need for atomic operations, I have the lock
     uint32_t target = ++cond->target;
     uint32_t seq = cond->seq;
-    hybridv2_unlock(the_lock);
+    flexguard_unlock(the_lock);
 
     while (target > seq)
     {
@@ -412,31 +412,31 @@ int hybridv2_cond_wait(hybridv2_cond_t *cond, hybridv2_lock_t *the_lock)
             PAUSE;
         seq = cond->seq;
     }
-    hybridv2_lock(the_lock);
+    flexguard_lock(the_lock);
     return 0;
 }
 
-int hybridv2_cond_timedwait(hybridv2_cond_t *cond, hybridv2_lock_t *the_lock, const struct timespec *ts)
+int flexguard_cond_timedwait(flexguard_cond_t *cond, flexguard_lock_t *the_lock, const struct timespec *ts)
 {
     fprintf(stderr, "Timedwait not supported yet.\n");
     exit(EXIT_FAILURE);
 }
 
-int hybridv2_cond_signal(hybridv2_cond_t *cond)
+int flexguard_cond_signal(flexguard_cond_t *cond)
 {
     cond->seq++;
     futex_wake(&cond->seq, 1);
     return 0;
 }
 
-int hybridv2_cond_broadcast(hybridv2_cond_t *cond)
+int flexguard_cond_broadcast(flexguard_cond_t *cond)
 {
     cond->seq = cond->target;
     futex_wake(&cond->seq, INT_MAX);
     return 0;
 }
 
-int hybridv2_cond_destroy(hybridv2_cond_t *cond)
+int flexguard_cond_destroy(flexguard_cond_t *cond)
 {
     cond->seq = 0;
     cond->target = 0;

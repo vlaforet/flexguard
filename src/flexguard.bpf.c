@@ -1,5 +1,5 @@
 /*
- * File: hybridv2.bpf.c
+ * File: flexguard.bpf.c
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
@@ -30,7 +30,7 @@
 
 #include "vmlinux.h"
 #include "platform_defs.h"
-#include "hybridv2_bpf.h"
+#include "flexguard_bpf.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
@@ -46,9 +46,9 @@
 #define MAX_STACK_TRACE_DEPTH 8
 
 hybrid_addresses_t addresses;
-hybrid_qnode_t qnodes[MAX_NUMBER_THREADS];
+flexguard_qnode_t qnodes[MAX_NUMBER_THREADS];
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
 volatile hybrid_lock_info_t lock_info[MAX_NUMBER_LOCKS];
 #define get_preempted_count(lock_id) lock_info[lock_id].preempted_count
 #else
@@ -78,7 +78,7 @@ struct
  * Will return 1 if the thread is detected as a critical thread.
  * A critical thread holds the MCS or TAS lock.
  */
-static int is_critical_thread(struct task_struct *task, hybrid_qnode_ptr qnode)
+static int is_critical_thread(struct task_struct *task, flexguard_qnode_ptr qnode)
 {
 	u64 user_stack[MAX_STACK_TRACE_DEPTH];
 	long user_stack_size = bpf_get_task_stack(task, user_stack, MAX_STACK_TRACE_DEPTH * sizeof(u64), BPF_F_USER_STACK);
@@ -115,9 +115,9 @@ SEC("tp_btf/sched_switch")
 int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct task_struct *next)
 {
 	u32 key;
-	hybrid_qnode_ptr qnode;
+	flexguard_qnode_ptr qnode;
 	int *thread_id;
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
 	int lock_id;
 #endif
 
@@ -131,18 +131,18 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 		thread_id = bpf_map_lookup_elem(&nodes_map, &key);
 		if (thread_id && *thread_id >= 0 && *thread_id < MAX_NUMBER_THREADS && (qnode = &qnodes[*thread_id]))
 		{
-#ifdef HYBRIDV2_NEXT_WAITER_DETECTION
+#ifdef FLEXGUARD_NEXT_WAITER_DETECTION
 			qnode->is_running = 1;
 #endif
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
 			lock_id = qnode->locking_id;
 			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)
 			{
 #endif
 				if (bpf_map_delete_elem(&is_preempted_map, &key) == 0)
 					__sync_fetch_and_add(&get_preempted_count(lock_id), -1);
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
 			}
 #endif
 		}
@@ -162,14 +162,14 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (!thread_id || *thread_id < 0 || *thread_id >= MAX_NUMBER_THREADS || !(qnode = &qnodes[*thread_id]))
 		return 0;
 
-#ifdef HYBRIDV2_NEXT_WAITER_DETECTION
+#ifdef FLEXGUARD_NEXT_WAITER_DETECTION
 	qnode->is_running = 0;
 #endif
 
 	if (get_task_state(prev) & ((((TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE | TASK_STOPPED | TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE | TASK_PARKED) + 1) << 1) - 1))
 		return 0;
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
 	/*
 	 * Ignore preemption if the thread was not locking.
 	 */

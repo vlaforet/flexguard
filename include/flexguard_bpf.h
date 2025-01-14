@@ -1,5 +1,5 @@
 /*
- * File: hybridv2_bpf.h
+ * File: flexguard_bpf.h
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
@@ -28,10 +28,10 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _HYBRIDV2_BPF_H_
-#define _HYBRIDV2_BPF_H_
+#ifndef _FLEXGUARD_BPF_H_
+#define _FLEXGUARD_BPF_H_
 
-typedef struct hybrid_qnode_t
+typedef struct flexguard_qnode_t
 {
   union
   {
@@ -41,20 +41,20 @@ typedef struct hybrid_qnode_t
       uint32_t ticket;
 #elif defined(HYBRID_CLH)
       volatile uint8_t done;
-      volatile struct hybrid_qnode_t *pred;
+      volatile struct flexguard_qnode_t *pred;
 #elif defined(HYBRID_MCS)
       volatile uint8_t waiting;
-      volatile struct hybrid_qnode_t *volatile next;
+      volatile struct flexguard_qnode_t *volatile next;
 #endif
 
 #ifdef BPF
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
       volatile int locking_id;
 #else
       volatile uint8_t is_locking;
 #endif
 
-#ifdef HYBRIDV2_NEXT_WAITER_DETECTION
+#ifdef FLEXGUARD_NEXT_WAITER_DETECTION
       volatile uint8_t is_running;
 #endif
 #endif
@@ -62,8 +62,8 @@ typedef struct hybrid_qnode_t
 
     uint8_t padding[CACHE_LINE_SIZE];
   };
-} hybrid_qnode_t;
-typedef volatile hybrid_qnode_t *hybrid_qnode_ptr;
+} flexguard_qnode_t;
+typedef volatile flexguard_qnode_t *flexguard_qnode_ptr;
 
 #ifdef BPF
 typedef struct hybrid_addresses_t
@@ -83,7 +83,7 @@ typedef struct hybrid_addresses_t
 
 typedef volatile int64_t preempted_count_t;
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
 typedef struct hybrid_lock_info_t
 {
   union

@@ -11,7 +11,7 @@ class ConcKyotoCabinetExperiment(ExperimentCore):
         bthreads = 52
 
         locks = {
-            "LoadRunner": "hybridv2",
+            "FlexGuard": "flexguard",
             "MCS": "mcs",
             "POSIX": "mutex",
             # "MCS-TAS": "mcstas",

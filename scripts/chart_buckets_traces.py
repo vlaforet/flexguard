@@ -98,7 +98,7 @@ ax.plot(
 
 bucket_span = max_value // bucket_count
 
-## Plot HybridV2 acquires
+## Plot FlexGuard acquires
 acquired_stolen = events[events["event"] == "acquired_stolen"]
 acquired_spin = events[events["event"] == "acquired_spin"]
 acquired_block = events[events["event"] == "acquired_block"]

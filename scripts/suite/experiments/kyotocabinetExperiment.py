@@ -10,7 +10,7 @@ class KyotoCabinetExperiment(ExperimentCore):
         super().__init__()
 
         locks = {
-            "LoadRunner": "hybridv2",
+            "FlexGuard": "flexguard",
             "MCS": "mcs",
             "POSIX": "mutex",
             # "MCS-TAS": "mcstas",

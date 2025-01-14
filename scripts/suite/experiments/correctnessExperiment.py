@@ -6,7 +6,7 @@ class CorrectnessExperiment(ExperimentCore):
         super().__init__()
 
         locks = {
-            "BPF Hybrid Lock": "hybridv2",
+            "FlexGuard": "flexguard",
             "MCS/TAS": "mcstas",
             "MCS": "mcs",
             "Spin Extend Time Slice": "spinextend",

@@ -59,14 +59,12 @@ compile_and_suffix() {
 
 compile_and_suffix "mcstasnopad" "LOCK_VERSION=MCSTAS ADD_PADDING=0"
 compile_and_suffix "futexnopad" "LOCK_VERSION=FUTEX ADD_PADDING=0"
-compile_and_suffix "bhlnopad" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=0"
+compile_and_suffix "flexguardnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0"
 compile_and_suffix "mcstpnopad" "LOCK_VERSION=MCSTP ADD_PADDING=0"
 compile_and_suffix "malthusiannopad" "USE_LITL_LIBRARY=malthusian_spinlock ADD_PADDING=0"
 compile_and_suffix "concurrencynopad" "USE_LITL_LIBRARY=concurrency_original ADD_PADDING=0"
 compile_and_suffix "shufflenopad" "USE_LITL_LIBRARY=aqmwonode_spin_then_park ADD_PADDING=0"
 compile_and_suffix "cbomcsnopad" "USE_LITL_LIBRARY=cbomcs_spinlock ADD_PADDING=0"
-#compile_and_suffix "bhllocalnopad" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=0 HYBRIDV2_LOCAL_PREEMPTIONS=1"
-#compile_and_suffix "bhlnextwaiterdetectionnopad" "LOCK_VERSION=HYBRIDV2 HYBRIDV2_NEXT_WAITER_DETECTION=2 ADD_PADDING=0"
 
 compile_and_suffix "mcstas" "LOCK_VERSION=MCSTAS ADD_PADDING=1"
 compile_and_suffix "spinextend" "LOCK_VERSION=SPINEXTEND ADD_PADDING=1"
@@ -87,8 +85,6 @@ cp litl/libmcs_spinlock.sh interpose_mcslitl.sh
 compile_and_suffix "cbomcs" "USE_LITL_LIBRARY=cbomcs_spinlock ADD_PADDING=1"
 cp litl/libcbomcs_spinlock.sh interpose_cbomcs.sh
 compile_and_suffix "mcsblock" "LOCK_VERSION=MCSBLOCK ADD_PADDING=1"
-compile_and_suffix "hybridv2" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=1"
-#compile_and_suffix "hybridv2local" "LOCK_VERSION=HYBRIDV2 ADD_PADDING=1 HYBRIDV2_LOCAL_PREEMPTIONS=1"
-#compile_and_suffix "hybridv2nextwaiterdetection" "LOCK_VERSION=HYBRIDV2 HYBRIDV2_NEXT_WAITER_DETECTION=2 ADD_PADDING=1"
+compile_and_suffix "flexguard" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1"
 
 make -C litl >/dev/null

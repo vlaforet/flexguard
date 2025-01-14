@@ -10,7 +10,7 @@ class IndexExperiment(ExperimentCore):
         super().__init__()
 
         indexes = {
-            "LoadRunner": "btreelc_bhl",
+            "FlexGuard": "btreelc_flexguard",
             "MCS": "btreelc_mcsrw",
             "POSIX": "btreelc_mutex",
             # "MCS-TAS": "btreelc_mcstas",

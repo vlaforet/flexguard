@@ -156,7 +156,7 @@ void lock_tracing_fn(ticks rtsp, int event_type, void *event_data, void *fn_data
         printf("%s, %ld, %d\n", event_type == TRACING_EVENT_SWITCH_SPIN ? "switch_spin" : "switch_block", rtsp, bucket->id);
 #endif
 
-#ifdef USE_HYBRIDV2_LOCKS
+#ifdef USE_FLEXGUARD_LOCKS
     if (event_type == TRACING_EVENT_ACQUIRED_SPIN)
         printf("%s, %ld, %d\n", "acquired_spin", rtsp, bucket->id);
 

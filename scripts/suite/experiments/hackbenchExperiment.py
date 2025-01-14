@@ -14,13 +14,13 @@ class HackbenchExperiment(ExperimentCore):
 
         self.tests = [
             {
-                "name": "Hackbench Hybridv2",
-                "label": "LoadRunner",
+                "name": "Hackbench FlexGuard",
+                "label": "FlexGuard",
                 "benchmark": {"id": "hackbench", "args": hackbench_kwargs},
                 "concurrent": {
                     "id": "init",
                     "args": {
-                        "lock": "hybridv2",
+                        "lock": "flexguard",
                     },
                 },
             },

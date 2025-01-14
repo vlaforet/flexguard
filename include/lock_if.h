@@ -50,8 +50,8 @@
 #include "spinextend.h"
 #elif defined(USE_HYBRIDLOCK_LOCKS)
 #include "hybridlock.h"
-#elif defined(USE_HYBRIDV2_LOCKS)
-#include "hybridv2.h"
+#elif defined(USE_FLEXGUARD_LOCKS)
+#include "flexguard.h"
 #elif defined(USE_TICKET_LOCKS)
 #include "ticket.h"
 #elif defined(USE_MUTEX_LOCKS)

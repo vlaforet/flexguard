@@ -1,5 +1,5 @@
 /*
- * File: hybridv2.h
+ * File: flexguard.h
  * Author: Victor Laforet <victor.laforet@inria.fr>
  *
  * Description:
@@ -27,8 +27,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _HYBRIDV2_H_
-#define _HYBRIDV2_H_
+#ifndef _FLEXGUARD_H_
+#define _FLEXGUARD_H_
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -51,7 +51,7 @@
 
 #include "atomic_ops.h"
 #include "utils.h"
-#include "hybridv2_bpf.h"
+#include "flexguard_bpf.h"
 
 #ifdef TRACING
 #define TRACING_EVENT_ACQUIRED_SPIN 0
@@ -59,7 +59,7 @@
 #define TRACING_EVENT_ACQUIRED_STOLEN 2
 #endif
 
-typedef struct hybridv2_lock_t
+typedef struct flexguard_lock_t
 {
   union
   {
@@ -67,11 +67,11 @@ typedef struct hybridv2_lock_t
     {
       int id;
 
-#ifdef HYBRIDV2_LOCAL_PREEMPTIONS
+#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
       preempted_count_t *preempted_count;
 #endif
 
-#if defined(BPF) && defined(HYBRIDV2_NEXT_WAITER_DETECTION)
+#if defined(BPF) && defined(FLEXGUARD_NEXT_WAITER_DETECTION)
       uint8_t next_waiter_preempted;
 #endif
       volatile uint64_t waiter_count;
@@ -105,7 +105,7 @@ typedef struct hybridv2_lock_t
         volatile uint32_t calling;
       } ticket_lock;
 #elif defined(HYBRID_CLH) || defined(HYBRID_MCS)
-      hybrid_qnode_ptr queue;
+      flexguard_qnode_ptr queue;
 #endif
     };
 
@@ -113,8 +113,8 @@ typedef struct hybridv2_lock_t
     uint8_t padding3[CACHE_LINE_SIZE];
 #endif
   };
-} hybridv2_lock_t;
-#define HYBRIDV2_INITIALIZER \
+} flexguard_lock_t;
+#define FLEXGUARD_INITIALIZER \
   {                          \
   }
 
@@ -128,8 +128,8 @@ typedef union
 #ifdef ADD_PADDING
   uint8_t padding[CACHE_LINE_SIZE];
 #endif
-} hybridv2_cond_t;
-#define HYBRIDV2_COND_INITIALIZER \
+} flexguard_cond_t;
+#define FLEXGUARD_COND_INITIALIZER \
   {                               \
     {                             \
       0, 0                        \
@@ -140,40 +140,40 @@ typedef union
  *  Declarations
  */
 
-int hybridv2_init(hybridv2_lock_t *the_lock);
-void hybridv2_destroy(hybridv2_lock_t *the_lock);
-void hybridv2_lock(hybridv2_lock_t *the_lock);
-void hybridv2_unlock(hybridv2_lock_t *the_lock);
+int flexguard_init(flexguard_lock_t *the_lock);
+void flexguard_destroy(flexguard_lock_t *the_lock);
+void flexguard_lock(flexguard_lock_t *the_lock);
+void flexguard_unlock(flexguard_lock_t *the_lock);
 
 #ifdef TRACING
-void set_tracing_fn(hybridv2_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data);
+void set_tracing_fn(flexguard_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data);
 #endif
 
-int hybridv2_cond_init(hybridv2_cond_t *cond);
-int hybridv2_cond_wait(hybridv2_cond_t *cond, hybridv2_lock_t *the_lock);
-int hybridv2_cond_timedwait(hybridv2_cond_t *cond, hybridv2_lock_t *the_lock, const struct timespec *ts);
-int hybridv2_cond_signal(hybridv2_cond_t *cond);
-int hybridv2_cond_broadcast(hybridv2_cond_t *cond);
-int hybridv2_cond_destroy(hybridv2_cond_t *cond);
+int flexguard_cond_init(flexguard_cond_t *cond);
+int flexguard_cond_wait(flexguard_cond_t *cond, flexguard_lock_t *the_lock);
+int flexguard_cond_timedwait(flexguard_cond_t *cond, flexguard_lock_t *the_lock, const struct timespec *ts);
+int flexguard_cond_signal(flexguard_cond_t *cond);
+int flexguard_cond_broadcast(flexguard_cond_t *cond);
+int flexguard_cond_destroy(flexguard_cond_t *cond);
 
 /*
  * lock_if.h bindings
  */
 
-#define LOCKIF_LOCK_T hybridv2_lock_t
-#define LOCKIF_INIT hybridv2_init
-#define LOCKIF_DESTROY hybridv2_destroy
-#define LOCKIF_LOCK hybridv2_lock
-#define LOCKIF_UNLOCK hybridv2_unlock
-#define LOCKIF_INITIALIZER HYBRIDV2_INITIALIZER
+#define LOCKIF_LOCK_T flexguard_lock_t
+#define LOCKIF_INIT flexguard_init
+#define LOCKIF_DESTROY flexguard_destroy
+#define LOCKIF_LOCK flexguard_lock
+#define LOCKIF_UNLOCK flexguard_unlock
+#define LOCKIF_INITIALIZER FLEXGUARD_INITIALIZER
 
-#define LOCKIF_COND_T hybridv2_cond_t
-#define LOCKIF_COND_INIT hybridv2_cond_init
-#define LOCKIF_COND_DESTROY hybridv2_cond_destroy
-#define LOCKIF_COND_WAIT hybridv2_cond_wait
-#define LOCKIF_COND_TIMEDWAIT hybridv2_cond_timedwait
-#define LOCKIF_COND_SIGNAL hybridv2_cond_signal
-#define LOCKIF_COND_BROADCAST hybridv2_cond_broadcast
-#define LOCKIF_COND_INITIALIZER HYBRIDV2_COND_INITIALIZER
+#define LOCKIF_COND_T flexguard_cond_t
+#define LOCKIF_COND_INIT flexguard_cond_init
+#define LOCKIF_COND_DESTROY flexguard_cond_destroy
+#define LOCKIF_COND_WAIT flexguard_cond_wait
+#define LOCKIF_COND_TIMEDWAIT flexguard_cond_timedwait
+#define LOCKIF_COND_SIGNAL flexguard_cond_signal
+#define LOCKIF_COND_BROADCAST flexguard_cond_broadcast
+#define LOCKIF_COND_INITIALIZER FLEXGUARD_COND_INITIALIZER
 
 #endif

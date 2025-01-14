@@ -4,7 +4,7 @@
  *
  * Description:
  *      Test the initialization of a lock.
- *      For example for hybridv2:
+ *      For example for flexguard:
  *          Deploys the preemption monitor eBPF code to test context switch overhead
  *
  * The MIT License (MIT)
