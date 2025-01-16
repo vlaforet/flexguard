@@ -6,21 +6,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class IndexExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
-
-        locks = {
-            "FlexGuard": "flexguard",
-            "Spin Extend": "spinextend",
-            "MCS Extend": "mcsextend",
-            "MCS": "mcsrw",
-            "POSIX": "mutex",
-            # "MCS-TAS": "mcstas",
-            "Pure blocking lock": "futex",
-            "MCS-TP": "mcstp",
-            "Shfllock": "shuffle",
-            "Malthusian": "malthusian",
-        }
+    def __init__(self, locks):
+        super().__init__(locks)
 
         threads = [1] + [i for i in range(5, 301, 5)]
 
