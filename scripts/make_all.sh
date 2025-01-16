@@ -61,10 +61,8 @@ compile_and_suffix "mcstasnopad" "LOCK_VERSION=MCSTAS ADD_PADDING=0"
 compile_and_suffix "futexnopad" "LOCK_VERSION=FUTEX ADD_PADDING=0"
 compile_and_suffix "flexguardnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0"
 compile_and_suffix "mcstpnopad" "LOCK_VERSION=MCSTP ADD_PADDING=0"
-compile_and_suffix "malthusiannopad" "USE_LITL_LIBRARY=malthusian_spinlock ADD_PADDING=0"
-compile_and_suffix "concurrencynopad" "USE_LITL_LIBRARY=concurrency_original ADD_PADDING=0"
-compile_and_suffix "shufflenopad" "USE_LITL_LIBRARY=aqmwonode_spin_then_park ADD_PADDING=0"
-compile_and_suffix "cbomcsnopad" "USE_LITL_LIBRARY=cbomcs_spinlock ADD_PADDING=0"
+compile_and_suffix "malthusiannopad" "LOCK_VERSION=MALTHUSIAN ADD_PADDING=0"
+compile_and_suffix "shufflenopad" "LOCK_VERSION=SHUFFLE ADD_PADDING=0"
 
 compile_and_suffix "mcstas" "LOCK_VERSION=MCSTAS ADD_PADDING=1"
 compile_and_suffix "spinextend" "LOCK_VERSION=SPINEXTEND ADD_PADDING=1"
@@ -74,16 +72,8 @@ compile_and_suffix "futex" "LOCK_VERSION=FUTEX ADD_PADDING=1"
 compile_and_suffix "spinpark" "LOCK_VERSION=SPINPARK ADD_PADDING=1"
 compile_and_suffix "mcs" "LOCK_VERSION=MCS ADD_PADDING=1"
 compile_and_suffix "mcstp" "LOCK_VERSION=MCSTP ADD_PADDING=1"
-compile_and_suffix "malthusian" "USE_LITL_LIBRARY=malthusian_spinlock ADD_PADDING=1"
-cp litl/libmalthusian_spinlock.sh interpose_malthusian.sh
-compile_and_suffix "concurrency" "USE_LITL_LIBRARY=concurrency_original ADD_PADDING=1"
-cp litl/libconcurrency_original.sh interpose_concurrency.sh
-compile_and_suffix "shuffle" "USE_LITL_LIBRARY=aqmwonode_spin_then_park ADD_PADDING=1"
-cp litl/libaqmwonode_spin_then_park.sh interpose_shuffle.sh
-compile_and_suffix "mcslitl" "USE_LITL_LIBRARY=mcs_spinlock ADD_PADDING=1"
-cp litl/libmcs_spinlock.sh interpose_mcslitl.sh
-compile_and_suffix "cbomcs" "USE_LITL_LIBRARY=cbomcs_spinlock ADD_PADDING=1"
-cp litl/libcbomcs_spinlock.sh interpose_cbomcs.sh
+compile_and_suffix "malthusian" "LOCK_VERSION=MALTHUSIAN ADD_PADDING=1"
+compile_and_suffix "shuffle" "LOCK_VERSION=SHUFFLE ADD_PADDING=1"
 compile_and_suffix "mcsblock" "LOCK_VERSION=MCSBLOCK ADD_PADDING=1"
 compile_and_suffix "flexguard" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1"
 

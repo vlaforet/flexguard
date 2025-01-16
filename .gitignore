@@ -24,3 +24,5 @@ __pycache__
 /test_init_*
 /buckets
 /buckets_*
+
+/include/litl/topology.h

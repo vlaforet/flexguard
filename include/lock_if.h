@@ -38,8 +38,6 @@
 #include "mcs.h"
 #elif defined(USE_MCSEXTEND_LOCKS)
 #include "mcsextend.h"
-#elif defined(USE_MCSTP_LOCKS)
-#include "mcstp.h"
 #elif defined(USE_MCSBLOCK_LOCKS)
 #include "mcsblock.h"
 #elif defined(USE_MCSTAS_LOCKS)
@@ -62,6 +60,13 @@
 #include "spinpark.h"
 #elif defined(USE_CLH_LOCKS)
 #include "clh.h"
+
+#elif defined(USE_SHUFFLE_LOCKS) // LiTL locks
+#include "shuffle.h"
+#elif defined(USE_MALTHUSIAN_LOCKS) // LiTL locks
+#include "malthusian.h"
+#elif defined(USE_MCSTP_LOCKS) // LiTL locks
+#include "mcstp.h"
 #else
 #error "No type of locks given"
 #endif
@@ -139,7 +144,6 @@ static inline int libslock_trylock(libslock_t *lock)
 #ifdef LOCKIF_TRYLOCK
     return LOCKIF_TRYLOCK(lock);
 #else
-    UNUSED(lock);
     fprintf(stderr, "Trylock not supported by this lock.\n");
     exit(EXIT_FAILURE);
 #endif

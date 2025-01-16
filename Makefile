@@ -140,7 +140,13 @@ ifneq ($(LIBBPF_OBJ),) # Add libbpf to the archive
 	echo "OPEN libsync.a\n ADDLIB $(LIBBPF_OBJ)\n SAVE\n END" | ar -M
 endif
 
-%.o: src/%.c $(BPF_SKELETON)
+include/litl/topology.h: include/litl/topology.in
+	cat $< | sed -e "s/@nodes@/$$(numactl -H | head -1 | cut -f 2 -d' ')/g" > $@
+	sed -i "s/@cpus@/$$(nproc)/g" $@
+	sed -i "s/@pagesize@/$$(getconf PAGESIZE)/g" $@
+	chmod a+x $@
+
+%.o: src/%.c $(BPF_SKELETON) include/litl/topology.h
 	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $(filter %.c,$^) -o $@ $(LIBS)
 ifeq ($(ASSEMBLY_DUMP),1) # Produces a %.s and %.odump files containing the compiled-unassembled code
 	$(GCC) -S -fverbose-asm $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) -c $(filter %.c,$^) $(LIBS)

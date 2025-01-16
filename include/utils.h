@@ -198,7 +198,7 @@ if (exactly_once(&init) == 0)
 #define UNLIKELY(...) __glibc_unlikely(__VA_ARGS__)
 #define LIKELY(...) __glibc_likely(__VA_ARGS__)
 
-#define UNUSED(x) (void)(x)
+#define UNUSED(x) UNUSED_##x __attribute__((unused))
 
 #ifdef __cplusplus
 }
