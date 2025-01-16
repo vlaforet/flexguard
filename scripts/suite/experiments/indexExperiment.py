@@ -27,7 +27,7 @@ class IndexExperiment(ExperimentCore):
                         "benchmark": {
                             "id": "index",
                             "args": {
-                                "index": f"bteelc_{lock}",
+                                "index": f"btreelc_{lock}",
                                 "threads": t,
                                 "mode": "time",
                                 "read_ratio": 0,
