@@ -39,7 +39,7 @@ typedef struct litl_lock_t
   uint8_t padding[CACHE_LINE_SIZE - 8];
 
 #ifdef NEED_CONTEXT
-  lock_context_t contexts[MAX_NUMBER_THREADS];
+  lock_context_t *contexts;
 #endif
 
 } litl_lock_t;
@@ -62,6 +62,7 @@ static lock_context_t *get_me(litl_lock_t *the_lock)
 static inline int litl_mutex_init(litl_lock_t *the_lock)
 {
   the_lock->lock = lock_mutex_create(NULL);
+  the_lock->contexts = (lock_context_t *)malloc(sizeof(lock_context_t) * MAX_NUMBER_THREADS);
   lock_init_context(the_lock->lock, the_lock->contexts, MAX_NUMBER_THREADS);
   return the_lock->lock != NULL;
 }

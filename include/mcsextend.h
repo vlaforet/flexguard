@@ -64,7 +64,7 @@ typedef struct mcsextend_lock_t
     uint8_t padding[CACHE_LINE_SIZE - 8];
 #endif
 
-    volatile mcsextend_qnode qnodes[MAX_NUMBER_THREADS];
+    volatile mcsextend_qnode *qnodes;
 } mcsextend_lock_t;
 #define MCSEXTEND_INITIALIZER {NULL, NULL}
 

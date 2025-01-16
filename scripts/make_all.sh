@@ -58,6 +58,8 @@ compile_and_suffix() {
 }
 
 compile_and_suffix "mcstasnopad" "LOCK_VERSION=MCSTAS ADD_PADDING=0"
+compile_and_suffix "spinextendnopad" "LOCK_VERSION=SPINEXTEND ADD_PADDING=0"
+compile_and_suffix "mcsextendnopad" "LOCK_VERSION=MCSEXTEND ADD_PADDING=0"
 compile_and_suffix "futexnopad" "LOCK_VERSION=FUTEX ADD_PADDING=0"
 compile_and_suffix "flexguardnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0"
 compile_and_suffix "mcstpnopad" "LOCK_VERSION=MCSTP ADD_PADDING=0"
