@@ -2,8 +2,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class HackbenchExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, locks):
+        super().__init__(locks)
 
         hackbench_kwargs = {
             "fds": 25,

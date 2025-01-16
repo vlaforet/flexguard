@@ -6,22 +6,10 @@ from experiments.experimentCore import ExperimentCore
 
 
 class FairnessExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, locks):
+        super().__init__(locks)
 
         threads = [52, 156]
-
-        locks = {
-            "FlexGuard": "flexguard",
-            "MCS": "mcs",
-            "POSIX": "mutex",
-            # "MCS-TAS": "mcstas",
-            "Pure blocking lock": "futex",
-            # "MCS-TP": "mcstp",
-            # "Spin-Then-Park": "spinpark",
-            "Shfllock": "shuffle",
-            "Malthusian": "malthusian",
-        }
 
         cycles = [
             0,

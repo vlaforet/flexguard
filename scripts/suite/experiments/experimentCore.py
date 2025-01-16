@@ -29,8 +29,9 @@ class ExperimentCore:
         cls.name = cls.__name__.replace("Experiment", "").lower()
         ExperimentCore.registry[cls.name] = cls
 
-    def __init__(self):
+    def __init__(self, locks):
         self.tests = []
+        self.locks = locks
 
     @abc.abstractmethod
     def report(self, results: pd.DataFrame, exp_dir: str):

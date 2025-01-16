@@ -6,15 +6,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class RaytraceExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
-
-        locks = {
-            "POSIX": "mutex",
-            "Stock": "stock",
-            "MCS": "mcs",
-            "FlexGuard": "flexguard",
-        }
+    def __init__(self, locks):
+        super().__init__(locks)
 
         threads = [1, 2] + [i for i in range(10, 128, 10)] + [128]
 
@@ -37,9 +30,7 @@ class RaytraceExperiment(ExperimentCore):
                 )
 
     def report(self, results, exp_dir):
-        results_ylim = results[
-            ~results["lock"].isin(["mcs"])
-        ]
+        results_ylim = results[~results["lock"].isin(["mcs"])]
 
         plt.figure(figsize=(10, 6))
         plt.xlim(20, 128)

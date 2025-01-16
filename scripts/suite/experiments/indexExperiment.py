@@ -9,25 +9,27 @@ class IndexExperiment(ExperimentCore):
     def __init__(self):
         super().__init__()
 
-        indexes = {
-            "FlexGuard": "btreelc_flexguard",
-            "MCS": "btreelc_mcsrw",
-            "POSIX": "btreelc_mutex",
-            # "MCS-TAS": "btreelc_mcstas",
-            "Pure blocking lock": "btreelc_futex",
-            "MCS-TP": "btreelc_mcstp",
-            "Shfllock": "btreelc_shuffle",
-            "Malthusian": "btreelc_malthusian",
+        locks = {
+            "FlexGuard": "flexguard",
+            "Spin Extend": "spinextend",
+            "MCS Extend": "mcsextend",
+            "MCS": "mcsrw",
+            "POSIX": "mutex",
+            # "MCS-TAS": "mcstas",
+            "Pure blocking lock": "futex",
+            "MCS-TP": "mcstp",
+            "Shfllock": "shuffle",
+            "Malthusian": "malthusian",
         }
 
         threads = [1] + [i for i in range(5, 301, 5)]
 
-        for label, index in indexes.items():
+        for label, lock in locks.items():
             for t in threads:
-                if t > 110 and index in [
-                    "btreelc_mcsrw",
-                    "btreelc_mcstp",
-                    "btreelc_malthusian",
+                if t > 110 and lock in [
+                    "mcsrw",
+                    "mcstp",
+                    "malthusian",
                 ]:
                     continue
 
@@ -38,7 +40,7 @@ class IndexExperiment(ExperimentCore):
                         "benchmark": {
                             "id": "index",
                             "args": {
-                                "index": index,
+                                "index": f"bteelc_{lock}",
                                 "threads": t,
                                 "mode": "time",
                                 "read_ratio": 0,

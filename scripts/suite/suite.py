@@ -18,12 +18,25 @@ base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 sys.path.append(base_dir)
 
 
-def getExperiments(experiments: Optional[List[str]], **kwargs):
-    exps = plugins.getExperiments(experiments or [], **kwargs)
+def getExperiments(experiments: Optional[List[str]], locks):
+    exps = plugins.getExperiments(experiments or [], locks=locks)
     if exps is None:
         typer.echo("No experiments have been specified")
         raise typer.Exit(1)
     return exps
+
+
+def parse_locks_option(value: str) -> dict:
+    """
+    Parse locks and labels into a dictionary.
+    The input format should be label1=lock1,label2=lock2,...
+    """
+    try:
+        return dict(item.split("=") for item in value.split(","))
+    except ValueError:
+        raise typer.BadParameter(
+            "Locks must be in the format label1=lock1,label2=lock2,..."
+        )
 
 
 ReplicationOption = typer.Option(3, "-r", help="Number of replications of each test")
@@ -37,6 +50,11 @@ ResultsDirOption = typer.Option(
     "-o",
     help=f"Results directory",
 )
+LocksOption = typer.Option(
+    "FlexGuard=flexguard,MCS=mcs,Spin Extend Time Slice=spinextend,MCS Extend Time Slice=mcsextend,POSIX=mutex,Pure blocking lock=futex,MCS-TP=mcstp,Shfllock=shuffle,Malthusian=malthusian",
+    callback=parse_locks_option,
+    help="Locks and their labels in the format label1=lock1,label2=lock2,...",
+)
 
 
 @app.command()
@@ -46,9 +64,10 @@ def record(
     temp_dir: str = TempDirOption,
     experiments: Optional[List[str]] = ExperimentsOption,
     results_dir: str = ResultsDirOption,
+    locks: str = LocksOption,
 ):
     """Run and record benchmark results."""
-    exps = getExperiments(experiments)
+    exps = getExperiments(experiments, locks)
     record = RecordCommand(base_dir, temp_dir, results_dir, exps, replication, cache)
     record.run()
 
@@ -59,7 +78,7 @@ def report(
     results_dir: str = ResultsDirOption,
 ):
     """Report benchmark results."""
-    exps = getExperiments(experiments)
+    exps = getExperiments(experiments, {})
     report = ReportCommand(base_dir, results_dir, exps)
     report.run()
 

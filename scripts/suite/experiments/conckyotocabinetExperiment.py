@@ -6,21 +6,9 @@ from experiments.experimentCore import ExperimentCore
 
 
 class ConcKyotoCabinetExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, locks):
+        super().__init__(locks)
         bthreads = 52
-
-        locks = {
-            "FlexGuard": "flexguard",
-            "MCS": "mcs",
-            "POSIX": "mutex",
-            # "MCS-TAS": "mcstas",
-            "Pure blocking lock": "futex",
-            "MCS-TP": "mcstp",
-            # "Spin-Then-Park": "spinpark",
-            "Shfllock": "shuffle",
-            "Malthusian": "malthusian",
-        }
 
         threads = [1, 2, 4, 8, 16, 32, 48, 50, 52, 54, 64, 128, 256]
 

@@ -7,24 +7,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class SchedulingExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
-
-        locks = {
-            "MCS": "mcs",
-            "Spin Extend Time Slice": "spinextend",
-            "MCS Extend Time Slice": "mcsextend",
-            # "MCS-TAS": "mcstas",
-            # "MCS-Block": "mcsblock",
-            "POSIX": "mutex",
-            "Pure blocking lock": "futex",
-            "MCS-TP": "mcstp",
-            # "Spin-Then-Park": "spinpark",
-            "Shfllock": "shuffle",
-            "Malthusian": "malthusian",
-            "FlexGuard": "flexguard",
-            # "CBO-MCS": "cbomcs",
-        }
+    def __init__(self, locks):
+        super().__init__(locks)
 
         for label, lock in locks.items():
             self.tests.append(

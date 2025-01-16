@@ -6,22 +6,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class LevelDBExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
-
-        locks = {
-            "FlexGuard": "flexguard",
-            "MCS": "mcs",
-            "Spin Extend Time Slice": "spinextend",
-            "MCS Extend Time Slice": "mcsextend",
-            "POSIX": "mutex",
-            # "MCS-TAS": "mcstas",
-            "Pure blocking lock": "futex",
-            "MCS-TP": "mcstp",
-            # "Spin-Then-Park": "spinpark",
-            "Shfllock": "shuffle",
-            "Malthusian": "malthusian",
-        }
+    def __init__(self, locks):
+        super().__init__(locks)
 
         threads = [
             1,

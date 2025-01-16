@@ -2,16 +2,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class CorrectnessExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
-
-        locks = {
-            "FlexGuard": "flexguard",
-            "MCS/TAS": "mcstas",
-            "MCS": "mcs",
-            "Spin Extend Time Slice": "spinextend",
-            "Pthread Mutex": "mutex",
-        }
+    def __init__(self, locks):
+        super().__init__(locks)
 
         threads = [1, 2] + [x for x in range(10, 190, 20)]
 

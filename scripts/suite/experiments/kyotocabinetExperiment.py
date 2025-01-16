@@ -6,20 +6,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class KyotoCabinetExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
-
-        locks = {
-            "FlexGuard": "flexguard",
-            "MCS": "mcs",
-            "POSIX": "mutex",
-            # "MCS-TAS": "mcstas",
-            "Pure blocking lock": "futex",
-            "MCS-TP": "mcstp",
-            # "Spin-Then-Park": "spinpark",
-            "Shfllock": "shuffle",
-            "Malthusian": "malthusian",
-        }
+    def __init__(self, locks):
+        super().__init__(locks)
 
         threads = [1, 2, 4, 8, 16, 32, 48, 64, 72, 102, 104, 106, 128, 256]
 

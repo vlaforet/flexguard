@@ -6,15 +6,8 @@ from experiments.experimentCore import ExperimentCore
 
 
 class VolrendExperiment(ExperimentCore):
-    def __init__(self):
-        super().__init__()
-
-        locks = {
-            "POSIX": "mutex",
-            "Stock": "stock",
-            "MCS": "mcs",
-            "FlexGuard": "flexguard",
-        }
+    def __init__(self, locks):
+        super().__init__(locks)
 
         threads = [1, 2] + [i for i in range(10, 182, 10)]
 
