@@ -59,6 +59,10 @@
 #define TRACING_EVENT_ACQUIRED_STOLEN 2
 #endif
 
+#ifdef FLEXGUARD_EXTEND
+#include "extend.h"
+#endif
+
 typedef struct flexguard_lock_t
 {
   union

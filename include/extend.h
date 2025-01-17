@@ -67,14 +67,21 @@ static inline void extend()
   extend_map->flags = 1;
 }
 
+static inline void extend_light()
+{
+  extend_map->flags = 1;
+}
+
 static inline void unextend()
 {
-  if (UNLIKELY(!extend_map))
-    init_extend_map();
-
   unsigned long prev = __sync_lock_test_and_set(&extend_map->flags, 0);
   if (prev & 2)
     sched_yield();
+}
+
+static inline void unextend_light()
+{
+  extend_map->flags = 0;
 }
 
 #endif

@@ -110,9 +110,16 @@ void flexguard_lock(flexguard_lock_t *the_lock)
     MEM_BARRIER;
 #endif
 
-    if (!the_lock->lock_value && __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1) == 0)
+    if (!the_lock->lock_value)
     {
-        return;
+#ifdef FLEXGUARD_EXTEND
+        extend();
+#endif
+        if (__sync_val_compare_and_swap(&the_lock->lock_value, 0, 1) == 0)
+            return;
+#ifdef FLEXGUARD_EXTEND
+        unextend();
+#endif
     }
 
 mcs_enqueue:
@@ -154,6 +161,10 @@ mcs_enqueue:
 #endif
     }
 
+#ifdef FLEXGUARD_EXTEND
+    extend();
+#endif
+
     int state = the_lock->lock_value;
     if (state == 0)
         state = __sync_val_compare_and_swap(&the_lock->lock_value, 0, 1);
@@ -170,7 +181,14 @@ mcs_enqueue:
                 state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
             if (state != 0)
             {
+#ifdef FLEXGUARD_EXTEND
+                unextend_light();
+#endif
                 futex_wait((void *)&the_lock->lock_value, 2);
+#ifdef FLEXGUARD_EXTEND
+                extend_light();
+#endif
+
                 state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
                 if (state != 0)
                 {
@@ -196,6 +214,10 @@ void flexguard_unlock(flexguard_lock_t *the_lock)
 {
     if (__sync_lock_test_and_set(&the_lock->lock_value, 0) != 1)
         futex_wake((void *)&the_lock->lock_value, 1);
+
+#ifdef FLEXGUARD_EXTEND
+    unextend();
+#endif
 
 #ifdef BPF
     MEM_BARRIER;
