@@ -29,6 +29,10 @@ ifeq ($(TRACING),1)
 	DEFINED += -DTRACING
 endif
 
+ifeq ($(TEST_INTERPOSE),1)
+	DEFINED += -DTEST_INTERPOSE=1
+endif
+
 ifeq ($(FLEXGUARD_EXTEND),1)
 	DEFINED += -DFLEXGUARD_EXTEND
 endif
@@ -158,6 +162,9 @@ test_correctness: bmarks/test_correctness.c libsync.a $(LITL_SHARED_LIBRARY)
 
 test_init: bmarks/test_init.c libsync.a $(LITL_SHARED_LIBRARY)
 	$(GCC) $(COMPILE_FLAGS) $(DEFINED) $(INCLUDES) $^ -o $@ $(LIBS)
+
+test_interpose: bmarks/test_interpose.c
+	$(GCC) $^ -o $@ -pthread
 
 all: scheduling test_correctness test_init buckets libsync.a interpose.so interpose.sh
 	@echo "############### Used lock:" $(LOCK_VERSION)

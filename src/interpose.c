@@ -47,6 +47,14 @@ int (*REAL(pthread_cond_signal))(pthread_cond_t *cond) __attribute__((aligned(CA
 int (*REAL(pthread_cond_broadcast))(pthread_cond_t *cond) __attribute__((aligned(CACHE_LINE_SIZE)));
 #endif
 
+#if TEST_INTERPOSE == 1
+int test_interpose_counter = 42;
+#define TEST_INTERPOSITION() \
+  return test_interpose_counter++;
+#else
+#define TEST_INTERPOSITION()
+#endif
+
 static void __attribute__((constructor)) REAL(interpose_init)(void)
 {
   static volatile uint8_t init_lock = 0;
@@ -59,12 +67,12 @@ static void __attribute__((constructor)) REAL(interpose_init)(void)
   LOAD_FUNC(pthread_mutex_unlock, 1);
   LOAD_FUNC(pthread_mutex_init, 1);
   LOAD_FUNC(pthread_mutex_destroy, 1);
-  LOAD_FUNC_VERSIONED(pthread_cond_timedwait, 1, GLIBC_2_3_2);
-  LOAD_FUNC_VERSIONED(pthread_cond_wait, 1, GLIBC_2_3_2);
-  LOAD_FUNC_VERSIONED(pthread_cond_broadcast, 1, GLIBC_2_3_2);
-  LOAD_FUNC_VERSIONED(pthread_cond_destroy, 1, GLIBC_2_3_2);
-  LOAD_FUNC_VERSIONED(pthread_cond_init, 1, GLIBC_2_3_2);
-  LOAD_FUNC_VERSIONED(pthread_cond_signal, 1, GLIBC_2_3_2);
+  LOAD_FUNC(pthread_cond_timedwait, 1);
+  LOAD_FUNC(pthread_cond_wait, 1);
+  LOAD_FUNC(pthread_cond_broadcast, 1);
+  LOAD_FUNC(pthread_cond_destroy, 1);
+  LOAD_FUNC(pthread_cond_init, 1);
+  LOAD_FUNC(pthread_cond_signal, 1);
 #endif
 
   __sync_synchronize();
@@ -215,98 +223,109 @@ static int interpose_cond_broadcast(void *raw_cond)
 
 int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr)
 {
+  TEST_INTERPOSITION();
   DASSERT(sizeof(pthread_mutex_t) > sizeof(lock_as_t));
   return interpose_lock_init(mutex, true);
 }
 
 int pthread_mutex_destroy(pthread_mutex_t *mutex)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_destroy(mutex);
 }
 
 int pthread_mutex_lock(pthread_mutex_t *mutex)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_lock(mutex);
 }
 
 int pthread_mutex_timedlock(pthread_mutex_t *mutex, const struct timespec *abstime)
 {
+  TEST_INTERPOSITION();
   fprintf(stderr, "Timed locks not supported\n");
   exit(EXIT_FAILURE);
 }
 
 int pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_trylock(mutex);
 }
 
 int pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_unlock(mutex);
 }
 
-int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr)
+int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr)
 {
+  TEST_INTERPOSITION();
   DASSERT(sizeof(pthread_cond_t) > sizeof(condvar_as_t));
   return interpose_cond_init(cond, true);
 }
-__asm__(".symver __pthread_cond_init,pthread_cond_init@@" GLIBC_2_3_2);
 
-int __pthread_cond_destroy(pthread_cond_t *cond)
+int pthread_cond_destroy(pthread_cond_t *cond)
 {
+  TEST_INTERPOSITION();
   return interpose_cond_destroy(cond);
 }
-__asm__(".symver __pthread_cond_destroy,pthread_cond_destroy@@" GLIBC_2_3_2);
 
-int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex, const struct timespec *abstime)
+int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex, const struct timespec *abstime)
 {
+  TEST_INTERPOSITION();
   return interpose_cond_timedwait(cond, mutex, abstime);
 }
-__asm__(".symver __pthread_cond_timedwait,pthread_cond_timedwait@@" GLIBC_2_3_2);
 
-int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
+int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
+  TEST_INTERPOSITION();
   return interpose_cond_wait(cond, mutex);
 }
-__asm__(".symver __pthread_cond_wait,pthread_cond_wait@@" GLIBC_2_3_2);
 
-int __pthread_cond_signal(pthread_cond_t *cond)
+int pthread_cond_signal(pthread_cond_t *cond)
 {
+  TEST_INTERPOSITION();
   return interpose_cond_signal(cond);
 }
-__asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
 
-int __pthread_cond_broadcast(pthread_cond_t *cond)
+int pthread_cond_broadcast(pthread_cond_t *cond)
 {
+  TEST_INTERPOSITION();
   return interpose_cond_broadcast(cond);
 }
-__asm__(".symver __pthread_cond_broadcast,pthread_cond_broadcast@@" GLIBC_2_3_2);
 
 // Spinlocks
 #if INTERPOSE_SPINLOCK
 int pthread_spin_init(pthread_spinlock_t *spin, int pshared)
 {
+  TEST_INTERPOSITION();
   DASSERT(sizeof(pthread_spinlock_t) > sizeof(lock_as_t));
   return interpose_lock_init((void *)spin, true);
 }
 
 int pthread_spin_destroy(pthread_spinlock_t *spin)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_destroy((void *)spin);
 }
 
 int pthread_spin_lock(pthread_spinlock_t *spin)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_lock((void *)spin);
 }
 
 int pthread_spin_trylock(pthread_spinlock_t *spin)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_trylock((void *)spin);
 }
 
 int pthread_spin_unlock(pthread_spinlock_t *spin)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_unlock((void *)spin);
 }
 #endif
@@ -315,49 +334,58 @@ int pthread_spin_unlock(pthread_spinlock_t *spin)
 #if INTERPOSE_RWLOCK
 int pthread_rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
 {
+  TEST_INTERPOSITION();
   DASSERT(sizeof(pthread_rwlock_t) > sizeof(lock_as_t));
   return interpose_lock_init((void *)rwlock, true);
 }
 
 int pthread_rwlock_destroy(pthread_rwlock_t *rwlock)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_destroy((void *)rwlock);
 }
 
 int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_lock((void *)rwlock);
 }
 
 int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_lock((void *)rwlock);
 }
 
 int pthread_rwlock_timedrdlock(pthread_rwlock_t *lcok, const struct timespec *abstime)
 {
+  TEST_INTERPOSITION();
   fprintf(stderr, "Timed locks not supported\n");
   exit(EXIT_FAILURE);
 }
 
 int pthread_rwlock_timedwrlock(pthread_rwlock_t *lock, const struct timespec *abstime)
 {
+  TEST_INTERPOSITION();
   fprintf(stderr, "Timed locks not supported\n");
   exit(EXIT_FAILURE);
 }
 
-int pthread_rwlock_rdtrylock(pthread_rwlock_t *rwlock)
+int pthread_rwlock_tryrdlock(pthread_rwlock_t *rwlock)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_trylock((void *)rwlock);
 }
 
-int pthread_rwlock_wrtrylock(pthread_rwlock_t *rwlock)
+int pthread_rwlock_trywrlock(pthread_rwlock_t *rwlock)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_trylock((void *)rwlock);
 }
 
 int pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
 {
+  TEST_INTERPOSITION();
   return interpose_lock_unlock((void *)rwlock);
 }
 #endif
