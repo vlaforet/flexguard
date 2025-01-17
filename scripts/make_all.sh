@@ -60,11 +60,15 @@ compile_and_suffix() {
 compile_and_suffix "mcstasnopad" "LOCK_VERSION=MCSTAS ADD_PADDING=0"
 compile_and_suffix "spinextendnopad" "LOCK_VERSION=SPINEXTEND ADD_PADDING=0"
 compile_and_suffix "mcsextendnopad" "LOCK_VERSION=MCSEXTEND ADD_PADDING=0"
+compile_and_suffix "mutexnopad" "LOCK_VERSION=MUTEX ADD_PADDING=0 USE_REAL_PTHREAD=1"
 compile_and_suffix "futexnopad" "LOCK_VERSION=FUTEX ADD_PADDING=0"
-compile_and_suffix "flexguardnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0"
+compile_and_suffix "spinparknopad" "LOCK_VERSION=SPINPARK ADD_PADDING=0"
+compile_and_suffix "mcsnopad" "LOCK_VERSION=MCS ADD_PADDING=0"
 compile_and_suffix "mcstpnopad" "LOCK_VERSION=MCSTP ADD_PADDING=0"
 compile_and_suffix "malthusiannopad" "LOCK_VERSION=MALTHUSIAN ADD_PADDING=0"
 compile_and_suffix "shufflenopad" "LOCK_VERSION=SHUFFLE ADD_PADDING=0"
+compile_and_suffix "mcsblocknopad" "LOCK_VERSION=MCSBLOCK ADD_PADDING=0"
+compile_and_suffix "flexguardnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0"
 
 compile_and_suffix "mcstas" "LOCK_VERSION=MCSTAS ADD_PADDING=1"
 compile_and_suffix "spinextend" "LOCK_VERSION=SPINEXTEND ADD_PADDING=1"
@@ -78,5 +82,3 @@ compile_and_suffix "malthusian" "LOCK_VERSION=MALTHUSIAN ADD_PADDING=1"
 compile_and_suffix "shuffle" "LOCK_VERSION=SHUFFLE ADD_PADDING=1"
 compile_and_suffix "mcsblock" "LOCK_VERSION=MCSBLOCK ADD_PADDING=1"
 compile_and_suffix "flexguard" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1"
-
-make -C litl >/dev/null

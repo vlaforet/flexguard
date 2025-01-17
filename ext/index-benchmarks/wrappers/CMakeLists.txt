@@ -153,6 +153,14 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
   )
 
   add_wrapper(
+    NAME btreelc_mcs${page_size_suffix}
+    SOURCE btreeolc_wrapper.cpp
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCS" USE_MCS_LOCKS
+    LIBRARIES "${ROOT_DIR}/libsyncmcsnopad.a"
+    INCLUDE "${ROOT_DIR}/include"
+  )
+
+  add_wrapper(
     NAME btreelc_spinextend${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Spin Extend" USE_SPINEXTEND_LOCKS
@@ -236,12 +244,12 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
   #   LIBRARIES numa
   # )
 
-  add_wrapper(
-    NAME btreelc_mcsrw${page_size_suffix}
-    SOURCE btreeolc_wrapper.cpp
-    DEFINITIONS RWLOCK MCSRW_LOCK MCSRW_LOCK_ONLY OMCS_OFFSET OMCS_OFFSET_NUMA_QNODE BTREE_RWLOCK_MCSRW_ONLY BTREE_PAGE_SIZE=${page_size}
-    LIBRARIES numa
-  )
+  # add_wrapper(
+  #   NAME btreelc_mcsrw${page_size_suffix}
+  #   SOURCE btreeolc_wrapper.cpp
+  #   DEFINITIONS RWLOCK MCSRW_LOCK MCSRW_LOCK_ONLY OMCS_OFFSET OMCS_OFFSET_NUMA_QNODE BTREE_RWLOCK_MCSRW_ONLY BTREE_PAGE_SIZE=${page_size}
+  #   LIBRARIES numa
+  # )
 
   # add_wrapper(
   #   NAME btreeolc_mcsrw_hybrid${page_size_suffix}

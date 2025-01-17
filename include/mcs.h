@@ -62,7 +62,7 @@ typedef struct mcs_lock_t
     uint8_t padding[CACHE_LINE_SIZE - 8];
 #endif
 
-    volatile mcs_qnode qnodes[MAX_NUMBER_THREADS];
+    volatile mcs_qnode *qnodes;
 } mcs_lock_t;
 #define MCS_INITIALIZER {NULL, NULL}
 
