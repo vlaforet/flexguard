@@ -47,7 +47,7 @@ void spinextend_lock(spinextend_lock_t *the_lock)
 
 void spinextend_unlock(spinextend_lock_t *the_lock)
 {
-    COMPILER_BARRIER;
+    COMPILER_BARRIER();
     the_lock->lock = UNLOCKED;
     unextend();
 }

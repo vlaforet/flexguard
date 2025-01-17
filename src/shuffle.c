@@ -16,11 +16,13 @@
 
 #include <assert.h>
 
+#ifndef bool
 enum bool
 {
     false,
     true
 };
+#endif
 
 /* debugging */
 #ifdef WAITER_DEBUG

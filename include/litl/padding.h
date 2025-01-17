@@ -28,6 +28,8 @@
 #include <stdint.h>
 #include "platform_defs.h"
 
+#define COND_VAR 1
+
 #define r_align(n, r) (((n) + (r) - 1) & -(r))
 #define cache_align(n) r_align(n, CACHE_LINE_SIZE)
 #define pad_to_cache_line(n) (cache_align(n) - (n))

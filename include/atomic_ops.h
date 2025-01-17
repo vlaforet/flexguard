@@ -32,7 +32,7 @@
 
 #include <inttypes.h>
 
-#define COMPILER_BARRIER asm volatile("" ::: "memory")
+#define COMPILER_BARRIER() asm volatile("" ::: "memory")
 /*
  *  x86 code
  */

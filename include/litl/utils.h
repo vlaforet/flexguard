@@ -36,9 +36,6 @@
 
 #define MAX_THREADS MAX_NUMBER_THREADS
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
-#ifndef COMPILER_BARRIER
-#define COMPILER_BARRIER() asm volatile("" : : : "memory")
-#endif
 #define MEMORY_BARRIER() __sync_synchronize()
 #define REP_VAL 23
 

@@ -76,7 +76,7 @@ void mcstas_lock(mcstas_lock_t *the_lock)
 
 void mcstas_unlock(mcstas_lock_t *the_lock)
 {
-    COMPILER_BARRIER;
+    COMPILER_BARRIER();
     the_lock->lock = 0;
 }
 

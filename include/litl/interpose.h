@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef __INTERPOSE_H__
-#define __INTERPOSE_H__
+#ifndef __LITL_INTERPOSE_H__
+#define __LITL_INTERPOSE_H__
 
+#include "../interpose.h"
 
-#endif // __INTERPOSE_H__
+#endif // __LITL_INTERPOSE_H__

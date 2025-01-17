@@ -46,7 +46,7 @@ void spinlock_lock(spinlock_lock_t *the_lock)
 
 void spinlock_unlock(spinlock_lock_t *the_lock)
 {
-    COMPILER_BARRIER;
+    COMPILER_BARRIER();
     the_lock->lock = UNLOCKED;
 }
 

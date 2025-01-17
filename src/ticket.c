@@ -68,7 +68,7 @@ void ticket_lock(ticket_lock_t *lock)
 
 void ticket_unlock(ticket_lock_t *lock)
 {
-  COMPILER_BARRIER;
+  COMPILER_BARRIER();
   lock->head++;
 }
 
