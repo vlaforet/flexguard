@@ -67,15 +67,6 @@ typedef struct flexguard_lock_t
     {
       int id;
 
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-      preempted_count_t *preempted_count;
-#endif
-
-#if defined(BPF) && defined(FLEXGUARD_NEXT_WAITER_DETECTION)
-      uint8_t next_waiter_preempted;
-#endif
-      volatile uint64_t waiter_count;
-
 #ifdef TRACING
       void *tracing_fn_data;
       void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data);
@@ -115,7 +106,7 @@ typedef struct flexguard_lock_t
   };
 } flexguard_lock_t;
 #define FLEXGUARD_INITIALIZER \
-  {                          \
+  {                           \
   }
 
 typedef union
@@ -130,10 +121,10 @@ typedef union
 #endif
 } flexguard_cond_t;
 #define FLEXGUARD_COND_INITIALIZER \
-  {                               \
-    {                             \
-      0, 0                        \
-    }                             \
+  {                                \
+    {                              \
+      0, 0                         \
+    }                              \
   }
 
 /*

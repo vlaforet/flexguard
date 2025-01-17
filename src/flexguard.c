@@ -38,20 +38,10 @@ _Atomic(int) thread_count = 1;
 _Atomic(int) lock_count = 0;
 flexguard_qnode_ptr qnode_allocation_array;
 
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-hybrid_lock_info_t *lock_info;
-#define get_preempted_count(the_lock) the_lock->preempted_count
-#else
 preempted_count_t *preempted_count;
-#define get_preempted_count(the_lock) preempted_count
-#endif
-
-#if defined(BPF) && FLEXGUARD_NEXT_WAITER_DETECTION == 2 // Local
-#define BLOCKING_CONDITION(the_lock) (*get_preempted_count(the_lock) || the_lock->next_waiter_preempted)
-#endif
 
 #ifndef BLOCKING_CONDITION
-#define BLOCKING_CONDITION(the_lock) *get_preempted_count(the_lock)
+#define BLOCKING_CONDITION(the_lock) *preempted_count
 #endif
 
 __thread int thread_id = -1;
@@ -76,15 +66,7 @@ static inline flexguard_qnode_ptr get_me()
         if (err)
             fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
 
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-        qnode->locking_id = -1;
-#else
         qnode->is_locking = 0;
-#endif
-
-#ifdef FLEXGUARD_NEXT_WAITER_DETECTION
-        qnode->is_running = 1;
-#endif
 #endif
 
 #ifdef HYBRID_TICKET
@@ -114,17 +96,6 @@ static inline void mcs_unlock(flexguard_lock_t *the_lock, flexguard_qnode_ptr qn
             PAUSE;
     }
 
-#ifdef BPF
-#if FLEXGUARD_NEXT_WAITER_DETECTION == 1 // Global
-    // If next is not running
-    if (!qnode->next->is_running && !__sync_lock_test_and_set(&the_lock->next_waiter_preempted, true))
-        __sync_fetch_and_add(get_preempted_count(the_lock), 1);
-#elif FLEXGUARD_NEXT_WAITER_DETECTION == 2 // Local
-    if (!qnode->next->is_running)
-        the_lock->next_waiter_preempted = true;
-#endif
-#endif
-
     qnode->next->waiting = 0;
 }
 
@@ -134,11 +105,7 @@ void flexguard_lock(flexguard_lock_t *the_lock)
 #ifdef BPF
     __asm__ volatile("fg_lock:" ::: "memory");
 
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-    qnode->locking_id = the_lock->id;
-#else
     qnode->is_locking = 1;
-#endif
 
     MEM_BARRIER;
 #endif
@@ -232,19 +199,7 @@ void flexguard_unlock(flexguard_lock_t *the_lock)
 
 #ifdef BPF
     MEM_BARRIER;
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-    qnode_allocation_array[thread_id].locking_id = -1; // Assuming qnode has already been initialized.
-#else
     qnode_allocation_array[thread_id].is_locking = 0; // Assuming qnode has already been initialized.
-#endif
-
-#if FLEXGUARD_NEXT_WAITER_DETECTION == 1 // Global
-    if (__sync_lock_test_and_set(&the_lock->next_waiter_preempted, false))
-        __sync_fetch_and_sub(get_preempted_count(the_lock), 1);
-#elif FLEXGUARD_NEXT_WAITER_DETECTION == 2 // Local
-    if (the_lock->next_waiter_preempted)
-        the_lock->next_waiter_preempted = false;
-#endif
 #endif
 }
 
@@ -285,12 +240,7 @@ static void deploy_bpf_code()
     skel->bss->addresses.lock_end = &fg_lock_end;
 #endif
 
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-    lock_info = skel->bss->lock_info;
-#else
     preempted_count = &skel->bss->preempted_count;
-#endif
-
     qnode_allocation_array = skel->bss->qnodes;
 
     // Load BPF skeleton
@@ -319,20 +269,7 @@ static void deploy_bpf_code()
 int flexguard_init(flexguard_lock_t *the_lock)
 {
     the_lock->id = atomic_fetch_add(&lock_count, 1);
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-    if (the_lock->id >= MAX_NUMBER_LOCKS)
-    {
-        fprintf(stderr, "Too many locks. Increase MAX_NUMBER_LOCKS in platform_defs.h.\n");
-        exit(EXIT_FAILURE);
-    }
-#endif
-
     the_lock->lock_value = 0;
-    the_lock->waiter_count = 0;
-
-#if defined(BPF) && defined(FLEXGUARD_NEXT_WAITER_DETECTION)
-    the_lock->next_waiter_preempted = 0;
-#endif
 
     static volatile uint8_t init_lock = 0;
     if (exactly_once(&init_lock) == 0)
@@ -343,20 +280,11 @@ int flexguard_init(flexguard_lock_t *the_lock)
         // Initialize things without BPF
         qnode_allocation_array = malloc(MAX_NUMBER_THREADS * sizeof(flexguard_qnode_t));
 
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-        lock_info = malloc(MAX_NUMBER_LOCKS * sizeof(hybrid_lock_info_t));
-#else
         preempted_count = malloc(sizeof(preempted_count_t));
         *preempted_count = 0;
 #endif
-#endif
         init_lock = 2;
     }
-
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-    the_lock->preempted_count = &lock_info[the_lock->id].preempted_count;
-    (*the_lock->preempted_count) = 0;
-#endif
 
 #ifdef HYBRID_TICKET
     the_lock->ticket_lock.calling = 1;

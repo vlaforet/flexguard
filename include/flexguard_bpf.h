@@ -48,15 +48,7 @@ typedef struct flexguard_qnode_t
 #endif
 
 #ifdef BPF
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-      volatile int locking_id;
-#else
       volatile uint8_t is_locking;
-#endif
-
-#ifdef FLEXGUARD_NEXT_WAITER_DETECTION
-      volatile uint8_t is_running;
-#endif
 #endif
     };
 
@@ -82,18 +74,4 @@ typedef struct hybrid_addresses_t
 #endif
 
 typedef volatile int64_t preempted_count_t;
-
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-typedef struct hybrid_lock_info_t
-{
-  union
-  {
-    struct
-    {
-      preempted_count_t preempted_count;
-    };
-    uint8_t padding[CACHE_LINE_SIZE];
-  };
-} hybrid_lock_info_t;
-#endif
 #endif

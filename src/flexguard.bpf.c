@@ -48,13 +48,7 @@
 hybrid_addresses_t addresses;
 flexguard_qnode_t qnodes[MAX_NUMBER_THREADS];
 
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-volatile hybrid_lock_info_t lock_info[MAX_NUMBER_LOCKS];
-#define get_preempted_count(lock_id) lock_info[lock_id].preempted_count
-#else
 preempted_count_t preempted_count = 0;
-#define get_preempted_count(lock_id) preempted_count
-#endif
 
 char _license[4] SEC("license") = "GPL";
 
@@ -117,9 +111,6 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	u32 key;
 	flexguard_qnode_ptr qnode;
 	int *thread_id;
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-	int lock_id;
-#endif
 
 	/*
 	 * Clear preempted status of next thread.
@@ -128,24 +119,8 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (!(next->flags & 0x00200000)) // PF_KTHREAD
 	{
 		key = next->pid;
-		thread_id = bpf_map_lookup_elem(&nodes_map, &key);
-		if (thread_id && *thread_id >= 0 && *thread_id < MAX_NUMBER_THREADS && (qnode = &qnodes[*thread_id]))
-		{
-#ifdef FLEXGUARD_NEXT_WAITER_DETECTION
-			qnode->is_running = 1;
-#endif
-
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-			lock_id = qnode->locking_id;
-			if (lock_id >= 0 && lock_id < MAX_NUMBER_LOCKS)
-			{
-#endif
-				if (bpf_map_delete_elem(&is_preempted_map, &key) == 0)
-					__sync_fetch_and_add(&get_preempted_count(lock_id), -1);
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-			}
-#endif
-		}
+		if (bpf_map_delete_elem(&is_preempted_map, &key) == 0)
+			__sync_fetch_and_add(&preempted_count, -1);
 	}
 
 	/*
@@ -162,30 +137,17 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (!thread_id || *thread_id < 0 || *thread_id >= MAX_NUMBER_THREADS || !(qnode = &qnodes[*thread_id]))
 		return 0;
 
-#ifdef FLEXGUARD_NEXT_WAITER_DETECTION
-	qnode->is_running = 0;
-#endif
-
 	if (get_task_state(prev) & ((((TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE | TASK_STOPPED | TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE | TASK_PARKED) + 1) << 1) - 1))
 		return 0;
 
-#ifdef FLEXGUARD_LOCAL_PREEMPTIONS
-	/*
-	 * Ignore preemption if the thread was not locking.
-	 */
-	lock_id = qnode->locking_id;
-	if (lock_id < 0 || lock_id >= MAX_NUMBER_LOCKS)
-		return 0;
-#else
 	if (!qnode->is_locking)
 		return 0;
-#endif
 
 	if (is_critical_thread(prev, qnode))
 	{
 		DPRINT("Detected preemption: %s (%d) -> %s (%d)", prev->comm, prev->pid, next->comm, next->pid);
 		bpf_map_update_elem(&is_preempted_map, &key, &key, BPF_NOEXIST);
-		__sync_fetch_and_add(&get_preempted_count(lock_id), 1);
+		__sync_fetch_and_add(&preempted_count, 1);
 	}
 
 	return 0;
