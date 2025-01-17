@@ -6,6 +6,7 @@ import uuid
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
+from utils import sha256_hash_file
 
 
 class LevelDBBenchmark(BenchmarkCore):
@@ -47,6 +48,21 @@ class LevelDBBenchmark(BenchmarkCore):
 
     def estimate_runtime(self, **kwargs):
         return kwargs["time_ms"] if "time_ms" in kwargs else 30000
+
+    def get_run_hash(self, **kwargs):
+        exec_hash = sha256_hash_file(self.bin)
+        if exec_hash is None:
+            raise Exception("Failed to hash executable.")
+
+        interpose_hash = sha256_hash_file(
+            os.path.join(self.base_dir, f"interpose_{kwargs['lock']}.so")
+        )
+        if interpose_hash is None:
+            raise Exception("Failed to hash interpose.so.")
+
+        return super().get_run_hash(
+            exec_hash=exec_hash, interpose_hash=interpose_hash, kwargs=kwargs
+        )
 
     def run(self, **kwargs):
         args = [

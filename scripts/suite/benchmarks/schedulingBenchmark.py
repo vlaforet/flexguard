@@ -4,6 +4,7 @@ import subprocess
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
+from utils import sha256_hash_file
 
 
 class SchedulingBenchmark(BenchmarkCore):
@@ -34,6 +35,15 @@ class SchedulingBenchmark(BenchmarkCore):
             if "step-duration" in kwargs
             else steps * 1000
         )
+
+    def get_run_hash(self, **kwargs):
+        exec_hash = sha256_hash_file(
+            os.path.join(self.base_dir, f"scheduling_{kwargs['lock']}")
+        )
+        if exec_hash is None:
+            raise Exception("Failed to hash executable.")
+
+        return super().get_run_hash(exec_hash=exec_hash, kwargs=kwargs)
 
     def run(self, **kwargs):
         scheduling_args = [f"--{k}={w}" for k, w in kwargs.items() if k != "lock"]

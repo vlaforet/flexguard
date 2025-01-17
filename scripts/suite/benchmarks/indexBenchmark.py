@@ -5,6 +5,7 @@ import sys
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
+from utils import sha256_hash_file
 
 
 class IndexBenchmark(BenchmarkCore):
@@ -37,6 +38,23 @@ class IndexBenchmark(BenchmarkCore):
         if "mode" in kwargs and kwargs["mode"] == "time":
             return kwargs["seconds"] * 1000 if "seconds" in kwargs else 20000
         return 3000
+
+    def get_run_hash(self, **kwargs):
+        exec_hash = sha256_hash_file(
+            os.path.join(
+                self.index_dir, f"build/wrappers/lib{kwargs['index']}_wrapper.so"
+            )
+        )
+        if exec_hash is None:
+            raise Exception("Failed to hash libwrapper.so.")
+
+        pibench_hash = sha256_hash_file(self.pibench_bin)
+        if pibench_hash is None:
+            raise Exception("Failed to hash PiBench.")
+
+        return super().get_run_hash(
+            exec_hash=exec_hash, pibench_hash=pibench_hash, kwargs=kwargs
+        )
 
     def run(self, **kwargs):
         pibench_args = [f"--{k}={w}" for k, w in kwargs.items() if k != "index"]
