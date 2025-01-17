@@ -103,8 +103,7 @@ void mcsextend_unlock(mcsextend_lock_t *the_lock)
 int mcsextend_init(mcsextend_lock_t *the_lock)
 {
     the_lock->tail = 0;
-    the_lock->qnodes = (mcsextend_qnode *)malloc(sizeof(mcsextend_qnode) * MAX_NUMBER_THREADS);
-    memset((void *)the_lock->qnodes, 0, sizeof(mcsextend_qnode) * MAX_NUMBER_THREADS);
+    the_lock->qnodes = (mcsextend_qnode *)calloc(MAX_NUMBER_THREADS, sizeof(mcsextend_qnode));
     MEM_BARRIER;
     return 0;
 }

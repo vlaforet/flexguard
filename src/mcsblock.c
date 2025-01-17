@@ -93,7 +93,7 @@ void mcsblock_unlock(mcsblock_lock_t *the_lock)
 int mcsblock_init(mcsblock_lock_t *the_lock)
 {
     the_lock->tail = 0;
-    memset((void *)the_lock->qnodes, 0, sizeof(mcsblock_qnode) * MAX_NUMBER_THREADS);
+    the_lock->qnodes = (mcsblock_qnode *)calloc(MAX_NUMBER_LOCKS, sizeof(mcsblock_qnode));
     MEM_BARRIER;
     return 0;
 }

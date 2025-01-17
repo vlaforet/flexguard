@@ -62,8 +62,11 @@ static lock_context_t *get_me(litl_lock_t *the_lock)
 static inline int litl_mutex_init(litl_lock_t *the_lock)
 {
   the_lock->lock = lock_mutex_create(NULL);
-  the_lock->contexts = (lock_context_t *)malloc(sizeof(lock_context_t) * MAX_NUMBER_THREADS);
-  lock_init_context(the_lock->lock, the_lock->contexts, MAX_NUMBER_THREADS);
+
+#ifdef NEED_CONTEXT
+  the_lock->contexts = (lock_context_t *)calloc(MAX_NUMBER_THREADS, sizeof(lock_context_t));
+#endif
+
   return the_lock->lock != NULL;
 }
 
