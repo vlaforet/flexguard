@@ -45,10 +45,12 @@ typedef struct mcs_tp_node
     volatile long long time;
     struct mcs_tp_mutex *volatile last_lock;
     struct mcs_tp_node *volatile next;
+#ifdef ADD_PADDING
     char __pad[pad_to_cache_line(sizeof(long long) +
                                  sizeof(struct mcs_tp_mutex *) +
                                  sizeof(struct mcs_tp_node *))];
-    volatile uint64_t status __attribute__((aligned(CACHE_LINE_SIZE)));
+#endif
+    volatile uint64_t status;
 } mcs_tp_node_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct mcs_tp_mutex
@@ -57,13 +59,14 @@ typedef struct mcs_tp_mutex
     pthread_mutex_t posix_lock;
 #endif
     volatile long long cs_start_time;
+#ifdef ADD_PADDING
 #if COND_VAR
     char __pad[pad_to_cache_line(sizeof(pthread_mutex_t) + sizeof(long long))];
 #else
     char __pad[pad_to_cache_line(sizeof(long long))];
 #endif
-    struct mcs_tp_node *volatile tail
-        __attribute__((aligned(CACHE_LINE_SIZE)));
+#endif
+    struct mcs_tp_node *volatile tail;
 } mcs_tp_mutex_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef pthread_cond_t mcs_tp_cond_t;

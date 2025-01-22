@@ -36,16 +36,19 @@
 #define UNLOCK_COUNT_THRESHOLD 1024 //!\\ Must be a power of 2!
 
 typedef struct malthusian_node {
-    volatile int spin __attribute__((aligned(CACHE_LINE_SIZE)));
+    volatile int spin;
+#ifdef ADD_PADDING
     char __pad[pad_to_cache_line(sizeof(int))];
+#endif
     struct malthusian_node *volatile next;
     struct malthusian_node *volatile prev;
 } malthusian_node_t __attribute__((aligned(CACHE_LINE_SIZE)));
 
 typedef struct malthusian_mutex {
-    struct malthusian_node *volatile tail
-        __attribute__((aligned(CACHE_LINE_SIZE)));
+    struct malthusian_node *volatile tail;
+#ifdef ADD_PADDING
     char __pad[pad_to_cache_line(sizeof(struct malthusian_node *))];
+#endif
     struct malthusian_node *volatile passive_set_head;
     struct malthusian_node *volatile passive_set_tail;
 #if COND_VAR
