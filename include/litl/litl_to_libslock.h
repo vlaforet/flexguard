@@ -36,9 +36,11 @@
 typedef struct litl_lock_t
 {
   lock_mutex_t *lock;
+#ifdef ADD_PADDING
   uint8_t padding[CACHE_LINE_SIZE - 8];
+#endif
 
-#ifdef NEED_CONTEXT
+#if NEED_CONTEXT == 1
   lock_context_t *contexts;
 #endif
 
@@ -56,14 +58,18 @@ static lock_context_t *get_me(litl_lock_t *the_lock)
     CHECK_NUMBER_THREADS_FATAL(cur_thread_id);
   }
 
+#if NEED_CONTEXT == 1
   return &the_lock->contexts[cur_thread_id];
+#else
+  return NULL;
+#endif
 }
 
 static inline int litl_mutex_init(litl_lock_t *the_lock)
 {
   the_lock->lock = lock_mutex_create(NULL);
 
-#ifdef NEED_CONTEXT
+#if NEED_CONTEXT == 1
   the_lock->contexts = (lock_context_t *)calloc(MAX_NUMBER_THREADS, sizeof(lock_context_t));
 #endif
 
@@ -72,6 +78,10 @@ static inline int litl_mutex_init(litl_lock_t *the_lock)
 
 static inline void litl_mutex_destroy(litl_lock_t *the_lock)
 {
+#if NEED_CONTEXT == 1
+  free(the_lock->contexts);
+#endif
+
   lock_mutex_destroy(the_lock->lock);
 }
 

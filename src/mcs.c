@@ -101,7 +101,7 @@ int mcs_init(mcs_lock_t *the_lock)
 
 void mcs_destroy(mcs_lock_t *the_lock)
 {
-    // Nothing to do
+    free((void *)the_lock->qnodes);
 }
 
 /*

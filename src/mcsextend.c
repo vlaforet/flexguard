@@ -110,7 +110,7 @@ int mcsextend_init(mcsextend_lock_t *the_lock)
 
 void mcsextend_destroy(mcsextend_lock_t *the_lock)
 {
-    // Nothing to do
+    free((void *)the_lock->qnodes);
 }
 
 /*

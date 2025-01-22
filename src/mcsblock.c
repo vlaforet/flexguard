@@ -100,7 +100,7 @@ int mcsblock_init(mcsblock_lock_t *the_lock)
 
 void mcsblock_destroy(mcsblock_lock_t *the_lock)
 {
-    // Nothing to do
+    free((void *)the_lock->qnodes);
 }
 
 /*
