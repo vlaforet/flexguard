@@ -290,7 +290,6 @@ static void deploy_bpf_code()
 
 int flexguard_init(flexguard_lock_t *the_lock)
 {
-    the_lock->id = atomic_fetch_add(&lock_count, 1);
     the_lock->lock_value = 0;
 
     static volatile uint8_t init_lock = 0;
@@ -327,14 +326,6 @@ void flexguard_destroy(flexguard_lock_t *the_lock)
 {
     // Nothing to do
 }
-
-#ifdef TRACING
-void set_tracing_fn(flexguard_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data)
-{
-    the_lock->tracing_fn_data = tracing_fn_data;
-    the_lock->tracing_fn = tracing_fn;
-}
-#endif
 
 /*
  *  Condition Variables

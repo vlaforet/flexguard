@@ -53,34 +53,12 @@
 #include "utils.h"
 #include "flexguard_bpf.h"
 
-#ifdef TRACING
-#define TRACING_EVENT_ACQUIRED_SPIN 0
-#define TRACING_EVENT_ACQUIRED_BLOCK 1
-#define TRACING_EVENT_ACQUIRED_STOLEN 2
-#endif
-
 #ifdef FLEXGUARD_EXTEND
 #include "extend.h"
 #endif
 
 typedef struct flexguard_lock_t
 {
-  union
-  {
-    struct
-    {
-      int id;
-
-#ifdef TRACING
-      void *tracing_fn_data;
-      void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data);
-#endif
-    };
-#ifdef ADD_PADDING
-    uint8_t padding1[CACHE_LINE_SIZE];
-#endif
-  };
-
   union
   {
     volatile int lock_value;
@@ -139,10 +117,6 @@ int flexguard_init(flexguard_lock_t *the_lock);
 void flexguard_destroy(flexguard_lock_t *the_lock);
 void flexguard_lock(flexguard_lock_t *the_lock);
 void flexguard_unlock(flexguard_lock_t *the_lock);
-
-#ifdef TRACING
-void set_tracing_fn(flexguard_lock_t *the_lock, void (*tracing_fn)(ticks rtsp, int event_type, void *event_data, void *fn_data), void *tracing_fn_data);
-#endif
 
 int flexguard_cond_init(flexguard_cond_t *cond);
 int flexguard_cond_wait(flexguard_cond_t *cond, flexguard_lock_t *the_lock);
