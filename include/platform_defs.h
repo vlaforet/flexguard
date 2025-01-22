@@ -43,7 +43,7 @@ extern "C"
 /*
  * Maximum number of threads allowed per lock.
  */
-#define MAX_NUMBER_THREADS 600
+#define MAX_NUMBER_THREADS 300
 
 /*
  * Maximum number of locks allowed per application.
