@@ -73,7 +73,7 @@ static inline int litl_mutex_init(litl_lock_t *the_lock)
   the_lock->contexts = (lock_context_t *)calloc(MAX_NUMBER_THREADS, sizeof(lock_context_t));
 #endif
 
-  return the_lock->lock != NULL;
+  return the_lock->lock == NULL;
 }
 
 static inline void litl_mutex_destroy(litl_lock_t *the_lock)
