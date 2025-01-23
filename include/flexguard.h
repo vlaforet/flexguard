@@ -53,7 +53,7 @@
 #include "utils.h"
 #include "flexguard_bpf.h"
 
-#ifdef FLEXGUARD_EXTEND
+#ifdef TIMESLICE_EXTENSION
 #include "extend.h"
 #endif
 

@@ -69,7 +69,7 @@ compile_and_suffix "malthusiannopad" "LOCK_VERSION=MALTHUSIAN ADD_PADDING=0 USE_
 compile_and_suffix "shufflenopad" "LOCK_VERSION=SHUFFLE ADD_PADDING=0 USE_REAL_PTHREAD=1"
 compile_and_suffix "mcsblocknopad" "LOCK_VERSION=MCSBLOCK ADD_PADDING=0"
 compile_and_suffix "flexguardnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0"
-compile_and_suffix "flexguardextendnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0 FLEXGUARD_EXTEND=1"
+compile_and_suffix "flexguardextendnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0 TIMESLICE_EXTENSION=1"
 
 compile_and_suffix "mcstas" "LOCK_VERSION=MCSTAS ADD_PADDING=1"
 compile_and_suffix "spinextend" "LOCK_VERSION=SPINEXTEND ADD_PADDING=1"
@@ -83,4 +83,4 @@ compile_and_suffix "malthusian" "LOCK_VERSION=MALTHUSIAN ADD_PADDING=1 USE_REAL_
 compile_and_suffix "shuffle" "LOCK_VERSION=SHUFFLE ADD_PADDING=1 USE_REAL_PTHREAD=1"
 compile_and_suffix "mcsblock" "LOCK_VERSION=MCSBLOCK ADD_PADDING=1"
 compile_and_suffix "flexguard" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1"
-compile_and_suffix "flexguardextend" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1 FLEXGUARD_EXTEND=1"
+compile_and_suffix "flexguardextend" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1 TIMESLICE_EXTENSION=1"

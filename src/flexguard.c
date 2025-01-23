@@ -112,12 +112,12 @@ void flexguard_lock(flexguard_lock_t *the_lock)
 
     if (!the_lock->lock_value)
     {
-#ifdef FLEXGUARD_EXTEND
+#ifdef TIMESLICE_EXTENSION
         extend();
 #endif
         if (__sync_val_compare_and_swap(&the_lock->lock_value, 0, 1) == 0)
             return;
-#ifdef FLEXGUARD_EXTEND
+#ifdef TIMESLICE_EXTENSION
         unextend();
 #endif
     }
@@ -161,7 +161,7 @@ mcs_enqueue:
 #endif
     }
 
-#ifdef FLEXGUARD_EXTEND
+#ifdef TIMESLICE_EXTENSION
     extend();
 #endif
 
@@ -181,11 +181,11 @@ mcs_enqueue:
                 state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
             if (state != 0)
             {
-#ifdef FLEXGUARD_EXTEND
+#ifdef TIMESLICE_EXTENSION
                 unextend_light();
 #endif
                 futex_wait((void *)&the_lock->lock_value, 2);
-#ifdef FLEXGUARD_EXTEND
+#ifdef TIMESLICE_EXTENSION
                 extend_light();
 #endif
 
@@ -215,7 +215,7 @@ void flexguard_unlock(flexguard_lock_t *the_lock)
     if (__sync_lock_test_and_set(&the_lock->lock_value, 0) != 1)
         futex_wake((void *)&the_lock->lock_value, 1);
 
-#ifdef FLEXGUARD_EXTEND
+#ifdef TIMESLICE_EXTENSION
     unextend();
 #endif
 

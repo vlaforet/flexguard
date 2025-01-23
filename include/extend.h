@@ -32,6 +32,7 @@
 #define _EXTEND_H_
 
 #include <stdatomic.h>
+#include <fcntl.h>
 
 struct extend_map
 {
