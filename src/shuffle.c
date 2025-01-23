@@ -10,6 +10,10 @@
 #include <assert.h>
 #include <shuffle.h>
 
+#ifdef TIMESLICE_EXTENSION
+#include "extend.h"
+#endif
+
 #include "litl/waiting_policy.h"
 #include "litl/interpose.h"
 #include "litl/utils.h"
@@ -473,6 +477,10 @@ static int __aqm_mutex_lock(aqm_mutex_t *lock, aqm_node_t *node)
         }
     }
 
+#ifdef TIMESLICE_EXTENSION
+    extend();
+#endif
+
     dprintf("waiting for the lock to be released\n");
     for (;;)
     {
@@ -559,6 +567,10 @@ static void __aqm_mutex_unlock(aqm_mutex_t *lock)
 {
     dprintf("releasing the lock\n");
     WRITE_ONCE(lock->locked, 0);
+
+#ifdef TIMESLICE_EXTENSION
+    unextend();
+#endif
 }
 
 void aqm_mutex_unlock(aqm_mutex_t *lock, aqm_node_t *UNUSED(me))
