@@ -402,12 +402,21 @@ static int __aqm_mutex_lock(aqm_mutex_t *lock, aqm_node_t *node)
 
     uint8_t prev_lstatus;
 
-    if (smp_cas(&lock->locked_no_stealing, 0, 1) == 0)
+#ifdef TIMESLICE_EXTENSION
+    if (lock->locked_no_stealing == 0)
     {
-        // lstat_inc(lock_fastpath);
-        dprintf("acquired in fastpath\n");
-        return 0;
+        extend();
+#endif
+        if (smp_cas(&lock->locked_no_stealing, 0, 1) == 0)
+        {
+            // lstat_inc(lock_fastpath);
+            dprintf("acquired in fastpath\n");
+            return 0;
+        }
+#ifdef TIMESLICE_EXTENSION
+        unextend();
     }
+#endif
 
     dprintf("acquiring in the slowpath\n");
     node->cid = cur_thread_id;
