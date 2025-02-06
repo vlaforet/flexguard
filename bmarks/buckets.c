@@ -203,7 +203,7 @@ void *test(void *data)
     while (!*d->stop)
     {
         value = malloc(sizeof(int));
-        *value = (zipf(1.4, max_value - 1) + value_offset) % max_value;
+        *value = (zipf(10, max_value - 1) + value_offset) % max_value;
         bucket_id = *value * bucket_count / max_value;
         DASSERT(bucket_id < bucket_count);
         i = rand();
@@ -384,7 +384,7 @@ int main(int argc, char **argv)
     }
 
     // Initialize zipf
-    zipf(1.4, max_value - 1);
+    zipf(10, max_value - 1);
 
     // Initialize buckets
     buckets = malloc(sizeof(bucket_t) * bucket_count);
