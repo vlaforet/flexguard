@@ -141,10 +141,12 @@ static inline uint32_t xor_random()
     return v & (UNLOCK_COUNT_THRESHOLD - 1);
 }
 
+#ifndef SHUFFLE_NO_SHUFFLE
 static int keep_lock_local(void)
 {
     return xor_random() & THRESHOLD;
 }
+#endif
 
 static inline int current_numa_node()
 {
@@ -247,6 +249,9 @@ out_acquired:
     return 1;
 }
 
+#ifdef SHUFFLE_NO_SHUFFLE
+#define shuffle_waiters(...)
+#else
 static void shuffle_waiters(aqm_mutex_t *lock, aqm_node_t *node, int is_next_waiter)
 {
     aqm_node_t *curr, *prev, *next, *last, *sleader;
@@ -377,6 +382,7 @@ out:
         WRITE_ONCE(sleader->sleader, 1);
     }
 }
+#endif
 
 /* Interpose */
 aqm_mutex_t *aqm_mutex_create(const pthread_mutexattr_t *attr)
