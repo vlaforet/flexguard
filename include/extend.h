@@ -33,6 +33,7 @@
 
 #include <stdatomic.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 
 struct extend_map
 {

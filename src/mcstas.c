@@ -28,6 +28,7 @@
  */
 
 #include "mcstas.h"
+#include "extend.h"
 
 static __thread volatile mcstas_qnode local = {.next = NULL, .waiting = 0};
 
@@ -38,8 +39,17 @@ int mcstas_trylock(mcstas_lock_t *the_lock)
 
 void mcstas_lock(mcstas_lock_t *the_lock)
 {
-    if (!atomic_flag_test_and_set(&(the_lock->lock)))
-        return;
+#ifdef TIMESLICE_EXTENSION
+    if (the_lock->lock == 0)
+    {
+        extend();
+#endif
+        if (!atomic_flag_test_and_set(&(the_lock->lock)))
+            return;
+#ifdef TIMESLICE_EXTENSION
+        unextend();
+    }
+#endif
 
     local.next = NULL;
 
@@ -53,6 +63,10 @@ void mcstas_lock(mcstas_lock_t *the_lock)
         while (local.waiting != 0)
             PAUSE;
     }
+
+#ifdef TIMESLICE_EXTENSION
+    extend();
+#endif
 
     volatile uint8_t *l = &(the_lock->lock);
     while (atomic_flag_test_and_set(l))
@@ -78,6 +92,10 @@ void mcstas_unlock(mcstas_lock_t *the_lock)
 {
     COMPILER_BARRIER();
     the_lock->lock = 0;
+
+#ifdef TIMESLICE_EXTENSION
+    unextend();
+#endif
 }
 
 int mcstas_init(mcstas_lock_t *the_lock)
