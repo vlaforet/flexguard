@@ -51,7 +51,7 @@ ResultsDirOption = typer.Option(
     help=f"Results directory",
 )
 LocksOption = typer.Option(
-    "FlexGuard=flexguard,MCS=mcs,Spin Extend Time Slice=spinextend,MCS Extend Time Slice=mcsextend,POSIX=mutex,Pure blocking lock=futex,MCS-TP=mcstp,Shfllock=shuffle,Malthusian=malthusian",
+    "FlexGuard=flexguard,MCS-TP=mcstp,MCS-TP Extend=mcstpextend,MCS=mcs,Spin Extend Time Slice=spinextend,MCS Extend Time Slice=mcsextend,POSIX=mutex,Pure blocking lock=futex,MCS-TP=mcstp,Shfllock no Shuffle=shufflenoshuffle,Shfllock=shuffle,Shfllock Extend=shuffleextend,Malthusian=malthusian",
     callback=parse_locks_option,
     help="Locks and their labels in the format label1=lock1,label2=lock2,...",
 )
