@@ -25,6 +25,7 @@ class RecordCommand:
         experiments: List[ExperimentCore],
         replication: int,
         cache: bool,
+        only_cache: bool,
     ):
         self.base_dir = base_dir
         self.temp_dir = temp_dir
@@ -32,6 +33,7 @@ class RecordCommand:
         self.experiments = experiments
         self.replication = replication
         self.cache = cache
+        self.only_cache = only_cache
 
         self.cache_dir = os.path.join(self.results_dir, "cache")
         os.makedirs(self.cache_dir, exist_ok=True)
@@ -106,6 +108,9 @@ class RecordCommand:
                         res = pd.read_csv(cache_file)
                         print("Retrieved")
                     else:
+                        if self.only_cache:
+                            print("Missing")
+                            continue
                         print("Running")
                         try:
                             benchmark["instance"].init(**benchmark["args"])

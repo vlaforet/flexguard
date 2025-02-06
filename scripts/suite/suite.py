@@ -41,6 +41,9 @@ def parse_locks_option(value: str) -> dict:
 
 ReplicationOption = typer.Option(3, "-r", help="Number of replications of each test")
 CacheOption = typer.Option(True, "--no-cache", is_flag=True, help="Ignore cache")
+OnlyCacheOption = typer.Option(
+    False, "--only-cache", is_flag=True, help="Only retrieve cached results"
+)
 TempDirOption = typer.Option(
     "/tmp", "--tmp", help="Temporary directory used by benchmarks"
 )
@@ -61,6 +64,7 @@ LocksOption = typer.Option(
 def record(
     replication: int = ReplicationOption,
     cache: bool = CacheOption,
+    only_cache: bool = OnlyCacheOption,
     temp_dir: str = TempDirOption,
     experiments: Optional[List[str]] = ExperimentsOption,
     results_dir: str = ResultsDirOption,
@@ -68,7 +72,9 @@ def record(
 ):
     """Run and record benchmark results."""
     exps = getExperiments(experiments, locks)
-    record = RecordCommand(base_dir, temp_dir, results_dir, exps, replication, cache)
+    record = RecordCommand(
+        base_dir, temp_dir, results_dir, exps, replication, cache, only_cache
+    )
     record.run()
 
 
