@@ -46,7 +46,7 @@ class BucketsBenchmark(BenchmarkCore):
                 capture_output=True,
                 text=True,
                 timeout=max(
-                    2 / 1000 * est_runtime if est_runtime is not None else 60, 10
+                    10 / 1000 * est_runtime if est_runtime is not None else 60, 10
                 ),
             )
             if result.returncode != 0:
