@@ -48,6 +48,7 @@
 #define DEFAULT_THREAD_STEP 1
 #define DEFAULT_INCREASING_ONLY 1
 #define DEFAULT_IS_LATENCY 0
+#define DEFAULT_MULTI_LOCKS 1
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
@@ -59,8 +60,9 @@
 int contention = DEFAULT_CONTENTION;
 int dummy_array_size = DEFAULT_DUMMY_ARRAY_SIZE;
 uint8_t is_latency = DEFAULT_IS_LATENCY;
+int multi_locks = DEFAULT_MULTI_LOCKS;
 
-libslock_t the_lock;
+libslock_t *the_locks;
 
 typedef struct dummy_array_t
 {
@@ -102,6 +104,7 @@ void *test(void *data)
 {
     long long unsigned int t1 = 0, t2 = 0;
     int cs_count = 0, i = 0;
+    int lock_id;
     dummy_array_t *arr = &dummy_array[rand() % dummy_array_size];
 
     thread_data_t *d = (thread_data_t *)data;
@@ -111,10 +114,11 @@ void *test(void *data)
 
     while (!d->stop)
     {
+        lock_id = rand() % multi_locks;
         if (is_latency)
             t1 = __builtin_ia32_rdtsc();
 
-        libslock_lock(&the_lock);
+        libslock_lock(&the_locks[lock_id]);
 
         for (i = 0; i < dummy_array_size; i++)
         {
@@ -122,7 +126,7 @@ void *test(void *data)
             arr = arr->next;
         }
 
-        libslock_unlock(&the_lock);
+        libslock_unlock(&the_locks[lock_id]);
 
         if (is_latency)
         {
@@ -223,12 +227,13 @@ int main(int argc, char **argv)
         {"thread-step", required_argument, NULL, 's'},
         {"increasing-only", required_argument, NULL, 'i'},
         {"latency", required_argument, NULL, 'l'},
+        {"multi-locks", required_argument, NULL, 'm'},
         {NULL, 0, NULL, 0}};
 
     while (1)
     {
         i = 0;
-        c = getopt_long(argc, argv, "hb:c:d:n:t:s:i:l:", long_options, &i);
+        c = getopt_long(argc, argv, "hb:c:d:n:t:s:i:l:m:", long_options, &i);
 
         if (c == -1)
             break;
@@ -266,6 +271,8 @@ int main(int argc, char **argv)
             printf("        Whether to increase then decrease or only increase thread count (default=" XSTR(DEFAULT_INCREASING_ONLY) ")\n");
             printf("  -l, --latency <int>\n");
             printf("        If true, measure cs latency else measure total throughput (default=" XSTR(DEFAULT_IS_LATENCY) ")\n");
+            printf("  -m, --multi-locks <int>\n");
+            printf("        How many locks to use (default=" XSTR(DEFAULT_MULTI_LOCKS) ")\n");
             exit(0);
         case 'b':
             base_threads = atoi(optarg);
@@ -291,6 +298,9 @@ int main(int argc, char **argv)
         case 'l':
             is_latency = atoi(optarg);
             break;
+        case 'm':
+            multi_locks = atoi(optarg);
+            break;
         case '?':
             printf("Use -h or --help for help\n");
             exit(0);
@@ -306,6 +316,7 @@ int main(int argc, char **argv)
     printf("Cache lines: %d\n", dummy_array_size);
     printf("Thread step: %d\n", thread_step);
     printf("Measure: %s\n", is_latency ? "latency" : "throughput");
+    printf("Multi locks: %d\n", multi_locks);
     printf("TSC frequency: %ld\n", get_tsc_frequency());
 
     thread_data_t *data;
@@ -324,6 +335,11 @@ int main(int argc, char **argv)
     if ((dummy_array = (dummy_array_t *)malloc(dummy_array_size * sizeof(dummy_array_t))) == NULL)
     {
         perror("malloc dummy_array");
+        exit(1);
+    }
+    if ((the_locks = (libslock_t *)malloc(multi_locks * sizeof(libslock_t))) == NULL)
+    {
+        perror("malloc the_locks");
         exit(1);
     }
 
@@ -345,7 +361,8 @@ int main(int argc, char **argv)
 
     /* Init locks */
     DPRINT("Initializing locks\n");
-    libslock_init(&the_lock);
+    for (i = 0; i < multi_locks; i++)
+        libslock_init(&the_locks[i]);
 
     for (i = 0; i < max_threads; i++)
     {
@@ -407,6 +424,7 @@ int main(int argc, char **argv)
         }
     }
 
-    libslock_destroy(&the_lock);
+    for (i = 0; i < multi_locks; i++)
+        libslock_destroy(&the_locks[i]);
     return EXIT_SUCCESS;
 }
