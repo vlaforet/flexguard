@@ -5,12 +5,15 @@ usage() {
     echo "    -v             verbose"
     echo "    -s suffix      suffix the executables with suffix"
     echo "    -d             debug mode"
+    echo "    -p             enable pause counter"
+
 }
 
 USUFFIX=""
 VERBOSE=0
 DEBUG=0
-while getopts "hs:vd" OPTION; do
+PAUSE_COUNTER=0
+while getopts "hs:vdp" OPTION; do
     case $OPTION in
     h)
         usage
@@ -28,6 +31,9 @@ while getopts "hs:vd" OPTION; do
     d)
         DEBUG=1
         ;;
+    p)
+        PAUSE_COUNTER=1
+        ;;
     ?)
         usage
         exit
@@ -37,7 +43,7 @@ done
 
 compile_and_suffix() {
     suffix="$1"
-    cmd="make -j40 all DEBUG=${DEBUG} $2"
+    cmd="make -j40 all DEBUG=${DEBUG} PAUSE_COUNTER=${PAUSE_COUNTER} $2"
 
     make clean >/dev/null
 
