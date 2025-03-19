@@ -29,15 +29,14 @@ class LevelDBExperiment(ExperimentCore):
             512,
         ]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for t in threads:
                 # if t >= 104 and lock in ["mcs", "mcstp", "malthusian"]:
                 #    continue
 
                 self.tests.append(
                     {
-                        "name": f"LevelDB with {label} lock and with {t} threads",
-                        "label": label,
+                        "name": f"LevelDB with {lock} lock and with {t} threads",
                         "benchmark": {
                             "id": "leveldb",
                             "args": {
@@ -62,8 +61,8 @@ class LevelDBExperiment(ExperimentCore):
                 data=results_ylim,
                 x="threads",
                 y=col,
-                hue="label",
-                style="label",
+                hue="lock",
+                style="lock",
                 markers=True,
             )
             ymin, ymax = ax.get_ylim()
@@ -75,8 +74,8 @@ class LevelDBExperiment(ExperimentCore):
                 data=results,
                 x="threads",
                 y=col,
-                hue="label",
-                style="label",
+                hue="lock",
+                style="lock",
                 markers=True,
             )
             ax2.set_ylim(ymin, ymax)

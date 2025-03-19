@@ -11,14 +11,13 @@ class RaytraceExperiment(ExperimentCore):
 
         threads = [1, 2] + [i for i in range(10, 128, 10)] + [128]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for t in threads:
                 if lock == "mcs" and t > 100:
                     continue
                 self.tests.append(
                     {
-                        "name": f"Raytrace with {label} lock and {t} threads",
-                        "label": label,
+                        "name": f"Raytrace with {lock} lock and {t} threads",
                         "benchmark": {
                             "id": "raytrace",
                             "args": {
@@ -38,8 +37,8 @@ class RaytraceExperiment(ExperimentCore):
             data=results,
             x="threads",
             y="time",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
         )
 

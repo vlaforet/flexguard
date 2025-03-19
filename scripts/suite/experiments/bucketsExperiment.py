@@ -11,12 +11,11 @@ class BucketsExperiment(ExperimentCore):
 
         threads = [1, 2] + [x for x in range(10, 301, 20)]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for thread in threads:
                 self.tests.append(
                     {
-                        "name": f"Buckets using {label} lock and {thread} threads",
-                        "label": label,
+                        "name": f"Buckets using {lock} lock and {thread} threads",
                         "benchmark": {
                             "id": "buckets",
                             "args": {
@@ -37,8 +36,8 @@ class BucketsExperiment(ExperimentCore):
             data=results,
             x="num-threads",
             y="throughput",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
         )
 

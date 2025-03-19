@@ -7,12 +7,11 @@ class CorrectnessExperiment(ExperimentCore):
 
         threads = [1, 2] + [x for x in range(10, 190, 20)]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for thread in threads:
                 self.tests.append(
                     {
-                        "name": f"Correctness of {label} lock with {thread} threads",
-                        "label": label,
+                        "name": f"Correctness of {lock} lock with {thread} threads",
                         "benchmark": {
                             "id": "correctness",
                             "args": {

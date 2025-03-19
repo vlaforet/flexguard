@@ -11,14 +11,13 @@ class VolrendExperiment(ExperimentCore):
 
         threads = [1, 2] + [i for i in range(10, 182, 10)]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for t in threads:
                 if lock == "mcs" and t > 100:
                     continue
                 self.tests.append(
                     {
-                        "name": f"Volrend with {label} lock and {t} threads",
-                        "label": label,
+                        "name": f"Volrend with {lock} lock and {t} threads",
                         "benchmark": {
                             "id": "volrend",
                             "args": {
@@ -40,8 +39,8 @@ class VolrendExperiment(ExperimentCore):
                 data=results_ylim,
                 x="threads",
                 y=col,
-                hue="label",
-                style="label",
+                hue="lock",
+                style="lock",
                 markers=True,
             )
             ymin, ymax = ax.get_ylim()
@@ -53,8 +52,8 @@ class VolrendExperiment(ExperimentCore):
                 data=results,
                 x="threads",
                 y=col,
-                hue="label",
-                style="label",
+                hue="lock",
+                style="lock",
                 markers=True,
             )
             ax2.set_ylim(ymin, ymax)

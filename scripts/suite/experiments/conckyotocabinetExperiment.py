@@ -12,15 +12,14 @@ class ConcKyotoCabinetExperiment(ExperimentCore):
 
         threads = [1, 2, 4, 8, 16, 32, 48, 50, 52, 54, 64, 128, 256]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for t in threads:
                 if t + bthreads >= 104 and lock in ["mcslitl", "mcstp", "malthusian"]:
                     continue
 
                 self.tests.append(
                     {
-                        "name": f"KyotoCabinet with {label} lock and concurrent workload with {t} threads",
-                        "label": label,
+                        "name": f"KyotoCabinet with {lock} lock and concurrent workload with {t} threads",
                         "benchmark": {
                             "id": "kyotocabinet",
                             "args": {
@@ -56,8 +55,8 @@ class ConcKyotoCabinetExperiment(ExperimentCore):
                 data=results_ylim,
                 x="concurrent_num-threads",
                 y=col,
-                hue="label",
-                style="label",
+                hue="lock",
+                style="lock",
                 markers=True,
             )
             ymin, ymax = ax.get_ylim()
@@ -69,8 +68,8 @@ class ConcKyotoCabinetExperiment(ExperimentCore):
                 data=results,
                 x="concurrent_num-threads",
                 y=col,
-                hue="label",
-                style="label",
+                hue="lock",
+                style="lock",
                 markers=True,
             )
             ax2.set_ylim(ymin, ymax)

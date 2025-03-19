@@ -11,15 +11,14 @@ class KyotoCabinetExperiment(ExperimentCore):
 
         threads = [1, 2, 4, 8, 16, 32, 48, 64, 72, 102, 104, 106, 128, 256]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for t in threads:
                 if t >= 104 and lock in ["mcs", "mcstp", "malthusian"]:
                     continue
 
                 self.tests.append(
                     {
-                        "name": f"KyotoCabinet with {label} lock and {t} threads",
-                        "label": label,
+                        "name": f"KyotoCabinet with {lock} lock and {t} threads",
                         "benchmark": {
                             "id": "kyotocabinet",
                             "args": {
@@ -46,8 +45,8 @@ class KyotoCabinetExperiment(ExperimentCore):
                 data=results_ylim,
                 x="threads",
                 y=col,
-                hue="label",
-                style="label",
+                hue="lock",
+                style="lock",
                 markers=True,
             )
             ymin, ymax = ax.get_ylim()
@@ -59,8 +58,8 @@ class KyotoCabinetExperiment(ExperimentCore):
                 data=results,
                 x="threads",
                 y=col,
-                hue="label",
-                style="label",
+                hue="lock",
+                style="lock",
                 markers=True,
             )
             ax2.set_ylim(ymin, ymax)

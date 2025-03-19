@@ -11,12 +11,11 @@ class ConcBucketsExperiment(ExperimentCore):
 
         threads = [1] + [x for x in range(5, 301, 5)]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for thread in threads:
                 self.tests.append(
                     {
-                        "name": f"Buckets using {label} lock and concurrent workload with {thread} threads",
-                        "label": label,
+                        "name": f"Buckets using {lock} lock and concurrent workload with {thread} threads",
                         "benchmark": {
                             "id": "buckets",
                             "args": {
@@ -46,8 +45,8 @@ class ConcBucketsExperiment(ExperimentCore):
             data=results,
             x="concurrent_num-threads",
             y="throughput",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
         )
 

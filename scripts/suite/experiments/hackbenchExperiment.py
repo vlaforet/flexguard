@@ -15,7 +15,6 @@ class HackbenchExperiment(ExperimentCore):
         self.tests = [
             {
                 "name": "Hackbench FlexGuard",
-                "label": "FlexGuard",
                 "benchmark": {"id": "hackbench", "args": hackbench_kwargs},
                 "concurrent": {
                     "id": "init",
@@ -26,7 +25,6 @@ class HackbenchExperiment(ExperimentCore):
             },
             {
                 "name": f"Hackbench",
-                "label": "POSIX",
                 "benchmark": {"id": "hackbench", "args": hackbench_kwargs},
                 "concurrent": {
                     "id": "init",
@@ -37,17 +35,16 @@ class HackbenchExperiment(ExperimentCore):
             },
             {
                 "name": f"Hackbench",
-                "label": "Default",
                 "benchmark": {"id": "hackbench", "args": hackbench_kwargs},
             },
         ]
 
     def report(self, results, exp_dir):
-        average_times = results.groupby("label")["time"].mean()
+        average_times = results.groupby("lock")["time"].mean()
 
-        labels = average_times.index.tolist()
-        for caseA in labels:
-            for caseB in labels:
+        locks = average_times.index.tolist()
+        for caseA in locks:
+            for caseB in locks:
                 if caseA == caseB:
                     continue
 

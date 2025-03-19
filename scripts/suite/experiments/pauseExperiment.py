@@ -12,12 +12,11 @@ class PauseExperiment(ExperimentCore):
 
         threads = [1, 2] + [x for x in range(10, 301, 20)]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for thread in threads:
                 self.tests.append(
                     {
-                        "name": f"Pause using {label} lock and {thread} threads",
-                        "label": label,
+                        "name": f"Pause using {lock} lock and {thread} threads",
                         "benchmark": {
                             "id": "buckets",
                             "args": {
@@ -38,8 +37,8 @@ class PauseExperiment(ExperimentCore):
             data=results,
             x="num-threads",
             y="pauses",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
         )
 

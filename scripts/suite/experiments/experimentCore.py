@@ -10,7 +10,6 @@ class Benchmark(TypedDict):
 
 
 class Test(TypedDict):
-    label: str
     name: str
     benchmark: Benchmark
     concurrent: NotRequired[Benchmark]

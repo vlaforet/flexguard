@@ -28,11 +28,10 @@ class FairnessExperiment(ExperimentCore):
 
         for t in threads:
             for cycle in cycles:
-                for label, lock in locks.items():
+                for lock in locks:
                     self.tests.append(
                         {
                             "name": f"Short-term fairness buckets with {lock} lock and {cycle} cycles and {t} threads",
-                            "label": label,
                             "benchmark": {
                                 "id": "buckets",
                                 "args": {
@@ -51,7 +50,6 @@ class FairnessExperiment(ExperimentCore):
                     self.tests.append(
                         {
                             "name": f"Long-term fairness buckets with {lock} lock and {cycle} cycles and {t} threads",
-                            "label": label,
                             "benchmark": {
                                 "id": "buckets",
                                 "args": {
@@ -74,7 +72,7 @@ class FairnessExperiment(ExperimentCore):
         ]
 
         avg_results = (
-            results.groupby(["label", "duration", "non-critical-cycles"])[
+            results.groupby(["lock", "duration", "non-critical-cycles"])[
                 throughput_columns
             ]
             .mean()
@@ -97,8 +95,8 @@ class FairnessExperiment(ExperimentCore):
             data=shorterm,
             x="non-critical-cycles",
             y="CV",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
             ax=axes[0],
         )
@@ -114,8 +112,8 @@ class FairnessExperiment(ExperimentCore):
             data=longterm,
             x="non-critical-cycles",
             y="CV",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
             ax=axes[1],
         )

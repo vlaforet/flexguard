@@ -10,11 +10,10 @@ class SchedulingExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        for label, lock in locks.items():
+        for lock in locks:
             self.tests.append(
                 {
-                    "name": f"Scheduling using {label} lock",
-                    "label": label,
+                    "name": f"Scheduling using {lock} lock",
                     "benchmark": {
                         "id": "scheduling",
                         "args": {
@@ -39,8 +38,8 @@ class SchedulingExperiment(ExperimentCore):
             data=results_ylim,
             x="id",
             y="value",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
         )
         _, ymax = ax.get_ylim()
@@ -50,8 +49,8 @@ class SchedulingExperiment(ExperimentCore):
             data=results,
             x="id",
             y="value",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
         )
         ax2.set_ylim(0, ymax)
@@ -74,8 +73,8 @@ class SchedulingExperiment(ExperimentCore):
             data=results,
             x="id",
             y="value",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
         )
 

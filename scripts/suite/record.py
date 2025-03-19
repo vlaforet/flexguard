@@ -164,7 +164,6 @@ class RecordCommand:
 
                 row = {
                     "test_name": test["name"],
-                    "label": test["label"],
                     "replications": len(results[k]),
                 }
 

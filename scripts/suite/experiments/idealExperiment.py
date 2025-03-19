@@ -10,11 +10,10 @@ class IdealExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        for label, lock in locks.items():
+        for lock in locks:
             self.tests.append(
                 {
-                    "name": f"Ideal using {label} lock",
-                    "label": label,
+                    "name": f"Ideal using {lock} lock",
                     "benchmark": {
                         "id": "scheduling",
                         "args": {
@@ -50,7 +49,6 @@ class IdealExperiment(ExperimentCore):
             filtered_results.groupby("id")["value"].idxmin().reset_index(drop=True)
         ]
         ideal_results["lock"] = "ideal"
-        ideal_results["label"] = "Ideal Hybrid Lock"
 
         full_results_tmp = pd.concat([agg_results, ideal_results], ignore_index=True)
         full_results = full_results_tmp[full_results_tmp["id"] < 120]
@@ -69,8 +67,8 @@ class IdealExperiment(ExperimentCore):
             data=full_results,
             x="id",
             y="normalized_value",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=False,
         )
 

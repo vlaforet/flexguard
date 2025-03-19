@@ -11,7 +11,7 @@ class IndexExperiment(ExperimentCore):
 
         threads = [1] + [i for i in range(5, 301, 5)]
 
-        for label, lock in locks.items():
+        for lock in locks:
             for t in threads:
                 if t > 110 and lock in [
                     "mcsrw",
@@ -22,8 +22,7 @@ class IndexExperiment(ExperimentCore):
 
                 self.tests.append(
                     {
-                        "name": f"Index {label} {t} threads",
-                        "label": label,
+                        "name": f"Index {lock} {t} threads",
                         "benchmark": {
                             "id": "index",
                             "args": {
@@ -51,8 +50,8 @@ class IndexExperiment(ExperimentCore):
         #    data=artlc_data,
         #    x="threads",
         #    y="succeeded",
-        #    hue="label",
-        #    style="label",
+        #    hue="lock",
+        #    style="lock",
         #    markers=True,
         # )
 
@@ -73,8 +72,8 @@ class IndexExperiment(ExperimentCore):
             data=btreelc_data,
             x="threads",
             y="succeeded",
-            hue="label",
-            style="label",
+            hue="lock",
+            style="lock",
             markers=True,
         )
 

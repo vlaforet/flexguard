@@ -26,17 +26,12 @@ def getExperiments(experiments: Optional[List[str]], locks):
     return exps
 
 
-def parse_locks_option(value: str) -> dict:
-    """
-    Parse locks and labels into a dictionary.
-    The input format should be label1=lock1,label2=lock2,...
-    """
-    try:
-        return dict(item.split("=") for item in value.split(","))
-    except ValueError:
-        raise typer.BadParameter(
-            "Locks must be in the format label1=lock1,label2=lock2,..."
-        )
+def parse_locks_option(value: List[str]) -> List[str]:
+    """Callback to parse multiple items or comma-separated values."""
+    items = set()
+    for v in value:
+        items.update(v.split(","))
+    return list(items)
 
 
 ReplicationOption = typer.Option(3, "-r", help="Number of replications of each test")
@@ -54,9 +49,23 @@ ResultsDirOption = typer.Option(
     help=f"Results directory",
 )
 LocksOption = typer.Option(
-    "FlexGuard=flexguard,MCS-TAS=mcstas,MCS-TAS Extend=mcstasextend,MCS=mcs,Spin Extend Time Slice=spinextend,MCS Extend Time Slice=mcsextend,POSIX=mutex,Pure blocking lock=futex,MCS-TP=mcstp,Shfllock no Shuffle=shufflenoshuffle,Shfllock=shuffle,Shfllock Extend=shuffleextend,Malthusian=malthusian",
+    [
+        "flexguard",
+        "mcstas",
+        "mcstasextend",
+        "mcs",
+        "spinextend",
+        "mcsextend",
+        "mutex",
+        "futex",
+        "mcstp",
+        "shufflenoshuffle",
+        "shuffle",
+        "shuffleextend",
+        "malthusian",
+    ],
     callback=parse_locks_option,
-    help="Locks and their labels in the format label1=lock1,label2=lock2,...",
+    help="Locks to profile. Comma-separated or multiple options.",
 )
 
 
@@ -68,7 +77,7 @@ def record(
     temp_dir: str = TempDirOption,
     experiments: Optional[List[str]] = ExperimentsOption,
     results_dir: str = ResultsDirOption,
-    locks: str = LocksOption,
+    locks: List[str] = LocksOption,
 ):
     """Run and record benchmark results."""
     exps = getExperiments(experiments, locks)
@@ -84,7 +93,7 @@ def report(
     results_dir: str = ResultsDirOption,
 ):
     """Report benchmark results."""
-    exps = getExperiments(experiments, {})
+    exps = getExperiments(experiments, [])
     report = ReportCommand(base_dir, results_dir, exps)
     report.run()
 
