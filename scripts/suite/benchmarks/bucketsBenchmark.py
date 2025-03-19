@@ -10,6 +10,7 @@ from utils import sha256_hash_file
 class BucketsBenchmark(BenchmarkCore):
     pattern_global = re.compile(r"#Throughput:\s*([\d\.]+)\s*CS/s")
     pattern_local = re.compile(r"#Local result for Thread\s+(\d+):\s*([\d\.]+)\s*CS/s")
+    pattern_pauses = re.compile(r"Pauses:\s+(\d+)")
 
     def __init__(self, base_dir, temp_dir):
         super().__init__(base_dir, temp_dir)
@@ -64,5 +65,8 @@ class BucketsBenchmark(BenchmarkCore):
 
             if m := self.pattern_local.match(line):
                 results[f"throughput_t{int(m.group(1))}"] = float(m.group(2))
+
+            if m := self.pattern_pauses.match(line):
+                results["pauses"] = int(m.group(1))
 
         return pd.DataFrame([results]) if results else None
