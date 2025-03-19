@@ -85,7 +85,6 @@ class RecordCommand:
         for exp in self.experiments:
             print(f"Running experiment {exp.name}")
             exp_dir = os.path.join(self.results_dir, exp.name)
-            os.makedirs(os.path.join(exp_dir, "cache"), exist_ok=True)
 
             results = {}
             for replication in range(self.replication):
