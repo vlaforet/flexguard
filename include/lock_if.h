@@ -131,6 +131,9 @@ static inline int libslock_init(libslock_t *lock)
 
 static inline void libslock_destroy(libslock_t *lock)
 {
+#ifdef PAUSE_COUNTER
+    printf("Pauses: %ld\n", pause_counter);
+#endif
     LOCKIF_DESTROY(lock);
 }
 

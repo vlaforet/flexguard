@@ -57,7 +57,20 @@ extern "C"
 {
 #endif
 
-#define PAUSE _mm_pause()
+#define RAW_PAUSE _mm_pause()
+#ifdef PAUSE_COUNTER
+    extern long pause_counter;
+
+#define PAUSE                                    \
+    do                                           \
+    {                                            \
+        RAW_PAUSE;                               \
+        __sync_fetch_and_add(&pause_counter, 1); \
+    } while (0)
+#else
+#define PAUSE RAW_PAUSE
+#endif
+
     static inline void pause_rep(uint32_t num_reps)
     {
         uint32_t i;
@@ -183,7 +196,7 @@ if (exactly_once(&init) == 0)
         uint8_t curr = __sync_val_compare_and_swap(value, 0, 1);
         if (curr == 1)
             while (*value == 1)
-                PAUSE;
+                RAW_PAUSE;
 
         return curr;
     }

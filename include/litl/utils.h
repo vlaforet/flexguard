@@ -28,6 +28,7 @@
 #include <malloc.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include "../utils.h"
 
 #ifndef __LITL_UTILS_H__
 #define __LITL_UTILS_H__
@@ -35,7 +36,7 @@
 #include <litl/topology.h>
 
 #define MAX_THREADS MAX_NUMBER_THREADS
-#define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
+#define CPU_PAUSE() PAUSE
 #define MEMORY_BARRIER() __sync_synchronize()
 #define REP_VAL 23
 
@@ -137,7 +138,7 @@ static inline void wait_cycles(uint64_t cycles)
         cycles /= 6;
         while (cycles--)
         {
-            CPU_PAUSE();
+            RAW_PAUSE;
         }
     }
     else

@@ -177,6 +177,7 @@ int mcs_tp_mutex_trylock(mcs_tp_mutex_t *impl, mcs_tp_node_t *me)
 
             if (GET_TIME() - start_time <= PATIENCE)
             {
+                CPU_PAUSE();
                 continue;
             }
 
@@ -225,7 +226,10 @@ static void __mcs_tp_mutex_unlock(mcs_tp_mutex_t *impl, mcs_tp_node_t *me)
             }
 
             while (!succ)
+            {
+                CPU_PAUSE();
                 succ = curr->next;
+            }
         }
 
         if (++scanned_nodes < MAX_THREADS_MCS_TP)

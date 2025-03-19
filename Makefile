@@ -41,12 +41,16 @@ ifeq ($(SHUFFLE_NO_SHUFFLE),1)
 	DEFINED += -DSHUFFLE_NO_SHUFFLE
 endif
 
+ifeq ($(PAUSE_COUNTER),1)
+	DEFINED += -DPAUSE_COUNTER
+endif
+
 # LOCK_VERSION in (SPINLOCK, HYBRIDLOCK, FLEXGUARD, MCS, MCSTAS, CLH, TICKET, MUTEX, FUTEX)
 ifndef LOCK_VERSION
 	LOCK_VERSION=FLEXGUARD
 endif
 DEFINED += -DUSE_$(LOCK_VERSION)_LOCKS
-OBJ_FILES += $(shell echo $(LOCK_VERSION).o | tr '[:upper:]' '[:lower:]')
+OBJ_FILES += common.o $(shell echo $(LOCK_VERSION).o | tr '[:upper:]' '[:lower:]')
 
 ifneq (,$(filter $(LOCK_VERSION),HYBRIDLOCK FLEXGUARD))
 # HYBRID_VERSION in (MCS, CLH, TICKET)
