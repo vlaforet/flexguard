@@ -33,7 +33,7 @@
 #define SPINPARK_SPIN_TIME 2700 // Default LiTL value
 #endif
 
-#if DEBUG == 1
+#ifdef DEBUG
 __thread uint8_t locked_thread = 0;
 #endif
 
@@ -46,7 +46,7 @@ int spinpark_trylock(spinpark_lock_t *lock)
 
 void spinpark_lock(spinpark_lock_t *lock)
 {
-#if DEBUG == 1
+#ifdef DEBUG
   if (locked_thread)
     DPRINT("Nested locking.");
 
@@ -72,7 +72,7 @@ void spinpark_lock(spinpark_lock_t *lock)
 
 void spinpark_unlock(spinpark_lock_t *lock)
 {
-#if DEBUG == 1
+#ifdef DEBUG
   locked_thread = 0;
 #endif
   if (__sync_fetch_and_sub(&lock->data, 1) != 1)

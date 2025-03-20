@@ -40,7 +40,7 @@ int futex_trylock(futex_lock_t *lock)
 
 void futex_lock(futex_lock_t *lock)
 {
-#if DEBUG == 1
+#ifdef DEBUG
   if (locked_thread)
     DPRINT("Nested locking.");
 
@@ -62,7 +62,7 @@ void futex_lock(futex_lock_t *lock)
 
 void futex_unlock(futex_lock_t *lock)
 {
-#if DEBUG == 1
+#ifdef DEBUG
   locked_thread = 0;
 #endif
   if (__sync_fetch_and_sub(&lock->data, 1) != 1)

@@ -228,7 +228,7 @@ void flexguard_unlock(flexguard_lock_t *the_lock)
 #ifdef BPF
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-#if DEBUG == 1
+#ifdef DEBUG
     return vfprintf(stderr, format, args);
 #else
     return 0;
