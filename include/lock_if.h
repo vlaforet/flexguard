@@ -60,6 +60,8 @@
 #include "spinpark.h"
 #elif defined(USE_CLH_LOCKS)
 #include "clh.h"
+#elif defined(USE_USCL_LOCKS)
+#include "uscl.h"
 
 #elif defined(USE_SHUFFLE_LOCKS) // LiTL locks
 #include "shuffle.h"

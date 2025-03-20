@@ -94,5 +94,6 @@ compile_and_suffix "shuffle" "LOCK_VERSION=SHUFFLE ADD_PADDING=1 USE_REAL_PTHREA
 compile_and_suffix "shufflenoshuffle" "LOCK_VERSION=SHUFFLE ADD_PADDING=1 USE_REAL_PTHREAD=1 SHUFFLE_NO_SHUFFLE=1"
 compile_and_suffix "shuffleextend" "LOCK_VERSION=SHUFFLE ADD_PADDING=1 USE_REAL_PTHREAD=1 TIMESLICE_EXTENSION=1"
 compile_and_suffix "mcsblock" "LOCK_VERSION=MCSBLOCK ADD_PADDING=1"
+compile_and_suffix "uscl" "LOCK_VERSION=USCL ADD_PADDING=1"
 compile_and_suffix "flexguard" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1"
 compile_and_suffix "flexguardextend" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1 TIMESLICE_EXTENSION=1"
