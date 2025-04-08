@@ -22,7 +22,7 @@ class SchedulingExperiment(ExperimentCore):
                             "base-threads": 1,
                             "num-threads": 250,
                             "step-duration": 2500,
-                            "cache-lines": 5,
+                            "cache-lines": 2,
                             "thread-step": 1,
                             "increasing-only": 0,
                         },
