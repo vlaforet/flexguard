@@ -134,11 +134,6 @@ extern "C"
         return syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, val, timeout, NULL, 0); /* Wait if *addr == val. */
     }
 
-    static inline long futex_wait_timeout_abs(void *addr, int val, struct timespec *abs)
-    {
-        return syscall(SYS_futex, addr, FUTEX_WAIT_BITSET_PRIVATE, val, abs, NULL, FUTEX_BITSET_MATCH_ANY); /* Wait if *addr == val. */
-    }
-
     /*
      * FUTEX_WAKE_PRIVATE syscall.
      * addr: Address waiters are waiting on.
