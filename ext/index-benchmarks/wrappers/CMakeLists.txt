@@ -161,6 +161,14 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
   )
 
   add_wrapper(
+    NAME btreelc_uscl${page_size_suffix}
+    SOURCE btreeolc_wrapper.cpp
+    DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="uSCL" USE_USCL_LOCKS
+    LIBRARIES "${ROOT_DIR}/libsyncusclnopad.a"
+    INCLUDE "${ROOT_DIR}/include"
+  )
+
+  add_wrapper(
     NAME btreelc_spinextend${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Spin Extend" USE_SPINEXTEND_LOCKS

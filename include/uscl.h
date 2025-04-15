@@ -157,13 +157,33 @@ typedef struct uscl_qnode
 
 typedef struct uscl_lock
 {
-  uscl_qnode_t *qtail __attribute__((aligned(CACHE_LINE_SIZE)));
-  uscl_qnode_t *qnext __attribute__((aligned(CACHE_LINE_SIZE)));
-  unsigned long long slice __attribute__((aligned(CACHE_LINE_SIZE)));
-  int slice_valid __attribute__((aligned(CACHE_LINE_SIZE)));
+  uscl_qnode_t *qtail
+#ifdef ADD_PADDING
+      __attribute__((aligned(CACHE_LINE_SIZE)))
+#endif
+      ;
+  uscl_qnode_t *qnext
+#ifdef ADD_PADDING
+      __attribute__((aligned(CACHE_LINE_SIZE)))
+#endif
+      ;
+  unsigned long long slice
+#ifdef ADD_PADDING
+      __attribute__((aligned(CACHE_LINE_SIZE)))
+#endif
+      ;
+  int slice_valid
+#ifdef ADD_PADDING
+      __attribute__((aligned(CACHE_LINE_SIZE)))
+#endif
+      ;
   pthread_key_t flthread_info_key;
   unsigned long long total_weight;
-} uscl_lock_t __attribute__((aligned(CACHE_LINE_SIZE)));
+} uscl_lock_t
+#ifdef ADD_PADDING
+    __attribute__((aligned(CACHE_LINE_SIZE)))
+#endif
+    ;
 #define USCL_INITIALIZER {NULL, NULL, NULL, NULL, NULL, NULL}
 
 typedef union
