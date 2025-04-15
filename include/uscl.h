@@ -205,13 +205,13 @@ int uscl_cond_destroy(uscl_cond_t *cond);
 #define LOCKIF_UNLOCK uscl_unlock
 #define LOCKIF_INITIALIZER USCL_INITIALIZER
 
-/*#define LOCKIF_COND_T uscl_cond_t
-#define LOCKIF_COND_INIT mcs_cond_init
-#define LOCKIF_COND_DESTROY mcs_cond_destroy
-#define LOCKIF_COND_WAIT mcs_cond_wait
+#define LOCKIF_COND_T uscl_cond_t
+#define LOCKIF_COND_INIT uscl_cond_init
+#define LOCKIF_COND_DESTROY uscl_cond_destroy
+#define LOCKIF_COND_WAIT uscl_cond_wait
 #define LOCKIF_COND_TIMEDWAIT uscl_cond_timedwait
-#define LOCKIF_COND_SIGNAL mcs_cond_signal
-#define LOCKIF_COND_BROADCAST mcs_cond_broadcast
-#define LOCKIF_COND_INITIALIZER USCL_COND_INITIALIZER*/
+#define LOCKIF_COND_SIGNAL uscl_cond_signal
+#define LOCKIF_COND_BROADCAST uscl_cond_broadcast
+#define LOCKIF_COND_INITIALIZER USCL_COND_INITIALIZER
 
 #endif

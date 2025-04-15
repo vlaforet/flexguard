@@ -284,3 +284,57 @@ accounting:
   info->stat.release_succ_wait += succ_end - succ_start;
 #endif
 }
+
+/*
+ *  Condition Variables
+ */
+
+int uscl_cond_init(uscl_cond_t *cond)
+{
+  cond->seq = 0;
+  cond->target = 0;
+  return 0;
+}
+
+int uscl_cond_wait(uscl_cond_t *cond, uscl_lock_t *the_lock)
+{
+  // No need for atomic operations, I have the lock
+  uint32_t target = ++cond->target;
+  uint32_t seq = cond->seq;
+  uscl_unlock(the_lock);
+
+  while (target > seq)
+  {
+    futex_wait(&cond->seq, seq);
+    seq = cond->seq;
+  }
+  uscl_lock(the_lock);
+  return 0;
+}
+
+int uscl_cond_timedwait(uscl_cond_t *cond, uscl_lock_t *the_lock, const struct timespec *ts)
+{
+  fprintf(stderr, "Timedwait not supported yet.\n");
+  exit(EXIT_FAILURE);
+}
+
+int uscl_cond_signal(uscl_cond_t *cond)
+{
+  cond->seq++;
+  futex_wake(&cond->seq, 1);
+  return 0;
+}
+
+int uscl_cond_broadcast(uscl_cond_t *cond)
+{
+  cond->seq = cond->target;
+  futex_wake(&cond->seq, INT_MAX);
+  return 0;
+}
+
+int uscl_cond_destroy(uscl_cond_t *cond)
+{
+  cond->seq = 0;
+  cond->target = 0;
+  return 0;
+}
