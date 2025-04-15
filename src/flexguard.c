@@ -359,8 +359,30 @@ int flexguard_cond_wait(flexguard_cond_t *cond, flexguard_lock_t *the_lock)
 
 int flexguard_cond_timedwait(flexguard_cond_t *cond, flexguard_lock_t *the_lock, const struct timespec *ts)
 {
-    fprintf(stderr, "Timedwait not supported yet.\n");
-    exit(EXIT_FAILURE);
+    const struct timespec now;
+    clock_gettime(CLOCK_REALTIME, (struct timespec *)&now);
+    if ((now.tv_sec > ts->tv_sec) || (now.tv_sec == ts->tv_sec && now.tv_nsec >= ts->tv_nsec))
+        return 1;
+
+    // No need for atomic operations, I have the lock
+    uint32_t target = ++cond->target;
+    uint32_t seq = cond->seq;
+    flexguard_unlock(the_lock);
+
+    while (target > seq)
+    {
+        clock_gettime(CLOCK_REALTIME, (struct timespec *)&now);
+        if ((now.tv_sec > ts->tv_sec) || (now.tv_sec == ts->tv_sec && now.tv_nsec >= ts->tv_nsec))
+            return 1;
+
+        if (BLOCKING_CONDITION(the_lock))
+            futex_wait_timeout_abs(&cond->seq, seq, (struct timespec *)ts);
+        else
+            PAUSE;
+        seq = cond->seq;
+    }
+    flexguard_lock(the_lock);
+    return 0;
 }
 
 int flexguard_cond_signal(flexguard_cond_t *cond)
