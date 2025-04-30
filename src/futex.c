@@ -29,7 +29,9 @@
 
 #include "futex.h"
 
+#ifdef DEBUG
 __thread uint8_t locked_thread = 0;
+#endif
 
 int futex_trylock(futex_lock_t *lock)
 {
