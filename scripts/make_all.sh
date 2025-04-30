@@ -97,4 +97,5 @@ compile_and_suffix "shuffleextend" "LOCK_VERSION=SHUFFLE ADD_PADDING=1 USE_REAL_
 compile_and_suffix "mcsblock" "LOCK_VERSION=MCSBLOCK ADD_PADDING=1"
 compile_and_suffix "uscl" "LOCK_VERSION=USCL ADD_PADDING=1"
 compile_and_suffix "flexguard" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1"
+compile_and_suffix "flexguardall" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1 FLEXGUARD_ALL=1"
 compile_and_suffix "flexguardextend" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1 TIMESLICE_EXTENSION=1"
