@@ -93,7 +93,19 @@ static inline void mcs_unlock(flexguard_lock_t *the_lock, flexguard_qnode_ptr qn
             return;
 
         while (!qnode->next)
-            PAUSE;
+        {
+#ifdef FLEXGUARD_ALL
+            if (BLOCKING_CONDITION(the_lock))
+            {
+                if (__sync_val_compare_and_swap(&qnode->next, NULL, 1) == NULL)
+                    while (qnode->next == (void *)1)
+                        futex_wait((void *)&qnode->next, 1);
+                break;
+            }
+            else
+#endif
+                PAUSE;
+        }
     }
 
     qnode->next->waiting = 0;
@@ -151,7 +163,13 @@ mcs_enqueue:
         if (pred != NULL) /* lock was not free */
         {
             MEM_BARRIER;
+
+#ifdef FLEXGUARD_ALL
+            if (atomic_exchange(&pred->next, qnode) == (void *)1) // make pred point to me
+                futex_wake((void *)&pred->next, 1);
+#else
             pred->next = qnode; // make pred point to me
+#endif
 
             while (qnode->waiting != 0 && !BLOCKING_CONDITION(the_lock))
                 PAUSE;
