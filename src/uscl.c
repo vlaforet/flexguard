@@ -246,7 +246,7 @@ void uscl_unlock(uscl_lock_t *lock)
 {
   unsigned long long now, cs;
 #ifdef DEBUG
-  ull succ_start = 0, succ_end = 0;
+  unsigned long long succ_start = 0, succ_end = 0;
 #endif
   flthread_info_t *info;
 
@@ -268,6 +268,12 @@ void uscl_unlock(uscl_lock_t *lock)
 accounting:
   // invariant: NULL == succ || succ->state = RUNNABLE
   info = (flthread_info_t *)pthread_getspecific(lock->flthread_info_key);
+  if (NULL == info)
+  {
+    info = flthread_info_create(lock, 0);
+    pthread_setspecific(lock->flthread_info_key, info);
+  }
+
   now = getticks();
   cs = now - info->start_ticks;
   info->banned_until += cs * (__atomic_load_n(&lock->total_weight, __ATOMIC_RELAXED) / info->weight);
