@@ -152,11 +152,21 @@ int main(int argc, char** argv) {
   }
 #endif
 
+long long unsigned int tinit = __builtin_ia32_rdtsc();
+
+pthread_mutex_t test_mutex;
+pthread_mutex_init(&test_mutex, NULL);
+
+long long unsigned int t1 = __builtin_ia32_rdtsc();
+
   if (compress) {
     Encode(conf);
   } else {
     Decode(conf);
   }
+
+  long long unsigned int t2 = __builtin_ia32_rdtsc();
+  printf("Setup time: %lld\nBenchmark time: %lld\n", t1-tinit, t2-t1);
 
   free(conf);
 
