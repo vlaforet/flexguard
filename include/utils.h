@@ -92,13 +92,46 @@ extern "C"
     }
 
     /*
+     * exactly_once
+     * Ensures a block of code has been executed exactly once.
+     * Spins while another thread is executing.
+     *
+     * Returns
+     *    0 if never been executed (Code needs to be executed)
+     *    1 if waited and finished
+     *    2 if already executed
+     *
+     * Example:
+```
+static uint8_t init = 0;
+if (exactly_once(&init) == 0)
+{
+// Code to be executed exactly once
+init = 2;
+}
+```
+     */
+    static inline int exactly_once(volatile uint8_t *value)
+    {
+        if (*value == 2)
+            return 2;
+        uint8_t curr = __sync_val_compare_and_swap(value, 0, 1);
+        if (curr == 1)
+            while (*value == 1)
+                RAW_PAUSE;
+
+        return curr;
+    }
+
+    /*
      * Retrieves current TSC frequency.
      * Calls are cached.
      */
     static inline unsigned long get_tsc_frequency()
     {
         static unsigned long frequency = 0;
-        if (!frequency)
+        static uint8_t init = 0;
+        if (exactly_once(&init) == 0)
         {
             FILE *file;
             char text[32];
@@ -115,6 +148,7 @@ extern "C"
                 fprintf(stderr, "Unable to retrieve TSC frequency, check that bpftrace is properly installed.\n");
                 exit(EXIT_FAILURE);
             }
+            init = 2;
         }
         return frequency;
     }
@@ -167,38 +201,6 @@ extern "C"
         {
             __asm__ __volatile__("nop");
         }
-    }
-
-    /*
-     * exactly_once
-     * Ensures a block of code has been executed exactly once.
-     * Spins while another thread is executing.
-     *
-     * Returns
-     *    0 if never been executed (Code needs to be executed)
-     *    1 if waited and finished
-     *    2 if already executed
-     *
-     * Example:
-```
-static uint8_t init = 0;
-if (exactly_once(&init) == 0)
-{
-    // Code to be executed exactly once
-    init = 2;
-}
-```
-     */
-    static inline int exactly_once(volatile uint8_t *value)
-    {
-        if (*value == 2)
-            return 2;
-        uint8_t curr = __sync_val_compare_and_swap(value, 0, 1);
-        if (curr == 1)
-            while (*value == 1)
-                RAW_PAUSE;
-
-        return curr;
     }
 
 #define CHECK_NUMBER_THREADS_FATAL(nb_thread)                                                   \
