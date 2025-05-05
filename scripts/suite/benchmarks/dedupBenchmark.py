@@ -151,8 +151,8 @@ class DedupBenchmark(BenchmarkCore):
             print(f"Failed to run dedup:", e)
 
         try:
-            os.remove(self.output_path)
-            os.remove(self.compressed_input_path)
+            os.remove(self.compressed_output_path)
+            os.remove(self.uncompressed_output_path)
         except:
             pass
 
