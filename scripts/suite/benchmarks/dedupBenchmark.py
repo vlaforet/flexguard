@@ -13,6 +13,8 @@ class DedupBenchmark(BenchmarkCore):
     setup_pattern = re.compile(r"Setup time:\s+(\d+)")
     run_pattern = re.compile(r"Benchmark time:\s+(\d+)")
 
+    input_file_hash = None
+
     def __init__(self, base_dir, temp_dir):
         super().__init__(base_dir, temp_dir)
         self.parsec_dir = os.path.join(self.base_dir, "ext", "parsec-benchmark")
@@ -102,12 +104,16 @@ class DedupBenchmark(BenchmarkCore):
         if interpose_hash is None:
             raise Exception("Failed to hash interpose.so.")
 
-        input_file_hash = sha256_hash_file(self.input_file)
-        if input_file_hash is None:
-            raise Exception("Failed to hash input file.")
+        if self.input_file_hash is None:
+            self.input_file_hash = sha256_hash_file(self.input_file)
+            if self.input_file_hash is None:
+                raise Exception("Failed to hash input file.")
 
         return super().get_run_hash(
-            exec_hash=exec_hash, interpose_hash=interpose_hash, input_file_hash=input_file_hash, kwargs=kwargs
+            exec_hash=exec_hash,
+            interpose_hash=interpose_hash,
+            input_file_hash=self.input_file_hash,
+            kwargs=kwargs,
         )
 
     def run(self, **kwargs):
