@@ -107,6 +107,7 @@ int mcstas_cond_destroy(mcstas_cond_t *cond);
 #define LOCKIF_INIT mcstas_init
 #define LOCKIF_DESTROY mcstas_destroy
 #define LOCKIF_LOCK mcstas_lock
+#define LOCKIF_TRYLOCK mcstas_trylock
 #define LOCKIF_UNLOCK mcstas_unlock
 #define LOCKIF_INITIALIZER MCSTAS_INITIALIZER
 
