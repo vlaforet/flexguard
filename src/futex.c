@@ -31,13 +31,25 @@
 
 #ifdef DEBUG
 __thread uint8_t locked_thread = 0;
+
+int trylock_counter = 0;
+int lock_counter = 0;
 #endif
 
 int futex_trylock(futex_lock_t *lock)
 {
   if (__sync_val_compare_and_swap(&lock->data, 0, 1) != 0)
     return 1; // Fail
-  return 0;   // Success
+
+#ifdef DEBUG
+  if (locked_thread)
+    DPRINT("Nested locking.");
+
+  locked_thread = 1;
+  __sync_fetch_and_add(&trylock_counter, 1);
+#endif
+
+  return 0; // Success
 }
 
 void futex_lock(futex_lock_t *lock)
@@ -47,6 +59,7 @@ void futex_lock(futex_lock_t *lock)
     DPRINT("Nested locking.");
 
   locked_thread = 1;
+  __sync_fetch_and_add(&lock_counter, 1);
 #endif
 
   int state;
@@ -83,6 +96,9 @@ int futex_init(futex_lock_t *the_lock)
 
 void futex_destroy(futex_lock_t *the_lock)
 {
+#ifdef DEBUG
+  printf("Trylock: %d\nLock: %d\n", trylock_counter, lock_counter);
+#endif
 }
 
 /*
