@@ -111,6 +111,36 @@ static inline void mcs_unlock(flexguard_lock_t *the_lock, flexguard_qnode_ptr qn
     qnode->next->waiting = 0;
 }
 
+int flexguard_trylock(flexguard_lock_t *the_lock)
+{
+#ifdef BPF
+    flexguard_qnode_ptr qnode = get_me();
+#endif
+
+    if (!the_lock->lock_value)
+    {
+#ifdef BPF
+        qnode->is_locking = 1;
+        MEM_BARRIER;
+#endif
+
+#ifdef TIMESLICE_EXTENSION
+        extend();
+#endif
+        if (__sync_val_compare_and_swap(&the_lock->lock_value, 0, 1) == 0)
+            return 0; // Success
+#ifdef TIMESLICE_EXTENSION
+        unextend();
+#endif
+
+#ifdef BPF
+        qnode->is_locking = 0;
+#endif
+    }
+
+    return EBUSY; // Locked
+}
+
 void flexguard_lock(flexguard_lock_t *the_lock)
 {
     flexguard_qnode_ptr qnode = get_me();

@@ -116,6 +116,7 @@ typedef union
 int flexguard_init(flexguard_lock_t *the_lock);
 void flexguard_destroy(flexguard_lock_t *the_lock);
 void flexguard_lock(flexguard_lock_t *the_lock);
+int flexguard_trylock(flexguard_lock_t *the_lock);
 void flexguard_unlock(flexguard_lock_t *the_lock);
 
 int flexguard_cond_init(flexguard_cond_t *cond);
@@ -133,6 +134,7 @@ int flexguard_cond_destroy(flexguard_cond_t *cond);
 #define LOCKIF_INIT flexguard_init
 #define LOCKIF_DESTROY flexguard_destroy
 #define LOCKIF_LOCK flexguard_lock
+#define LOCKIF_TRYLOCK flexguard_trylock
 #define LOCKIF_UNLOCK flexguard_unlock
 #define LOCKIF_INITIALIZER FLEXGUARD_INITIALIZER
 
