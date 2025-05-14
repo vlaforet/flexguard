@@ -52,10 +52,10 @@ int mcsextend_trylock(mcsextend_lock_t *the_lock)
 
     extend();
     if (__sync_val_compare_and_swap(&the_lock->tail, NULL, local) == NULL)
-        return 0;
+        return 0; // Success
 
-    unextend(); // Unextend on failure to acquire
-    return 1;
+    unextend();   // Unextend on failure to acquire
+    return EBUSY; // Locked
 }
 
 void mcsextend_lock(mcsextend_lock_t *the_lock)

@@ -34,7 +34,9 @@ static __thread volatile mcstas_qnode local = {.next = NULL, .waiting = 0};
 
 int mcstas_trylock(mcstas_lock_t *the_lock)
 {
-    return atomic_flag_test_and_set(&(the_lock->lock));
+    if (atomic_flag_test_and_set(&(the_lock->lock)) == 0)
+        return 0; // Success
+    return EBUSY; // Locked
 }
 
 void mcstas_lock(mcstas_lock_t *the_lock)

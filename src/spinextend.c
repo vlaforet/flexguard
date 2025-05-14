@@ -34,14 +34,14 @@ int spinextend_trylock(spinextend_lock_t *the_lock)
 {
     extend();
     if (TAS_U8(&(the_lock->lock)) == UNLOCKED)
-        return UNLOCKED;
+        return 0; // Success
 
-    unextend(); // Unextend on failure to acquire
-    return LOCKED;
+    unextend();   // Unextend on failure to acquire
+    return EBUSY; // Locked
 }
 void spinextend_lock(spinextend_lock_t *the_lock)
 {
-    while (the_lock->lock != UNLOCKED || spinextend_trylock(the_lock) != UNLOCKED)
+    while (the_lock->lock != UNLOCKED || spinextend_trylock(the_lock) != 0)
         PAUSE;
 }
 

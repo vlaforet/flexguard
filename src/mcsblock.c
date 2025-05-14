@@ -49,8 +49,8 @@ int mcsblock_trylock(mcsblock_lock_t *the_lock)
 
     local->next = NULL;
     if (__sync_val_compare_and_swap(&the_lock->tail, NULL, local) == NULL)
-        return 0;
-    return 1;
+        return 0; // Success
+    return EBUSY; // Locked
 }
 
 void mcsblock_lock(mcsblock_lock_t *the_lock)

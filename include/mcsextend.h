@@ -110,6 +110,7 @@ int mcsextend_cond_destroy(mcsextend_cond_t *cond);
 #define LOCKIF_INIT mcsextend_init
 #define LOCKIF_DESTROY mcsextend_destroy
 #define LOCKIF_LOCK mcsextend_lock
+#define LOCKIF_TRYLOCK mcsextend_trylock
 #define LOCKIF_UNLOCK mcsextend_unlock
 #define LOCKIF_INITIALIZER MCSEXTEND_INITIALIZER
 

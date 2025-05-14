@@ -134,10 +134,7 @@ static int interpose_lock_trylock(void *raw_lock)
   if (UNLIKELY(lock->status != 2))
     interpose_lock_init(raw_lock, false);
 
-  if (libslock_trylock(lock->lock) == 0)
-    return 0;
-  else
-    return EBUSY;
+  return libslock_trylock(lock->lock);
 }
 
 static int interpose_lock_unlock(void *raw_lock)

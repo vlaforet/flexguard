@@ -39,7 +39,7 @@ int lock_counter = 0;
 int futex_trylock(futex_lock_t *lock)
 {
   if (__sync_val_compare_and_swap(&lock->data, 0, 1) != 0)
-    return 1; // Fail
+    return EBUSY; // Locked
 
 #ifdef DEBUG
   if (locked_thread)

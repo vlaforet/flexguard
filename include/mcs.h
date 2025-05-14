@@ -77,12 +77,7 @@ typedef union
     uint8_t padding[CACHE_LINE_SIZE];
 #endif
 } mcs_cond_t;
-#define MCS_COND_INITIALIZER \
-    {                        \
-        {                    \
-            0, 0             \
-        }                    \
-    }
+#define MCS_COND_INITIALIZER {{0, 0}}
 
 /*
  * Declarations
@@ -108,6 +103,7 @@ int mcs_cond_destroy(mcs_cond_t *cond);
 #define LOCKIF_INIT mcs_init
 #define LOCKIF_DESTROY mcs_destroy
 #define LOCKIF_LOCK mcs_lock
+#define LOCKIF_TRYLOCK mcs_trylock
 #define LOCKIF_UNLOCK mcs_unlock
 #define LOCKIF_INITIALIZER MCS_INITIALIZER
 

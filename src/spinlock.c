@@ -32,8 +32,8 @@
 int spinlock_trylock(spinlock_lock_t *the_lock)
 {
     if (TAS_U8(&(the_lock->lock)) == 0)
-        return 0;
-    return 1;
+        return 0; // Success
+    return EBUSY; // Locked
 }
 void spinlock_lock(spinlock_lock_t *the_lock)
 {

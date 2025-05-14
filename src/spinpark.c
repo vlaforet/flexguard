@@ -39,9 +39,9 @@ __thread uint8_t locked_thread = 0;
 
 int spinpark_trylock(spinpark_lock_t *lock)
 {
-  if (__sync_val_compare_and_swap(&lock->data, 0, 1) != 0)
-    return 1; // Fail
-  return 0;   // Success
+  if (__sync_val_compare_and_swap(&lock->data, 0, 1) == 0)
+    return 0;   // Success
+  return EBUSY; // Locked
 }
 
 void spinpark_lock(spinpark_lock_t *lock)

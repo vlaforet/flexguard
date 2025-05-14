@@ -41,8 +41,8 @@ int ticket_trylock(ticket_lock_t *lock)
   uint64_t cmp_new = ((uint64_t)me_new << 32) + me_new;
   uint64_t *la = (uint64_t *)lock;
   if (CAS_U64(la, cmp, cmp_new) == cmp)
-    return 0;
-  return 1;
+    return 0;   // Success
+  return EBUSY; // Locked
 }
 
 void ticket_lock(ticket_lock_t *lock)

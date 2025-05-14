@@ -108,6 +108,7 @@ int mcsblock_cond_destroy(mcsblock_cond_t *cond);
 #define LOCKIF_INIT mcsblock_init
 #define LOCKIF_DESTROY mcsblock_destroy
 #define LOCKIF_LOCK mcsblock_lock
+#define LOCKIF_TRYLOCK mcsblock_trylock
 #define LOCKIF_UNLOCK mcsblock_unlock
 #define LOCKIF_INITIALIZER MCSBLOCK_INITIALIZER
 
