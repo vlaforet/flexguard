@@ -26,7 +26,7 @@
 //will busy-wait on a flag first. After a pre-determined amount of time has passed
 //without any success it will fall back to waiting on a condition variable. Spinning
 //will result in unsynchronized memory accesses to the flag.
-#define ENABLE_SPIN_BARRIER
+//#define ENABLE_SPIN_BARRIER
 
 
 
