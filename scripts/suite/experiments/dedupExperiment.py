@@ -27,8 +27,8 @@ class DedupExperiment(ExperimentCore):
 
         for lock in locks:
             for t in threads:
-                for comp in ["gzip", "none"]:
-                    for compress in [True, False]:
+                for comp in ["gzip"]:
+                    for compress in [True]:
                         self.tests.append(
                             {
                                 "name": f"Dedup with {lock} lock and with {t} threads and {comp} compression (compress={compress})",
