@@ -26,7 +26,7 @@ class ConcDedupExperiment(ExperimentCore):
                                     "id": "dedup",
                                     "args": {
                                         "lock": lock,
-                                        "threads": t,
+                                        "threads": bthreads,
                                         "compress": compress,
                                         "compression_type": comp,
                                     },
