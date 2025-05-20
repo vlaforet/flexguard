@@ -2027,7 +2027,17 @@ int main(int argc, char **argv)
   __parsec_roi_begin();
 #endif
 
+  long long unsigned int tinit = __builtin_ia32_rdtsc();
+
+  pthread_mutex_t test_mutex;
+  pthread_mutex_init(&test_mutex, NULL);
+
+  long long unsigned int t1 = __builtin_ia32_rdtsc();
+
   streamCluster(stream, kmin, kmax, dim, chunksize, clustersize, outfilename );
+
+  long long unsigned int t2 = __builtin_ia32_rdtsc();
+  printf("Setup time: %lld\nBenchmark time: %lld\n", t1-tinit, t2-t1);
 
 #ifdef ENABLE_PARSEC_HOOKS
   __parsec_roi_end();
