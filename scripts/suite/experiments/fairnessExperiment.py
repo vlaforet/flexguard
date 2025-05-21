@@ -9,7 +9,7 @@ class FairnessExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [52, 156]
+        threads = [52, 104, 208]
 
         cycles = [
             0,
