@@ -13,7 +13,7 @@ class RaytraceExperiment(ExperimentCore):
 
         for lock in locks:
             for t in threads:
-                if lock == "mcs" and t > 100:
+                if lock == "mcs" and t > 104:
                     continue
                 self.tests.append(
                     {
@@ -32,7 +32,7 @@ class RaytraceExperiment(ExperimentCore):
         results_ylim = results[~results["lock"].isin(["mcs"])]
 
         plt.figure(figsize=(10, 6))
-        plt.xlim(20, 128)
+        #plt.xlim(20, 128)
         sns.lineplot(
             data=results,
             x="threads",
@@ -40,6 +40,7 @@ class RaytraceExperiment(ExperimentCore):
             hue="lock",
             style="lock",
             markers=True,
+            errorbar=None,
         )
 
         plt.title(f"SPLASH2x Raytrace Benchmark (Lower is better)")
