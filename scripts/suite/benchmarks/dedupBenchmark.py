@@ -72,7 +72,7 @@ class DedupBenchmark(BenchmarkCore):
                                 if "compression_type" in kwargs
                                 else None
                             ),
-                            f"-t20",
+                            "-t20",
                             f"-i{self.input_file}",
                             f"-o{self.compressed_output_path}",
                         ]
@@ -82,7 +82,7 @@ class DedupBenchmark(BenchmarkCore):
                     timeout=100,
                 )
             except Exception as e:
-                print(f"Failed to init dedup:", e)
+                print("Failed to init dedup:", e)
                 sys.exit(1)
 
     def estimate_runtime(self, **kwargs):
@@ -154,7 +154,7 @@ class DedupBenchmark(BenchmarkCore):
                 print(result.stdout)
                 print(f"Failed to run dedup ({result.returncode}):", result.stderr)
         except Exception as e:
-            print(f"Failed to run dedup:", e)
+            print("Failed to run dedup:", e)
 
         try:
             os.remove(self.compressed_output_path)

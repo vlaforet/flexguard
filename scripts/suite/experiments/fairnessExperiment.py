@@ -88,7 +88,7 @@ class FairnessExperiment(ExperimentCore):
         longterm = avg_results[avg_results["duration"] == 10000]
         shorterm = avg_results[avg_results["duration"] == 1000]
 
-        fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+        _, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
         plt.xscale("symlog")
 
         sns.lineplot(

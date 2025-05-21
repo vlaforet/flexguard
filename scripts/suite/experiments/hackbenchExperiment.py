@@ -24,7 +24,7 @@ class HackbenchExperiment(ExperimentCore):
                 },
             },
             {
-                "name": f"Hackbench",
+                "name": "Hackbench",
                 "benchmark": {"id": "hackbench", "args": hackbench_kwargs},
                 "concurrent": {
                     "id": "init",
@@ -34,7 +34,7 @@ class HackbenchExperiment(ExperimentCore):
                 },
             },
             {
-                "name": f"Hackbench",
+                "name": "Hackbench",
                 "benchmark": {"id": "hackbench", "args": hackbench_kwargs},
             },
         ]
@@ -43,13 +43,13 @@ class HackbenchExperiment(ExperimentCore):
         average_times = results.groupby("lock")["time"].mean()
 
         locks = average_times.index.tolist()
-        for caseA in locks:
-            for caseB in locks:
-                if caseA == caseB:
+        for case_a in locks:
+            for case_b in locks:
+                if case_a == case_b:
                     continue
 
-                valA = average_times[caseA]
-                valB = average_times[caseB]
+                val_a = average_times[case_a]
+                val_b = average_times[case_b]
 
-                rel_diff = (valB - valA) / valA * 100
-                print(f"{caseB} is {rel_diff:.2f}% slower than {caseA}")
+                rel_diff = (val_b - val_a) / val_a * 100
+                print(f"{case_b} is {rel_diff:.2f}% slower than {case_a}")

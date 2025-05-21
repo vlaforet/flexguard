@@ -116,7 +116,7 @@ class RecordCommand:
 
                             if concurrent:
                                 cproc = Process(
-                                    target=lambda: (
+                                    target=lambda concurrent=concurrent: (
                                         concurrent["instance"].run(**concurrent["args"])
                                         if concurrent
                                         else None

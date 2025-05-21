@@ -6,7 +6,7 @@ import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
 
 
-class hackbenchBenchmark(BenchmarkCore):
+class HackbenchBenchmark(BenchmarkCore):
     pattern = re.compile(r"Time:\s+(\d+\.\d+)")
 
     def __init__(self, base_dir, temp_dir):

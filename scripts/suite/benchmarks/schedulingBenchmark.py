@@ -65,7 +65,7 @@ class SchedulingBenchmark(BenchmarkCore):
                 print(f"Failed to run scheduling ({result.returncode}):", result.stderr)
                 return None
         except Exception as e:
-            print(f"Failed to run scheduling:", e)
+            print("Failed to run scheduling:", e)
             return None
 
         rows = [

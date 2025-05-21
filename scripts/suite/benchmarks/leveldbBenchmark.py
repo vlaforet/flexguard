@@ -43,7 +43,7 @@ class LevelDBBenchmark(BenchmarkCore):
                 timeout=30,
             )
         except Exception as e:
-            print(f"Failed to init LevelDB:", e)
+            print("Failed to init LevelDB:", e)
             sys.exit(1)
 
     def estimate_runtime(self, **kwargs):
@@ -101,7 +101,7 @@ class LevelDBBenchmark(BenchmarkCore):
             if result.returncode != 0:
                 print(f"Failed to run LevelDB ({result.returncode}):", result.stderr)
         except Exception as e:
-            print(f"Failed to run LevelDB:", e)
+            print("Failed to run LevelDB:", e)
 
         try:
             os.remove(self.db_path)

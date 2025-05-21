@@ -83,7 +83,7 @@ class IndexBenchmark(BenchmarkCore):
                 print(f"Failed to run PiBench ({result.returncode}):", result.stderr)
                 return None
         except Exception as e:
-            print(f"Failed to run PiBench:", e)
+            print("Failed to run PiBench:", e)
             return None
 
         results = {}
@@ -93,9 +93,9 @@ class IndexBenchmark(BenchmarkCore):
                     results[col] = float(m.group(1))
                     break
 
-        for finishType in self.finishTypes:
-            results[finishType] = sum(
-                results.get(f"{opType}-{finishType}", 0) for opType in self.opTypes
+        for finish_type in self.finishTypes:
+            results[finish_type] = sum(
+                results.get(f"{opType}-{finish_type}", 0) for opType in self.opTypes
             )
 
         return pd.DataFrame([results]) if results else None

@@ -54,7 +54,7 @@ class BucketsBenchmark(BenchmarkCore):
                 print(f"Failed to run buckets ({result.returncode}):", result.stderr)
                 return None
         except Exception as e:
-            print(f"Failed to run buckets:", e)
+            print("Failed to run buckets:", e)
             return None
 
         results = {}

@@ -43,7 +43,7 @@ class RaytraceExperiment(ExperimentCore):
             errorbar=None,
         )
 
-        plt.title(f"SPLASH2x Raytrace Benchmark (Lower is better)")
+        plt.title("SPLASH2x Raytrace Benchmark (Lower is better)")
         plt.xlabel("Threads")
         plt.ylabel("Execution time (micros)")
         plt.grid(True)

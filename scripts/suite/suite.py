@@ -46,7 +46,7 @@ ExperimentsOption = typer.Option(None, "-e", help="Experiments to run")
 ResultsDirOption = typer.Option(
     os.path.join(base_dir, "results"),
     "-o",
-    help=f"Results directory",
+    help="Results directory",
 )
 LocksOption = typer.Option(
     [

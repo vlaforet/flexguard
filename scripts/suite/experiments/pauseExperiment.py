@@ -42,7 +42,7 @@ class PauseExperiment(ExperimentCore):
             markers=True,
         )
 
-        plt.title(f"Busy-waiting loops")
+        plt.title("Busy-waiting loops")
         plt.xlabel("Threads")
         plt.ylabel("Busy-waiting loops (OPs)")
         plt.grid(True)
