@@ -77,7 +77,7 @@ class IndexBenchmark(BenchmarkCore):
                 commands,
                 capture_output=True,
                 text=True,
-                timeout=30 / 1000 * self.estimate_runtime(**kwargs),
+                timeout=60 / 1000 * self.estimate_runtime(**kwargs),
             )
             if result.returncode != 0:
                 print(f"Failed to run PiBench ({result.returncode}):", result.stderr)
