@@ -32,7 +32,7 @@ class ConcDedupExperiment(ExperimentCore):
                                 "lock": "mcstas",
                                 "base-threads": t,
                                 "num-threads": t,
-                                "step-duration": 3000000000,  # Will be killed when Dedup finishes
+                                "step-duration": 300000000,  # Will be killed when Dedup finishes
                             },
                         },
                     }
