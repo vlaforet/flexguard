@@ -5,7 +5,7 @@ import seaborn as sns
 from experiments.experimentCore import ExperimentCore
 
 
-class ConcDedupExperiment(ExperimentCore):
+class ConcRaytraceExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
         bthreads = 52
@@ -18,7 +18,7 @@ class ConcDedupExperiment(ExperimentCore):
                     continue
                 self.tests.append(
                     {
-                        "name": f"Dedup with {lock} lock and concurrent workload with {t} threads",
+                        "name": f"Raytrace with {lock} lock and concurrent workload with {t} threads",
                         "benchmark": {
                             "id": "raytrace",
                             "args": {
@@ -32,7 +32,7 @@ class ConcDedupExperiment(ExperimentCore):
                                 "lock": "mcstas",
                                 "base-threads": t,
                                 "num-threads": t,
-                                "step-duration": 300000000,  # Will be killed when Dedup finishes
+                                "step-duration": 300000000,  # Will be killed when Raytrace finishes
                             },
                         },
                     }
