@@ -105,6 +105,25 @@ typedef int libslock_cond_t;
     }
 #endif
 
+#ifdef LOCKIF_BARRIERATTR_T
+typedef LOCKIF_BARRIERATTR_T libslock_barrierattr_t;
+#else
+typedef int libslock_barrierattr_t;
+#endif
+
+#ifdef LOCKIF_BARRIER_T
+typedef LOCKIF_BARRIER_T libslock_barrier_t;
+#else
+typedef struct
+{
+    libslock_t lock;
+    libslock_cond_t cond;
+    unsigned max;
+    volatile unsigned n;
+    volatile int is_arrival_phase;
+} libslock_barrier_t;
+#endif
+
 /*
  *  Declarations
  */
@@ -121,6 +140,14 @@ static inline int libslock_cond_wait(libslock_cond_t *cond, libslock_t *lock);
 static inline int libslock_cond_timedwait(libslock_cond_t *cond, libslock_t *lock, const struct timespec *ts);
 static inline int libslock_cond_signal(libslock_cond_t *cond);
 static inline int libslock_cond_broadcast(libslock_cond_t *cond);
+
+static inline int libslock_barrier_init(libslock_barrier_t *barrier, const libslock_barrierattr_t *attr, unsigned count);
+static inline int libslock_barrier_destroy(libslock_barrier_t *barrier);
+static inline int libslock_barrier_wait(libslock_barrier_t *barrier);
+static inline int libslock_barrierattr_init(libslock_barrierattr_t *attr);
+static inline int libslock_barrierattr_destroy(libslock_barrierattr_t *attr);
+static inline int libslock_barrierattr_getpshared(const libslock_barrierattr_t *attr, int *pshared);
+static inline int libslock_barrierattr_setpshared(libslock_barrierattr_t *attr, int pshared);
 
 /*
  *  Lock Functions
@@ -220,6 +247,165 @@ static inline int libslock_cond_broadcast(libslock_cond_t *cond)
 #else
     fprintf(stderr, "Condition variables not supported by this lock.\n");
     exit(EXIT_FAILURE);
+#endif
+}
+
+/*
+ *  Barrier Functions
+ */
+
+static inline int libslock_barrier_init(libslock_barrier_t *barrier, const libslock_barrierattr_t *attr, unsigned count)
+{
+#ifdef LOCKIF_BARRIER_INIT
+    return LOCKIF_BARRIER_INIT(barrier, attr, count);
+#else
+    int rv;
+
+    if (barrier == NULL || count <= 0)
+        return EINVAL;
+
+    if (attr != NULL && *attr != PTHREAD_PROCESS_PRIVATE)
+    {
+        fprintf(stderr, "Only private barriers are supported.\n");
+        return EINVAL;
+    }
+
+    barrier->max = count;
+    barrier->n = 0;
+    barrier->is_arrival_phase = 1;
+
+    if ((rv = libslock_init(&barrier->lock)) != 0)
+        return rv;
+    return libslock_cond_init(&barrier->cond);
+#endif
+}
+
+static inline int libslock_barrier_destroy(libslock_barrier_t *barrier)
+{
+#ifdef LOCKIF_BARRIER_DESTROY
+    return LOCKIF_BARRIER_DESTROY(barrier);
+#else
+    int rv;
+
+    if (barrier == NULL)
+        return EINVAL;
+
+    libslock_destroy(&barrier->lock);
+    rv = libslock_cond_destroy(&barrier->cond);
+    if (rv != 0)
+        return rv;
+
+    // If the barrier is still in use then the other destroy functions should
+    // have returned an error, but we check anyway to catch any other unexpected errors.
+    if (barrier->n != 0)
+        return EBUSY;
+
+    return 0;
+#endif
+}
+
+static inline int libslock_barrier_wait(libslock_barrier_t *barrier)
+{
+#ifdef LOCKIF_BARRIER_WAIT
+    return LOCKIF_BARRIER_WAIT(barrier);
+#else
+    int master, rv;
+
+    if (barrier == NULL)
+        return EINVAL;
+
+    libslock_lock(&barrier->lock);
+
+    while (!barrier->is_arrival_phase)
+    {
+        rv = libslock_cond_wait(&barrier->cond, &barrier->lock);
+        if (rv != 0)
+        {
+            libslock_unlock(&barrier->lock);
+            return rv;
+        }
+    }
+
+    master = (barrier->n == 0);
+    barrier->n++;
+    if (barrier->n >= barrier->max)
+    {
+        barrier->is_arrival_phase = 0;
+        libslock_cond_broadcast(&barrier->cond);
+    }
+    else
+    {
+        while (barrier->is_arrival_phase)
+        {
+            rv = libslock_cond_wait(&barrier->cond, &barrier->lock);
+            if (rv != 0)
+            {
+                libslock_unlock(&barrier->lock);
+                return rv;
+            }
+        }
+    }
+    barrier->n--;
+    if (barrier->n == 0)
+    {
+        barrier->is_arrival_phase = 1;
+        libslock_cond_broadcast(&barrier->cond);
+    }
+    libslock_unlock(&barrier->lock);
+
+    return master ? PTHREAD_BARRIER_SERIAL_THREAD : 0;
+#endif
+}
+
+static inline int libslock_barrierattr_init(libslock_barrierattr_t *attr)
+{
+#ifdef LOCKIF_BARRIERATTR_INIT
+    return LOCKIF_BARRIERATTR_INIT(attr);
+#else
+    if (attr == NULL)
+        return EINVAL;
+    return 0;
+#endif
+}
+
+static inline int libslock_barrierattr_destroy(libslock_barrierattr_t *attr)
+{
+#ifdef LOCKIF_BARRIERATTR_DESTROY
+    return LOCKIF_BARRIERATTR_DESTROY(attr);
+#else
+    if (attr == NULL)
+        return EINVAL;
+    return 0;
+#endif
+}
+
+static inline int libslock_barrierattr_getpshared(const libslock_barrierattr_t *attr, int *pshared)
+{
+#ifdef LOCKIF_BARRIERATTR_GETPSHARED
+    return LOCKIF_BARRIERATTR_GETPSHARED(attr, pshared);
+#else
+    if (attr == NULL || pshared == NULL)
+        return EINVAL;
+    *pshared = *attr;
+    return 0;
+#endif
+}
+
+static inline int libslock_barrierattr_setpshared(libslock_barrierattr_t *attr, int pshared)
+{
+#ifdef LOCKIF_BARRIERATTR_SETPHARED
+    return LOCKIF_BARRIERATTR_SETPHARED(attr, pshared);
+#else
+    if (attr == NULL)
+        return EINVAL;
+    // Currently we only support private barriers (the default)
+    if (pshared != PTHREAD_PROCESS_PRIVATE)
+    {
+        fprintf(stderr, "Only private barriers are supported.\n");
+        return EINVAL;
+    }
+    *attr = pshared;
+    return 0;
 #endif
 }
 

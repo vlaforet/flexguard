@@ -41,4 +41,12 @@ GLIBC_2.34 {
       pthread_rwlock_tryrdlock;
       pthread_rwlock_trywrlock;
       pthread_rwlock_unlock;
+
+      pthread_barrier_init;
+      pthread_barrier_destroy;
+      pthread_barrier_wait;
+      pthread_barrierattr_init;
+      pthread_barrierattr_destroy;
+      pthread_barrierattr_setpshared;
+      pthread_barrierattr_getpshared;
 } GLIBC_2.3.2;

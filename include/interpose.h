@@ -40,6 +40,7 @@
 
 #define INTERPOSE_RWLOCK 1
 #define INTERPOSE_SPINLOCK 1
+#define INTERPOSE_BARRIERS 1
 
 #define PASTER(x, y) real_##x##_##y
 #define EVALUATOR(x, y) PASTER(x, y)
@@ -97,5 +98,13 @@ typedef struct condvar_as_t
   volatile uint8_t status;
   libslock_cond_t *cond;
 } condvar_as_t;
+
+#if INTERPOSE_BARRIERS
+typedef struct barrier_as_t
+{
+  volatile uint8_t status;
+  libslock_barrier_t *barrier;
+} barrier_as_t;
+#endif
 
 #endif // __INTERPOSE_H__

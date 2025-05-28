@@ -134,6 +134,17 @@ int main(int argc, char **argv)
   SUCCESS_OR_FAIL(pthread_rwlock_unlock(&rwlock));
   SUCCESS_OR_FAIL(pthread_rwlock_destroy(&rwlock));
 
+  pthread_barrier_t barrier;
+  SUCCESS_OR_FAIL(pthread_barrier_init(&barrier, NULL, 2));
+  SUCCESS_OR_FAIL(pthread_barrier_wait(&barrier));
+  SUCCESS_OR_FAIL(pthread_barrier_destroy(&barrier));
+
+  pthread_barrierattr_t barrier_attr;
+  SUCCESS_OR_FAIL(pthread_barrierattr_init(&barrier_attr));
+  SUCCESS_OR_FAIL(pthread_barrierattr_setpshared(&barrier_attr, PTHREAD_PROCESS_PRIVATE));
+  SUCCESS_OR_FAIL(pthread_barrierattr_getpshared(&barrier_attr, NULL));
+  SUCCESS_OR_FAIL(pthread_barrierattr_destroy(&barrier_attr));
+
   printf("\nInterposition test successful\n");
   return EXIT_SUCCESS;
 }
