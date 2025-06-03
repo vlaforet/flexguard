@@ -415,7 +415,9 @@ CHAR	*argv[];
 	if (TraversalType == TT_HUG)
 		BuildHierarchy_Uniform();
 
-
+	// Init a mutex here to initialize locks.
+  pthread_mutex_t test_mutex;
+  pthread_mutex_init(&test_mutex, NULL);
 
 	/*
 	 *	Now create slave processes.
