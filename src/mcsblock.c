@@ -123,7 +123,11 @@ int mcsblock_cond_wait(mcsblock_cond_t *cond, mcsblock_lock_t *the_lock)
 
     while (target > seq)
     {
+#if defined(CONDVARS_SPIN)
+        PAUSE;
+#else
         futex_wait(&cond->seq, seq);
+#endif
         seq = cond->seq;
     }
     mcsblock_lock(the_lock);

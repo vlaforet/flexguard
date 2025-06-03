@@ -133,7 +133,11 @@ int mcstas_cond_wait(mcstas_cond_t *cond, mcstas_lock_t *the_lock)
 
     while (target > seq)
     {
+#if defined(CONDVARS_BLOCK)
+        futex_wait(&cond->seq, seq);
+#else
         PAUSE;
+#endif
         seq = cond->seq;
     }
     mcstas_lock(the_lock);

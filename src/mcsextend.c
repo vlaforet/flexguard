@@ -133,7 +133,11 @@ int mcsextend_cond_wait(mcsextend_cond_t *cond, mcsextend_lock_t *the_lock)
 
     while (target > seq)
     {
+#if defined(CONDVARS_BLOCK)
+        futex_wait(&cond->seq, seq);
+#else
         PAUSE;
+#endif
         seq = cond->seq;
     }
     mcsextend_lock(the_lock);

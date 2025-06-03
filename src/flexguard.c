@@ -395,11 +395,17 @@ int flexguard_cond_wait(flexguard_cond_t *cond, flexguard_lock_t *the_lock)
 
     while (target > seq)
     {
+#if defined(CONDVARS_BLOCK)
+        futex_wait(&cond->seq, seq);
+#elif defined(CONDVARS_SPIN)
+        PAUSE;
+#else
         if (BLOCKING_CONDITION(the_lock))
             futex_wait(&cond->seq, seq);
         else
             PAUSE;
         seq = cond->seq;
+#endif
     }
     flexguard_lock(the_lock);
     return 0;

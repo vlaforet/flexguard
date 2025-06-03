@@ -84,7 +84,11 @@ int spinextend_cond_wait(spinextend_cond_t *cond, spinextend_lock_t *the_lock)
 
     while (target > seq)
     {
+#if defined(CONDVARS_BLOCK)
+        futex_wait(&cond->seq, seq);
+#else
         PAUSE;
+#endif
         seq = cond->seq;
     }
     spinextend_lock(the_lock);

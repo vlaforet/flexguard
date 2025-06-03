@@ -121,7 +121,11 @@ int futex_cond_wait(futex_cond_t *cond, futex_lock_t *the_lock)
 
   while (target > seq)
   {
+#if defined(CONDVARS_SPIN)
+    PAUSE;
+#else
     futex_wait(&cond->seq, seq);
+#endif
     seq = cond->seq;
   }
   futex_lock(the_lock);
