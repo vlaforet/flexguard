@@ -25,6 +25,8 @@ class ConcStreamclusterExperiment(ExperimentCore):
                             "args": {
                                 "lock": lock,
                                 "threads": bthreads,
+                                "num_points": 16384,
+                                "chunksize": 16384,
                             },
                         },
                         "concurrent": {
