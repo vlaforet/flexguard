@@ -133,14 +133,18 @@ int spinpark_cond_timedwait(spinpark_cond_t *cond, spinpark_lock_t *the_lock, co
 int spinpark_cond_signal(spinpark_cond_t *cond)
 {
   cond->seq++;
+#ifndef CONDVARS_SPIN
   futex_wake(&cond->seq, 1);
+#endif
   return 0;
 }
 
 int spinpark_cond_broadcast(spinpark_cond_t *cond)
 {
   cond->seq = cond->target;
+#ifndef CONDVARS_SPIN
   futex_wake(&cond->seq, INT_MAX);
+#endif
   return 0;
 }
 

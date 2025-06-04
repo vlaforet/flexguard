@@ -331,14 +331,18 @@ int uscl_cond_timedwait(uscl_cond_t *cond, uscl_lock_t *the_lock, const struct t
 int uscl_cond_signal(uscl_cond_t *cond)
 {
   cond->seq++;
+#ifndef CONDVARS_SPIN
   futex_wake(&cond->seq, 1);
+#endif
   return 0;
 }
 
 int uscl_cond_broadcast(uscl_cond_t *cond)
 {
   cond->seq = cond->target;
+#ifndef CONDVARS_SPIN
   futex_wake(&cond->seq, INT_MAX);
+#endif
   return 0;
 }
 

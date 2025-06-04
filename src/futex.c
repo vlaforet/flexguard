@@ -141,14 +141,18 @@ int futex_cond_timedwait(futex_cond_t *cond, futex_lock_t *the_lock, const struc
 int futex_cond_signal(futex_cond_t *cond)
 {
   cond->seq++;
+#ifndef CONDVARS_SPIN
   futex_wake(&cond->seq, 1);
+#endif
   return 0;
 }
 
 int futex_cond_broadcast(futex_cond_t *cond)
 {
   cond->seq = cond->target;
+#ifndef CONDVARS_SPIN
   futex_wake(&cond->seq, INT_MAX);
+#endif
   return 0;
 }
 

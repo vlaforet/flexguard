@@ -144,12 +144,18 @@ int mcs_cond_timedwait(mcs_cond_t *cond, mcs_lock_t *the_lock, const struct time
 int mcs_cond_signal(mcs_cond_t *cond)
 {
     cond->seq++;
+#ifndef CONDVARS_SPIN
+    futex_wake(&cond->seq, 1);
+#endif
     return 0;
 }
 
 int mcs_cond_broadcast(mcs_cond_t *cond)
 {
     cond->seq = cond->target;
+#ifndef CONDVARS_SPIN
+    futex_wake(&cond->seq, INT_MAX);
+#endif
     return 0;
 }
 

@@ -143,14 +143,18 @@ int mcsblock_cond_timedwait(mcsblock_cond_t *cond, mcsblock_lock_t *the_lock, co
 int mcsblock_cond_signal(mcsblock_cond_t *cond)
 {
     cond->seq++;
+#ifndef CONDVARS_SPIN
     futex_wake(&cond->seq, 1);
+#endif
     return 0;
 }
 
 int mcsblock_cond_broadcast(mcsblock_cond_t *cond)
 {
     cond->seq = cond->target;
+#ifndef CONDVARS_SPIN
     futex_wake(&cond->seq, INT_MAX);
+#endif
     return 0;
 }
 

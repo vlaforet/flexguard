@@ -404,8 +404,8 @@ int flexguard_cond_wait(flexguard_cond_t *cond, flexguard_lock_t *the_lock)
             futex_wait(&cond->seq, seq);
         else
             PAUSE;
-        seq = cond->seq;
 #endif
+        seq = cond->seq;
     }
     flexguard_lock(the_lock);
     return 0;
@@ -420,14 +420,18 @@ int flexguard_cond_timedwait(flexguard_cond_t *cond, flexguard_lock_t *the_lock,
 int flexguard_cond_signal(flexguard_cond_t *cond)
 {
     cond->seq++;
+#ifndef CONDVARS_SPIN
     futex_wake(&cond->seq, 1);
+#endif
     return 0;
 }
 
 int flexguard_cond_broadcast(flexguard_cond_t *cond)
 {
     cond->seq = cond->target;
+#ifndef CONDVARS_SPIN
     futex_wake(&cond->seq, INT_MAX);
+#endif
     return 0;
 }
 

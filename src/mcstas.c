@@ -153,12 +153,18 @@ int mcstas_cond_timedwait(mcstas_cond_t *cond, mcstas_lock_t *the_lock, const st
 int mcstas_cond_signal(mcstas_cond_t *cond)
 {
     cond->seq++;
+#ifndef CONDVARS_SPIN
+    futex_wake(&cond->seq, 1);
+#endif
     return 0;
 }
 
 int mcstas_cond_broadcast(mcstas_cond_t *cond)
 {
     cond->seq = cond->target;
+#ifndef CONDVARS_SPIN
+    futex_wake(&cond->seq, INT_MAX);
+#endif
     return 0;
 }
 

@@ -104,12 +104,18 @@ int spinextend_cond_timedwait(spinextend_cond_t *cond, spinextend_lock_t *the_lo
 int spinextend_cond_signal(spinextend_cond_t *cond)
 {
     cond->seq++;
+#ifndef CONDVARS_SPIN
+    futex_wake(&cond->seq, 1);
+#endif
     return 0;
 }
 
 int spinextend_cond_broadcast(spinextend_cond_t *cond)
 {
     cond->seq = cond->target;
+#ifndef CONDVARS_SPIN
+    futex_wake(&cond->seq, INT_MAX);
+#endif
     return 0;
 }
 

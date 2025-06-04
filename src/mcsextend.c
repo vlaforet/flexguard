@@ -153,12 +153,18 @@ int mcsextend_cond_timedwait(mcsextend_cond_t *cond, mcsextend_lock_t *the_lock,
 int mcsextend_cond_signal(mcsextend_cond_t *cond)
 {
     cond->seq++;
+#ifndef CONDVARS_SPIN
+    futex_wake(&cond->seq, 1);
+#endif
     return 0;
 }
 
 int mcsextend_cond_broadcast(mcsextend_cond_t *cond)
 {
     cond->seq = cond->target;
+#ifndef CONDVARS_SPIN
+    futex_wake(&cond->seq, INT_MAX);
+#endif
     return 0;
 }
 
