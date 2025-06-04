@@ -9,7 +9,7 @@ class ConcBucketsExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [1] + [x for x in range(5, 301, 5)]
+        threads = [1, 2, 4, 8, 16, 32, 48, 50, 52, 54, 64, 72, 96, 128, 192, 256]
 
         for lock in locks:
             for thread in threads:
