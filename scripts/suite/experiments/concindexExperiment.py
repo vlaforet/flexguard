@@ -14,7 +14,7 @@ class ConcIndexExperiment(ExperimentCore):
 
         for lock in locks:
             for t in threads:
-                if t + bthreads >= 104 and lock in ["mcs", "mcstp", "malthusian"]:
+                if t + bthreads > 104 and lock in ["mcs", "mcstp", "malthusian"]:
                     continue
 
                 self.tests.append(
