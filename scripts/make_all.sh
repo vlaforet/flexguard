@@ -6,14 +6,16 @@ usage() {
     echo "    -s suffix      suffix the executables with suffix"
     echo "    -d             debug mode"
     echo "    -p             enable pause counter"
-
+    echo "    -w waitmode    set condvars wait mode (AUTO, BLOCK, SPIN)"
+    echo "    -h             show this usage message"
 }
 
 USUFFIX=""
 VERBOSE=0
 DEBUG=0
 PAUSE_COUNTER=0
-while getopts "hs:vdp" OPTION; do
+CONDWAIT="AUTO"
+while getopts "hs:vdpw:" OPTION; do
     case $OPTION in
     h)
         usage
@@ -34,6 +36,12 @@ while getopts "hs:vdp" OPTION; do
     p)
         PAUSE_COUNTER=1
         ;;
+    w)
+        if [ -n "$OPTARG" ]; then
+            CONDWAIT="$OPTARG"
+            echo "Using condvars wait mode: $CONDWAIT"
+        fi
+        ;;
     ?)
         usage
         exit
@@ -43,7 +51,7 @@ done
 
 compile_and_suffix() {
     suffix="$1"
-    cmd="make -j40 all DEBUG=${DEBUG} PAUSE_COUNTER=${PAUSE_COUNTER} $2"
+    cmd="make -j40 all DEBUG=${DEBUG} CONDVARSWAIT=${CONDWAIT} PAUSE_COUNTER=${PAUSE_COUNTER} $2"
 
     make clean >/dev/null
 
