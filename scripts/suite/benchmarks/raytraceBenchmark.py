@@ -32,7 +32,7 @@ class RaytraceBenchmark(BenchmarkCore):
             sys.exit(1)
 
     def estimate_runtime(self, **kwargs):
-        return 1000
+        return 10000
 
     def get_run_hash(self, **kwargs):
         exec_hash = sha256_hash_file(self.bin)
