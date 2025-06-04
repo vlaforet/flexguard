@@ -191,8 +191,8 @@ all: scheduling test_correctness test_init buckets libsync.a interpose.so interp
 	@echo "############### CFLAGS =" $(INCLUDES) $(DEFINED)
 
 clean:
-	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s libsync.a *.odump test_correctness test_init scheduling buckets
+	rm -rf $(OUTPUT) interpose.so interpose.sh *.o *.s libsync.a *.odump test_correctness test_init scheduling buckets test_interpose
 	$(MAKE) -C litl/ clean
 
 cleanall: clean
-	rm -rf interpose_*.so interpose_*.sh libsync*.a test_correctness_* test_init_* scheduling_* buckets_*
+	rm -rf interpose_*.so interpose_*.sh libsync*.a test_correctness_* test_init_* scheduling_* buckets_* test_interpose_*
