@@ -39,7 +39,7 @@
 #include "lock_if.h"
 
 #define INTERPOSE_RWLOCK 1
-#define INTERPOSE_SPINLOCK 1
+#define INTERPOSE_SPINLOCK 0
 #define INTERPOSE_BARRIERS 1
 
 #define PASTER(x, y) real_##x##_##y
