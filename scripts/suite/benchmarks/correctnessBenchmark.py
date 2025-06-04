@@ -22,7 +22,7 @@ class CorrectnessBenchmark(BenchmarkCore):
 
     def get_run_hash(self, **kwargs):
         exec_hash = sha256_hash_file(
-            os.path.join(self.base_dir, f"test_correctness_{kwargs['lock']}")
+            os.path.join(self.base_dir, "build", f"test_correctness_{kwargs['lock']}")
         )
         if exec_hash is None:
             raise Exception("Failed to hash executable.")
@@ -33,7 +33,7 @@ class CorrectnessBenchmark(BenchmarkCore):
         test_correctness_args = [f"--{k}={w}" for k, w in kwargs.items() if k != "lock"]
 
         commands = [
-            os.path.join(self.base_dir, f"test_correctness_{kwargs['lock']}"),
+            os.path.join(self.base_dir, "build", f"test_correctness_{kwargs['lock']}"),
             *test_correctness_args,
         ]
         print(" ".join(commands))

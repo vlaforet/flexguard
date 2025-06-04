@@ -49,6 +49,8 @@ while getopts "hs:vdpw:" OPTION; do
     esac
 done
 
+mkdir -p build
+
 compile_and_suffix() {
     suffix="$1"
     cmd="make -j40 all DEBUG=${DEBUG} CONDVARSWAIT=${CONDWAIT} PAUSE_COUNTER=${PAUSE_COUNTER} $2"
@@ -62,13 +64,13 @@ compile_and_suffix() {
         eval $cmd >/dev/null
     fi
 
-    mv libsync.a libsync${suffix}${USUFFIX}.a
-    mv buckets buckets_${suffix}${USUFFIX}
-    mv test_correctness test_correctness_${suffix}${USUFFIX}
-    mv test_init test_init_${suffix}${USUFFIX}
-    mv scheduling scheduling_${suffix}${USUFFIX}
-    mv interpose.sh interpose_${suffix}${USUFFIX}.sh
-    mv interpose.so interpose_${suffix}${USUFFIX}.so
+    mv libsync.a build/libsync${suffix}${USUFFIX}.a
+    mv buckets build/buckets_${suffix}${USUFFIX}
+    mv test_correctness build/test_correctness_${suffix}${USUFFIX}
+    mv test_init build/test_init_${suffix}${USUFFIX}
+    mv scheduling build/scheduling_${suffix}${USUFFIX}
+    mv interpose.sh build/interpose_${suffix}${USUFFIX}.sh
+    mv interpose.so build/interpose_${suffix}${USUFFIX}.so
 }
 
 compile_and_suffix "mcstasnopad" "LOCK_VERSION=MCSTAS ADD_PADDING=0"
@@ -107,3 +109,5 @@ compile_and_suffix "uscl" "LOCK_VERSION=USCL ADD_PADDING=1"
 compile_and_suffix "flexguard" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1"
 compile_and_suffix "flexguardall" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1 FLEXGUARD_ALL=1"
 compile_and_suffix "flexguardextend" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1 TIMESLICE_EXTENSION=1"
+
+make clean >/dev/null

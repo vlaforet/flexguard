@@ -148,7 +148,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_mcstas${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCSTAS" USE_MCSTAS_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncmcstasnopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncmcstasnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -156,7 +156,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_mcs${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCS" USE_MCS_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncmcsnopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncmcsnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -164,7 +164,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_uscl${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="uSCL" USE_USCL_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncusclnopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncusclnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -172,7 +172,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_spinextend${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Spin Extend" USE_SPINEXTEND_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncspinextendnopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncspinextendnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -180,7 +180,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_mcsextend${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCS Extend" USE_MCSEXTEND_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncmcsextendnopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncmcsextendnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -188,7 +188,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_futex${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="FUTEX" USE_FUTEX_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncfutexnopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncfutexnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -196,7 +196,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_flexguard${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="FlexGuard" USE_FLEXGUARD_LOCKS HYBRID_MCS BPF
-    LIBRARIES "${ROOT_DIR}/libsyncflexguardnopad.a" elf
+    LIBRARIES "${ROOT_DIR}/build/libsyncflexguardnopad.a" elf
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -204,7 +204,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_flexguardextend${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="FlexGuard Extend Time Slice" USE_FLEXGUARD_LOCKS HYBRID_MCS BPF TIMESLICE_EXTENSION
-    LIBRARIES "${ROOT_DIR}/libsyncflexguardextendnopad.a" elf
+    LIBRARIES "${ROOT_DIR}/build/libsyncflexguardextendnopad.a" elf
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -212,7 +212,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_mcstp${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCS-TP" USE_MCSTP_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncmcstpnopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncmcstpnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -220,7 +220,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_malthusian${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Malthusian" USE_MALTHUSIAN_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncmalthusiannopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncmalthusiannopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -228,7 +228,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_shuffle${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Shuffle" USE_SHUFFLE_LOCKS
-    LIBRARIES "${ROOT_DIR}/libsyncshufflenopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncshufflenopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -236,7 +236,7 @@ foreach(page_size page_size_suffix IN ZIP_LISTS page_sizes page_size_suffixes)
     NAME btreelc_shuffleextend${page_size_suffix}
     SOURCE btreeolc_wrapper.cpp
     DEFINITIONS RWLOCK LIBSLOCK_LOCK BTREE_RWLOCK BTREE_PAGE_SIZE=${page_size} ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="Shuffle Extend" USE_SHUFFLE_LOCKS TIMESLICE_EXTENSION
-    LIBRARIES "${ROOT_DIR}/libsyncshuffleextendnopad.a"
+    LIBRARIES "${ROOT_DIR}/build/libsyncshuffleextendnopad.a"
     INCLUDE "${ROOT_DIR}/include"
   )
 
@@ -373,7 +373,7 @@ add_wrapper(
   NAME artlc_mcstas
   SOURCE artolc_wrapper.cpp
   DEFINITIONS RWLOCK LIBSLOCK_LOCK ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="MCSTAS" USE_MCSTAS_LOCKS
-  LIBRARIES artlc_mcstas tbb numa "${ROOT_DIR}/libsyncmcstasnopad.a"
+  LIBRARIES artlc_mcstas tbb numa "${ROOT_DIR}/build/libsyncmcstasnopad.a"
   INCLUDE "${ROOT_DIR}/include"
 )
 
@@ -381,7 +381,7 @@ add_wrapper(
   NAME artlc_flexguard
   SOURCE artolc_wrapper.cpp
   DEFINITIONS RWLOCK LIBSLOCK_LOCK ${LIBSLOCK_DEBUG} LIBSLOCK_LOCK_NAME="FlexGuard" USE_FLEXGUARD_LOCKS HYBRID_MCS BPF
-  LIBRARIES artlc_flexguard tbb numa "${ROOT_DIR}/libsyncflexguardnopad.a" elf
+  LIBRARIES artlc_flexguard tbb numa "${ROOT_DIR}/build/libsyncflexguardnopad.a" elf
   INCLUDE "${ROOT_DIR}/include"
 )
 

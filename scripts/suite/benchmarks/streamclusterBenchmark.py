@@ -59,7 +59,7 @@ class StreamclusterBenchmark(BenchmarkCore):
             raise Exception("Failed to hash executable.")
 
         interpose_hash = sha256_hash_file(
-            os.path.join(self.base_dir, f"interpose_{kwargs['lock']}.so")
+            os.path.join(self.base_dir, "build", f"interpose_{kwargs['lock']}.so")
         )
         if interpose_hash is None:
             raise Exception("Failed to hash interpose.so.")
@@ -73,7 +73,9 @@ class StreamclusterBenchmark(BenchmarkCore):
             str(c)
             for c in [
                 (
-                    os.path.join(self.base_dir, f"interpose_{kwargs['lock']}.sh")
+                    os.path.join(
+                        self.base_dir, "build", f"interpose_{kwargs['lock']}.sh"
+                    )
                     if "lock" in kwargs and kwargs["lock"] != "stock"
                     else None
                 ),

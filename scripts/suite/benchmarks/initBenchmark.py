@@ -20,7 +20,7 @@ class InitBenchmark(BenchmarkCore):
 
     def get_run_hash(self, **kwargs):
         exec_hash = sha256_hash_file(
-            os.path.join(self.base_dir, f"test_init_{kwargs['lock']}"),
+            os.path.join(self.base_dir, "build", f"test_init_{kwargs['lock']}"),
         )
         if exec_hash is None:
             raise Exception("Failed to hash executable.")
@@ -31,7 +31,7 @@ class InitBenchmark(BenchmarkCore):
         test_init_args = [f"--{k}={w}" for k, w in kwargs.items() if k != "lock"]
 
         commands = [
-            os.path.join(self.base_dir, f"test_init_{kwargs['lock']}"),
+            os.path.join(self.base_dir, "build", f"test_init_{kwargs['lock']}"),
             *test_init_args,
         ]
         print(" ".join(commands))

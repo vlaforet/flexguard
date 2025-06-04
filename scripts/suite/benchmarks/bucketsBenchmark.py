@@ -24,7 +24,7 @@ class BucketsBenchmark(BenchmarkCore):
 
     def get_run_hash(self, **kwargs):
         exec_hash = sha256_hash_file(
-            os.path.join(self.base_dir, f"buckets_{kwargs['lock']}")
+            os.path.join(self.base_dir, "build", f"buckets_{kwargs['lock']}")
         )
         if exec_hash is None:
             raise Exception("Failed to hash executable.")
@@ -35,7 +35,7 @@ class BucketsBenchmark(BenchmarkCore):
         buckets_args = [f"--{k}={w}" for k, w in kwargs.items() if k != "lock"]
 
         commands = [
-            os.path.join(self.base_dir, f"buckets_{kwargs['lock']}"),
+            os.path.join(self.base_dir, "build", f"buckets_{kwargs['lock']}"),
             *buckets_args,
         ]
         print(" ".join(commands))

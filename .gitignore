@@ -8,22 +8,18 @@
 *.odump
 __pycache__
 
+/build
+
 /*.a
 /.output
 /#README.md#
 /interpose.so
-/interpose_*.so
 /interpose.sh
-/interpose_*.sh
 
 /scheduling
-/scheduling_*
 /test_correctness
-/test_correctness_*
 /test_init
-/test_init_*
 /test_interpose
 /buckets
-/buckets_*
 
 /include/litl/topology.h

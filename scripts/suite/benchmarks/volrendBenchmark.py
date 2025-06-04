@@ -35,7 +35,9 @@ class VolrendBenchmark(BenchmarkCore):
             c
             for c in [
                 (
-                    os.path.join(self.base_dir, f"interpose_{kwargs['lock']}.sh")
+                    os.path.join(
+                        self.base_dir, "build", f"interpose_{kwargs['lock']}.sh"
+                    )
                     if "lock" in kwargs and kwargs["lock"] != "stock"
                     else None
                 ),

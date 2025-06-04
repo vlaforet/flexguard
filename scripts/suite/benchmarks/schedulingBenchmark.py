@@ -38,7 +38,7 @@ class SchedulingBenchmark(BenchmarkCore):
 
     def get_run_hash(self, **kwargs):
         exec_hash = sha256_hash_file(
-            os.path.join(self.base_dir, f"scheduling_{kwargs['lock']}")
+            os.path.join(self.base_dir, "build", f"scheduling_{kwargs['lock']}")
         )
         if exec_hash is None:
             raise Exception("Failed to hash executable.")
@@ -49,7 +49,7 @@ class SchedulingBenchmark(BenchmarkCore):
         scheduling_args = [f"--{k}={w}" for k, w in kwargs.items() if k != "lock"]
 
         commands = [
-            os.path.join(self.base_dir, f"scheduling_{kwargs['lock']}"),
+            os.path.join(self.base_dir, "build", f"scheduling_{kwargs['lock']}"),
             *scheduling_args,
         ]
         print(" ".join(commands))
