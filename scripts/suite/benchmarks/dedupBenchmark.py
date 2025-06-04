@@ -153,8 +153,10 @@ class DedupBenchmark(BenchmarkCore):
             if result.returncode != 0:
                 print(result.stdout)
                 print(f"Failed to run dedup ({result.returncode}):", result.stderr)
+                return None
         except Exception as e:
             print("Failed to run dedup:", e)
+            return None
 
         try:
             os.remove(self.compressed_output_path)
