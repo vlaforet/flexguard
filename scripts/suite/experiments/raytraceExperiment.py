@@ -31,7 +31,7 @@ class RaytraceExperiment(ExperimentCore):
 
         for lock in locks:
             for t in threads:
-                if lock == "mcs" and t > 104:
+                if lock in ["mcs", "mcstp", "malthusian"] and t > 104:
                     continue
                 self.tests.append(
                     {
