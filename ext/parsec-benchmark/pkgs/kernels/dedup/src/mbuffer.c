@@ -21,7 +21,7 @@
 #ifdef ENABLE_PTHREADS
 
 //Use spin locks instead of mutexes (this file only)
-#define ENABLE_SPIN_LOCKS
+//#define ENABLE_SPIN_LOCKS
 
 #ifdef ENABLE_SPIN_LOCKS
 typedef pthread_spinlock_t pthread_lock_t;
