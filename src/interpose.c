@@ -218,44 +218,6 @@ static int interpose_cond_broadcast(void *raw_cond)
   return libslock_cond_broadcast(cond->cond);
 }
 
-static int interpose_barrier_init(void *raw_barrier, void *attr, int count)
-{
-  barrier_as_t *barrier = (barrier_as_t *)raw_barrier;
-
-  if (exactly_once(&barrier->status) != 0)
-    return 0;
-
-  barrier->barrier = (libslock_barrier_t *)malloc((sizeof(libslock_barrier_t)));
-
-  int res = libslock_barrier_init(barrier->barrier, (libslock_barrierattr_t *)attr, count);
-  barrier->status = 2;
-  return res;
-}
-
-static int interpose_barrier_destroy(void *raw_barrier)
-{
-  barrier_as_t *barrier = (barrier_as_t *)raw_barrier;
-
-  if (LIKELY(barrier->status == 2))
-  {
-    libslock_barrier_destroy(barrier->barrier);
-    free(barrier->barrier);
-    barrier->status = 0;
-  }
-
-  return 0;
-}
-
-static int interpose_barrier_wait(void *raw_barrier)
-{
-  barrier_as_t *barrier = (barrier_as_t *)raw_barrier;
-
-  if (UNLIKELY(barrier->status != 2))
-    return EINVAL;
-
-  return libslock_barrier_wait(barrier->barrier);
-}
-
 int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr)
 {
   TEST_INTERPOSITION();
@@ -426,6 +388,44 @@ int pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
 #endif
 
 #if INTERPOSE_BARRIERS
+static int interpose_barrier_init(void *raw_barrier, void *attr, int count)
+{
+  barrier_as_t *barrier = (barrier_as_t *)raw_barrier;
+
+  if (exactly_once(&barrier->status) != 0)
+    return 0;
+
+  barrier->barrier = (libslock_barrier_t *)malloc((sizeof(libslock_barrier_t)));
+
+  int res = libslock_barrier_init(barrier->barrier, (libslock_barrierattr_t *)attr, count);
+  barrier->status = 2;
+  return res;
+}
+
+static int interpose_barrier_destroy(void *raw_barrier)
+{
+  barrier_as_t *barrier = (barrier_as_t *)raw_barrier;
+
+  if (LIKELY(barrier->status == 2))
+  {
+    libslock_barrier_destroy(barrier->barrier);
+    free(barrier->barrier);
+    barrier->status = 0;
+  }
+
+  return 0;
+}
+
+static int interpose_barrier_wait(void *raw_barrier)
+{
+  barrier_as_t *barrier = (barrier_as_t *)raw_barrier;
+
+  if (UNLIKELY(barrier->status != 2))
+    return EINVAL;
+
+  return libslock_barrier_wait(barrier->barrier);
+}
+
 int pthread_barrier_init(pthread_barrier_t *barrier, const pthread_barrierattr_t *attr, unsigned count)
 {
   TEST_INTERPOSITION();
