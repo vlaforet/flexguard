@@ -50,8 +50,8 @@ if [ x"$1" = x ]; then
 fi
 
 if [ x"$debugger" = x1 ]; then
-  gdb -q -ex="set env LD_PRELOAD $BASE_DIR/$SCRIPT_BASE.so" --args "$@"
+  gdb -q -ex="set env LD_PRELOAD $BASE_DIR/build/$SCRIPT_BASE.so" --args "$@"
 else
-  export LD_PRELOAD="$LD_PRELOAD:$BASE_DIR/$SCRIPT_BASE.so"
+  export LD_PRELOAD="$LD_PRELOAD:$BASE_DIR/build/$SCRIPT_BASE.so"
   "$@"
 fi
