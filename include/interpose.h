@@ -40,7 +40,7 @@
 
 #define INTERPOSE_RWLOCK 1
 #define INTERPOSE_SPINLOCK 0
-#define INTERPOSE_BARRIERS 1
+#define INTERPOSE_BARRIERS 0
 
 #define PASTER(x, y) real_##x##_##y
 #define EVALUATOR(x, y) PASTER(x, y)
