@@ -131,14 +131,7 @@ class RecordCommand:
                                     psproc = psutil.Process(cproc.pid)
                                 except Exception as e:
                                     print(f"Concurrent process killing failed (1): {e}")
-                                try:
-                                    psproc.kill()
-                                except Exception as e:
-                                    print(f"Concurrent process killing failed (2): {e}")
-                                try:
-                                    cproc.join()
-                                except Exception as e:
-                                    print(f"Concurrent process killing failed (3): {e}")
+
                                 try:
                                     for child in psproc.children(recursive=True):
                                         try:
@@ -149,6 +142,15 @@ class RecordCommand:
                                             )
                                 except Exception as e:
                                     print(f"Concurrent process killing failed (5): {e}")
+
+                                try:
+                                    psproc.kill()
+                                except Exception as e:
+                                    print(f"Concurrent process killing failed (2): {e}")
+                                try:
+                                    cproc.join()
+                                except Exception as e:
+                                    print(f"Concurrent process killing failed (3): {e}")
 
                             if res is None:
                                 raise Exception()
