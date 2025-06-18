@@ -4,7 +4,7 @@ import subprocess
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
-from utils import sha256_hash_file
+from utils import execute_command, sha256_hash_file
 
 
 class CorrectnessBenchmark(BenchmarkCore):
@@ -38,16 +38,25 @@ class CorrectnessBenchmark(BenchmarkCore):
         ]
         print(" ".join(commands))
 
-        result = subprocess.run(commands, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(
-                f"Failed to run test_correctness ({result.returncode}):", result.stderr
+        est_runtime = self.estimate_runtime(**kwargs)
+        try:
+            returncode, stdout, stderr = execute_command(
+                commands,
+                timeout=max(
+                    10 / 1000 * est_runtime if est_runtime is not None else 60, 10
+                ),
             )
+        except subprocess.TimeoutExpired as e:
+            print(f"Raytrace command timed out after {e.timeout} seconds")
+            return None
+
+        if returncode != 0:
+            print(f"Failed to run test_correctness ({returncode}):", stderr, stdout)
             return None
 
         results = {
             "correct": m.group(1) == m.group(2)
-            for line in result.stdout.splitlines()
+            for line in stdout.splitlines()
             if (m := self.pattern.match(line))
         }
         return pd.DataFrame([results]) if results else None

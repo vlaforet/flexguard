@@ -4,7 +4,7 @@ import subprocess
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
-from utils import sha256_hash_file
+from utils import execute_command, sha256_hash_file
 
 
 class BucketsBenchmark(BenchmarkCore):
@@ -42,23 +42,22 @@ class BucketsBenchmark(BenchmarkCore):
 
         est_runtime = self.estimate_runtime(**kwargs)
         try:
-            result = subprocess.run(
+            returncode, stdout, stderr = execute_command(
                 commands,
-                capture_output=True,
-                text=True,
                 timeout=max(
                     10 / 1000 * est_runtime if est_runtime is not None else 60, 10
                 ),
             )
-            if result.returncode != 0:
-                print(f"Failed to run buckets ({result.returncode}):", result.stderr)
-                return None
-        except Exception as e:
-            print("Failed to run buckets:", e)
+        except subprocess.TimeoutExpired as e:
+            print(f"Raytrace command timed out after {e.timeout} seconds")
+            return None
+
+        if returncode != 0:
+            print(f"Failed to run buckets ({returncode}):", stderr, stdout)
             return None
 
         results = {}
-        for line in result.stdout.splitlines():
+        for line in stdout.splitlines():
             if m := self.pattern_global.match(line):
                 results["throughput"] = float(m.group(1))
                 continue

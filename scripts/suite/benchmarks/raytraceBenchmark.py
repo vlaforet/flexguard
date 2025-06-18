@@ -5,7 +5,7 @@ import sys
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
-from utils import sha256_hash_file
+from utils import execute_command, sha256_hash_file
 
 
 class RaytraceBenchmark(BenchmarkCore):
@@ -77,19 +77,22 @@ class RaytraceBenchmark(BenchmarkCore):
         ]
         print(" ".join(commands))
 
-        result = subprocess.run(
-            commands,
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(self.input_file),
-            timeout=100 / 1000 * self.estimate_runtime(**kwargs),
-        )
-        if result.returncode != 0:
-            print(f"Failed to run Raytrace ({result.returncode}):", result.stderr)
+        try:
+            returncode, stdout, stderr = execute_command(
+                commands,
+                timeout=5 / 1000 * self.estimate_runtime(**kwargs),
+                kwargs={"cwd": os.path.dirname(self.input_file)},
+            )
+        except subprocess.TimeoutExpired as e:
+            print(f"Raytrace command timed out after {e.timeout} seconds")
+            return None
+
+        if returncode != 0:
+            print(f"Failed to run Raytrace ({returncode}):", stderr, stdout)
             return None
 
         results = {}
-        for match in self.pattern.finditer(result.stdout):
+        for match in self.pattern.finditer(stdout):
             results["time"] = match.group("micros")
 
         return pd.DataFrame([results]) if results else None

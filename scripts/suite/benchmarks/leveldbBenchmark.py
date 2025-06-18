@@ -6,7 +6,7 @@ import uuid
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
-from utils import sha256_hash_file
+from utils import execute_command, sha256_hash_file
 
 
 class LevelDBBenchmark(BenchmarkCore):
@@ -94,16 +94,17 @@ class LevelDBBenchmark(BenchmarkCore):
         print(" ".join(commands))
 
         try:
-            result = subprocess.run(
+            returncode, stdout, stderr = execute_command(
                 commands,
-                capture_output=True,
-                text=True,
                 timeout=1.5 / 1000 * self.estimate_runtime(**kwargs),
             )
-            if result.returncode != 0:
-                print(f"Failed to run LevelDB ({result.returncode}):", result.stderr)
-        except Exception as e:
-            print("Failed to run LevelDB:", e)
+        except subprocess.TimeoutExpired as e:
+            print(f"LevelDB command timed out after {e.timeout} seconds")
+            return None
+
+        if returncode != 0:
+            print(f"Failed to run LevelDB ({returncode}):", stderr, stdout)
+            return None
 
         try:
             os.remove(self.db_path)
@@ -111,7 +112,7 @@ class LevelDBBenchmark(BenchmarkCore):
             pass
 
         results = {}
-        for match in self.pattern.finditer(result.stdout):
+        for match in self.pattern.finditer(stdout):
             micros = match.group("micros")
             base_name = f"latency_{match.group('name')}"
             name = base_name

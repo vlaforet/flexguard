@@ -6,7 +6,7 @@ import uuid
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
-from utils import sha256_hash_file
+from utils import execute_command, sha256_hash_file
 
 
 class DedupBenchmark(BenchmarkCore):
@@ -146,18 +146,16 @@ class DedupBenchmark(BenchmarkCore):
         print(" ".join(commands))
 
         try:
-            result = subprocess.run(
+            returncode, stdout, stderr = execute_command(
                 commands,
-                capture_output=True,
-                text=True,
-                timeout=100 / 1000 * self.estimate_runtime(**kwargs),
+                timeout=10 / 1000 * self.estimate_runtime(**kwargs),
             )
-            if result.returncode != 0:
-                print(result.stdout)
-                print(f"Failed to run dedup ({result.returncode}):", result.stderr)
-                return None
-        except Exception as e:
-            print("Failed to run dedup:", e)
+        except subprocess.TimeoutExpired as e:
+            print(f"Dedup command timed out after {e.timeout} seconds")
+            return None
+
+        if returncode != 0:
+            print(f"Failed to run dedup ({returncode}):", stderr, stdout)
             return None
 
         try:
@@ -167,7 +165,7 @@ class DedupBenchmark(BenchmarkCore):
             pass
 
         results = {}
-        for line in result.stdout.splitlines():
+        for line in stdout.splitlines():
             if m := self.setup_pattern.match(line):
                 results["setup_time"] = int(m.group(1)) / self.frequency
                 continue

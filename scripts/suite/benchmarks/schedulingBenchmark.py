@@ -4,7 +4,7 @@ import subprocess
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
-from utils import sha256_hash_file
+from utils import execute_command, sha256_hash_file
 
 
 class SchedulingBenchmark(BenchmarkCore):
@@ -55,17 +55,16 @@ class SchedulingBenchmark(BenchmarkCore):
         print(" ".join(commands))
 
         try:
-            result = subprocess.run(
+            returncode, stdout, stderr = execute_command(
                 commands,
-                capture_output=True,
-                text=True,
                 timeout=1.3 / 1000 * self.estimate_runtime(**kwargs),
             )
-            if result.returncode != 0:
-                print(f"Failed to run scheduling ({result.returncode}):", result.stderr)
-                return None
-        except Exception as e:
-            print("Failed to run scheduling:", e)
+        except subprocess.TimeoutExpired as e:
+            print(f"Scheduling command timed out after {e.timeout} seconds")
+            return None
+
+        if returncode != 0:
+            print(f"Failed to run scheduling ({returncode}):", stderr, stdout)
             return None
 
         rows = [
@@ -74,7 +73,7 @@ class SchedulingBenchmark(BenchmarkCore):
                 "threads": int(m.group(2)),
                 "value": float(m.group(3)),
             }
-            for line in result.stdout.splitlines()
+            for line in stdout.splitlines()
             if (m := self.pattern.match(line))
         ]
         return pd.DataFrame(rows) if rows else None
