@@ -89,6 +89,7 @@ compile_and_suffix "shuffleextendnopad" "LOCK_VERSION=SHUFFLE ADD_PADDING=0 USE_
 compile_and_suffix "mcsblocknopad" "LOCK_VERSION=MCSBLOCK ADD_PADDING=0"
 compile_and_suffix "usclnopad" "LOCK_VERSION=USCL ADD_PADDING=0"
 compile_and_suffix "flexguardnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0"
+compile_and_suffix "flexguardallnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0 FLEXGUARD_ALL=1"
 compile_and_suffix "flexguardextendnopad" "LOCK_VERSION=FLEXGUARD ADD_PADDING=0 TIMESLICE_EXTENSION=1"
 
 compile_and_suffix "mcstas" "LOCK_VERSION=MCSTAS ADD_PADDING=1"
