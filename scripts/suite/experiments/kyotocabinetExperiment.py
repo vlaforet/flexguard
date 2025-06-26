@@ -3,19 +3,17 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
+from utils import get_threads
 
 
 class KyotoCabinetExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [1, 2, 4, 8, 16, 32, 48, 64, 72, 102, 104, 106, 128, 256]
+        threads, _ = get_threads()
 
         for lock in locks:
             for t in threads:
-                if t >= 104 and lock in ["mcs", "mcstp", "malthusian"]:
-                    continue
-
                 self.tests.append(
                     {
                         "name": f"KyotoCabinet with {lock} lock and {t} threads",

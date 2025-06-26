@@ -3,23 +3,17 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
+from utils import get_threads
 
 
 class IndexExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [1] + [i for i in range(5, 301, 5)]
+        threads, _ = get_threads()
 
         for lock in locks:
             for t in threads:
-                if t > 110 and lock in [
-                    "mcsrw",
-                    "mcstp",
-                    "malthusian",
-                ]:
-                    continue
-
                 self.tests.append(
                     {
                         "name": f"Index {lock} {t} threads",

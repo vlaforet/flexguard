@@ -1,11 +1,12 @@
 from experiments.experimentCore import ExperimentCore
+from utils import get_threads
 
 
 class CorrectnessExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [1, 2] + [x for x in range(10, 190, 20)]
+        threads, _ = get_threads()
 
         for lock in locks:
             for thread in threads:

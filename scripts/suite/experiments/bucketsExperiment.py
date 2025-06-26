@@ -3,13 +3,14 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
+from utils import get_threads
 
 
 class BucketsExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [1, 2] + [x for x in range(10, 301, 20)]
+        threads, _ = get_threads()
 
         for lock in locks:
             for thread in threads:

@@ -3,18 +3,17 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
+from utils import get_threads
 
 
 class VolrendExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [1, 2] + [i for i in range(10, 182, 10)]
+        threads, _ = get_threads()
 
         for lock in locks:
             for t in threads:
-                if lock == "mcs" and t > 100:
-                    continue
                 self.tests.append(
                     {
                         "name": f"Volrend with {lock} lock and {t} threads",

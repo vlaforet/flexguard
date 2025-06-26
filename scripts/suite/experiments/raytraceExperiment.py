@@ -3,36 +3,17 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
+from utils import get_threads
 
 
 class RaytraceExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [
-            1,
-            2,
-            4,
-            8,
-            16,
-            32,
-            48,
-            64,
-            72,
-            102,
-            104,
-            106,
-            128,
-            192,
-            256,
-            448,
-            512,
-        ]
+        threads, _ = get_threads()
 
         for lock in locks:
             for t in threads:
-                if lock in ["mcs", "mcstp", "malthusian"] and t > 104:
-                    continue
                 self.tests.append(
                     {
                         "name": f"Raytrace with {lock} lock and {t} threads",

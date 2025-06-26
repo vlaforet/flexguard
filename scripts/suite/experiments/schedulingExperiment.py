@@ -4,11 +4,15 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
+from utils import get_cpu_count
 
 
 class SchedulingExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
+
+        cpu_count = get_cpu_count()
+        threads = 250 if cpu_count < 150 else 700
 
         for lock in locks:
             self.tests.append(
@@ -20,7 +24,7 @@ class SchedulingExperiment(ExperimentCore):
                             "lock": lock,
                             "latency": 1,
                             "base-threads": 1,
-                            "num-threads": 250,
+                            "num-threads": threads,
                             "step-duration": 2500,
                             "cache-lines": 2,
                             "thread-step": 1,

@@ -3,13 +3,16 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
+from utils import get_cpu_count
 
 
 class FairnessExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [52, 104, 208]
+        cpu_count = get_cpu_count()
+
+        threads = [cpu_count // 2, cpu_count, cpu_count * 2]
 
         cycles = [
             0,

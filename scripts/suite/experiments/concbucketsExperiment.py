@@ -3,13 +3,14 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from experiments.experimentCore import ExperimentCore
+from utils import get_threads
 
 
 class ConcBucketsExperiment(ExperimentCore):
     def __init__(self, locks):
         super().__init__(locks)
 
-        threads = [1, 2, 4, 8, 16, 32, 48, 50, 52, 54, 64, 72, 96, 128, 192, 256]
+        threads, bthreads = get_threads()
 
         for lock in locks:
             for thread in threads:
@@ -21,7 +22,7 @@ class ConcBucketsExperiment(ExperimentCore):
                             "args": {
                                 "lock": lock,
                                 "duration": 10000,
-                                "num-threads": 52,
+                                "num-threads": bthreads,
                                 "buckets": 100,
                                 "max-value": 100000,
                                 "offset-changes": 40,
