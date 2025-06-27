@@ -21,7 +21,7 @@ class ConcLevelDBExperiment(ExperimentCore):
                             "id": "leveldb",
                             "args": {
                                 "lock": lock,
-                                "threads": bthreads,
+                                "threads": bthreads if bthreads else t,
                                 "time_ms": 30000,
                                 "init_db": True,
                                 "benchmarks": ["readrandom"],

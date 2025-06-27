@@ -22,7 +22,7 @@ class ConcBucketsExperiment(ExperimentCore):
                             "args": {
                                 "lock": lock,
                                 "duration": 10000,
-                                "num-threads": bthreads,
+                                "num-threads": bthreads if bthreads else thread,
                                 "buckets": 100,
                                 "max-value": 100000,
                                 "offset-changes": 40,

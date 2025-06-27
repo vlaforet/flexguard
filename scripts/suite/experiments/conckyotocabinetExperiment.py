@@ -21,7 +21,7 @@ class ConcKyotoCabinetExperiment(ExperimentCore):
                             "id": "kyotocabinet",
                             "args": {
                                 "lock": lock,
-                                "threads": bthreads,
+                                "threads": bthreads if bthreads else t,
                                 "num": 50000,
                                 "benchmarks": [
                                     "fillrandom",

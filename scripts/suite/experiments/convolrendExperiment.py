@@ -17,7 +17,7 @@ class ConcVolrendExperiment(ExperimentCore):
                             "id": "volrend",
                             "args": {
                                 "lock": lock,
-                                "threads": bthreads,
+                                "threads": bthreads if bthreads else t,
                             },
                         },
                         "concurrent": {

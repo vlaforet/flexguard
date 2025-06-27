@@ -17,7 +17,7 @@ class ConcIndexExperiment(ExperimentCore):
                             "id": "index",
                             "args": {
                                 "index": f"btreelc_{lock}",
-                                "threads": bthreads,
+                                "threads": bthreads if bthreads else t,
                                 "mode": "time",
                                 "read_ratio": 0,
                                 "update_ratio": 1,

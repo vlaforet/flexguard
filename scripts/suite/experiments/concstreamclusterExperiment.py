@@ -17,7 +17,7 @@ class ConcStreamclusterExperiment(ExperimentCore):
                             "id": "streamcluster",
                             "args": {
                                 "lock": lock,
-                                "threads": bthreads,
+                                "threads": bthreads if bthreads else t,
                                 "num_points": 16384,
                                 "chunksize": 16384,
                             },

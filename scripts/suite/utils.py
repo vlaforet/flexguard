@@ -161,4 +161,4 @@ def get_threads():
                 threads + [cpu_count, cpu_count + 1, cpu_count - 1],
             )
         )
-    ), int(cpu_count / 2)
+    ), None #int(cpu_count / 2)
