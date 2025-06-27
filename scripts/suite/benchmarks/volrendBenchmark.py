@@ -2,23 +2,24 @@ import os
 import re
 import subprocess
 import sys
-from timeit import timeit
 
 import pandas as pd
 from benchmarks.benchmarkCore import BenchmarkCore
+from utils import execute_command, sha256_hash_file
 
 
 class VolrendBenchmark(BenchmarkCore):
+    pattern = re.compile(r"Benchmark time:\s+(?P<micros>\d+)")
+
+    input_file_hash = None
 
     def __init__(self, base_dir, temp_dir):
         super().__init__(base_dir, temp_dir)
-        self.volrend_dir = os.path.join(self.base_dir, "ext", "volrend")
-        self.bin = os.path.join(self.volrend_dir, "build/db_bench")
-        self.bin = "/tmp/parsec-benchmark/ext/splash2x/apps/volrend/inst/amd64-linux.gcc/bin/volrend"
-
-        self.pattern = re.compile(
-            r"(?P<name>\w+)\s+:\s+(?P<micros>\d+\.\d+)\s+micros/op;"
+        self.volrend_dir = os.path.join(
+            self.base_dir, "ext/parsec-benchmark/ext/splash2x/apps/volrend"
         )
+        self.run_dir = os.path.join(self.volrend_dir, "run")
+        self.bin = os.path.join(self.volrend_dir, "inst/amd64-linux.gcc/bin/volrend")
 
         if not os.path.isfile(self.bin):
             print("Volrend binary not found")
@@ -28,7 +29,24 @@ class VolrendBenchmark(BenchmarkCore):
             sys.exit(1)
 
     def estimate_runtime(self, **kwargs):
-        return None
+        return max(2000000 // kwargs.get("threads", 1), 15000)
+
+    def get_run_hash(self, **kwargs):
+        exec_hash = sha256_hash_file(self.bin)
+        if exec_hash is None:
+            raise Exception("Failed to hash executable.")
+
+        interpose_hash = sha256_hash_file(
+            os.path.join(self.base_dir, "build", f"interpose_{kwargs['lock']}.so")
+        )
+        if interpose_hash is None:
+            raise Exception("Failed to hash interpose.so.")
+
+        return super().get_run_hash(
+            exec_hash=exec_hash,
+            interpose_hash=interpose_hash,
+            kwargs=kwargs,
+        )
 
     def run(self, **kwargs):
         commands = [
@@ -42,40 +60,30 @@ class VolrendBenchmark(BenchmarkCore):
                     else None
                 ),
                 self.bin,
-                str(kwargs["threads"] if "threads" in kwargs else 10),
-                "/tmp/parsec-benchmark/ext/splash2x/apps/volrend/run/head-scaleddown2",
-                "100",
+                f"{kwargs.get('threads', 1)}",
+                "head",
+                "1000",
             ]
             if c is not None
         ]
         print(" ".join(commands))
 
-        elapsed = timeit(
-            lambda: subprocess.run(commands, capture_output=True, text=True), number=1
-        )
+        try:
+            returncode, stdout, stderr = execute_command(
+                commands,
+                timeout=8 / 1000 * self.estimate_runtime(**kwargs),
+                kwargs={"cwd": self.run_dir},
+            )
+        except subprocess.TimeoutExpired as e:
+            print(f"Volrend command timed out after {e.timeout} seconds")
+            return None
 
-        return pd.DataFrame([{"time": elapsed}])
+        if returncode != 0:
+            print(f"Failed to run Volrend ({returncode}):", stderr, stdout)
+            return None
 
-        # if result.returncode != 0:
-        #    print(f"Failed to run Volrend ({result.returncode}):", result.stderr)
-        #    return None
+        results = {}
+        for match in self.pattern.finditer(stdout):
+            results["time"] = match.group("micros")
 
-
-#
-# print(result)
-# return
-#
-# results = {}
-# for match in self.pattern.finditer(result.stdout):
-#    micros = match.group("micros")
-#    base_name = f"latency_{match.group('name')}"
-#    name = base_name
-#
-#    count = 1
-#    while name in results:
-#        count += 1
-#        name = f"{base_name}_{count}"
-#
-#    results[name] = micros
-#
-# return pd.DataFrame([results]) if results else None
+        return pd.DataFrame([results]) if results else None

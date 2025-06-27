@@ -97,7 +97,18 @@ int main(int argc, char *argv[])
     }
   }
 
+  long unsigned int begin, end, lapsed;
+  
+  // Init a mutex here to initialize locks.
+  pthread_mutex_t test_mutex;
+  pthread_mutex_init(&test_mutex, NULL);
+  
+  CLOCK(begin);
   Frame();
+  CLOCK(end);
+
+  lapsed = (end - begin) & 0x7FFFFFFF;
+  printf("Benchmark time: %20lu\n", lapsed);
 
 /*  if (num_nodes > 1)
     WAIT_FOR_END(num_nodes-1);*/
