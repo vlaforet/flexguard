@@ -69,12 +69,7 @@ typedef union
   uint8_t padding[CACHE_LINE_SIZE];
 #endif
 } futex_cond_t;
-#define FUTEX_COND_INITIALIZER \
-  {                            \
-    {                          \
-      0, 0                     \
-    }                          \
-  }
+#define FUTEX_COND_INITIALIZER {{0, 0}}
 
 /*
  * Declarations
