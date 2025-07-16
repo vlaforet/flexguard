@@ -48,7 +48,7 @@
 hybrid_addresses_t addresses;
 flexguard_qnode_t qnodes[MAX_NUMBER_THREADS];
 
-preempted_count_t preempted_count = 0;
+num_preempted_cs_t num_preempted_cs = 0;
 
 char _license[4] SEC("license") = "GPL";
 
@@ -120,7 +120,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	{
 		key = next->pid;
 		if (bpf_map_delete_elem(&is_preempted_map, &key) == 0)
-			__sync_fetch_and_add(&preempted_count, -1);
+			__sync_fetch_and_add(&num_preempted_cs, -1);
 	}
 
 	/*
@@ -147,7 +147,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	{
 		DPRINT("Detected preemption: %s (%d) -> %s (%d)", prev->comm, prev->pid, next->comm, next->pid);
 		bpf_map_update_elem(&is_preempted_map, &key, &key, BPF_NOEXIST);
-		__sync_fetch_and_add(&preempted_count, 1);
+		__sync_fetch_and_add(&num_preempted_cs, 1);
 	}
 
 	return 0;

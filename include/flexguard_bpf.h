@@ -73,5 +73,5 @@ typedef struct hybrid_addresses_t
 } hybrid_addresses_t;
 #endif
 
-typedef volatile int64_t preempted_count_t;
+typedef volatile int64_t num_preempted_cs_t;
 #endif

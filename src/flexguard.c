@@ -38,10 +38,10 @@ _Atomic(int) thread_count = 1;
 _Atomic(int) lock_count = 0;
 flexguard_qnode_ptr qnode_allocation_array;
 
-preempted_count_t *preempted_count;
+num_preempted_cs_t *num_preempted_cs;
 
 #ifndef BLOCKING_CONDITION
-#define BLOCKING_CONDITION(the_lock) *preempted_count
+#define BLOCKING_CONDITION(the_lock) *num_preempted_cs
 #endif
 
 __thread int thread_id = -1;
@@ -310,7 +310,7 @@ static void deploy_bpf_code()
     skel->bss->addresses.lock_end = &fg_lock_end;
 #endif
 
-    preempted_count = &skel->bss->preempted_count;
+    num_preempted_cs = &skel->bss->num_preempted_cs;
     qnode_allocation_array = skel->bss->qnodes;
 
     // Load BPF skeleton
@@ -349,8 +349,8 @@ int flexguard_init(flexguard_lock_t *the_lock)
         // Initialize things without BPF
         qnode_allocation_array = malloc(MAX_NUMBER_THREADS * sizeof(flexguard_qnode_t));
 
-        preempted_count = malloc(sizeof(preempted_count_t));
-        *preempted_count = 0;
+        num_preempted_cs = malloc(sizeof(num_preempted_cs_t));
+        *num_preempted_cs = 0;
 #endif
         init_lock = 2;
     }
