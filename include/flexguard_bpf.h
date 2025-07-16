@@ -48,7 +48,7 @@ typedef struct flexguard_qnode_t
 #endif
 
 #ifdef BPF
-      volatile uint8_t is_locking;
+      volatile uint8_t cs_counter;
 #endif
     };
 

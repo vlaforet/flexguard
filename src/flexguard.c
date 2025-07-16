@@ -66,7 +66,7 @@ static inline flexguard_qnode_ptr get_me()
         if (err)
             fprintf(stderr, "Failed to register thread with BPF: %d\n", err);
 
-        qnode->is_locking = 0;
+        qnode->cs_counter = 0;
 #endif
 
 #ifdef HYBRID_TICKET
@@ -120,7 +120,7 @@ int flexguard_trylock(flexguard_lock_t *the_lock)
     if (!the_lock->lock_value)
     {
 #ifdef BPF
-        qnode->is_locking = 1;
+        qnode->cs_counter += 1;
         MEM_BARRIER;
 #endif
 
@@ -134,7 +134,7 @@ int flexguard_trylock(flexguard_lock_t *the_lock)
 #endif
 
 #ifdef BPF
-        qnode->is_locking = 0;
+        qnode->cs_counter -= 1;
 #endif
     }
 
@@ -147,7 +147,7 @@ void flexguard_lock(flexguard_lock_t *the_lock)
 #ifdef BPF
     __asm__ volatile("fg_lock:" ::: "memory");
 
-    qnode->is_locking = 1;
+    qnode->cs_counter += 1;
 
     MEM_BARRIER;
 #endif
@@ -269,7 +269,7 @@ void flexguard_unlock(flexguard_lock_t *the_lock)
 
 #ifdef BPF
     MEM_BARRIER;
-    qnode_allocation_array[thread_id].is_locking = 0; // Assuming qnode has already been initialized.
+    qnode_allocation_array[thread_id].cs_counter -= 1; // Assuming qnode has already been initialized.
 #endif
 }
 
