@@ -82,27 +82,40 @@ static int is_critical_thread(struct task_struct *task, flexguard_qnode_ptr qnod
 		return 0;
 	}
 
-	if ((u64)addresses.lock_check_rcx_null <= user_stack[0] && user_stack[0] < (u64)addresses.lock_end)
+	if ((u64)addresses.lock_check_rcx_null <= user_stack[0] && user_stack[0] < (u64)addresses.phase2)
 	{
 		struct pt_regs *regs = (struct pt_regs *)bpf_task_pt_regs(task);
 
 		/*
-		 * Ignore preemption if lock was not free (pred != NULL)
-		 * and if previous node did not release lock (waiting != 0).
+		 * Critical preemption in waiting phase1 iff:
+		 * - rcx is NULL (lock was free)
+		 * - or if the thread is not waiting anymore (waiting == 0).
 		 */
 		return (void *)regs->cx == NULL || qnode->waiting == 0;
 	}
 
-	for (int i = 0; i < user_stack_size / sizeof(u64); i++) // Handle external calls
+	if (((u64)addresses.fastpath <= user_stack[0] && user_stack[0] < (u64)addresses.fastpath_incr) ||
+			((u64)addresses.trylock <= user_stack[0] && user_stack[0] < (u64)addresses.trylock_incr))
 	{
+		struct pt_regs *regs = (struct pt_regs *)bpf_task_pt_regs(task);
+
 		/*
-		 * Ignore preemptions before enqueue.
+		 * Critical preemption in Fastpath (or Trylock) iff:
+		 * - CAS succeeded (rax != 0).
 		 */
-		if ((u64)addresses.lock <= user_stack[i] && user_stack[i] < (u64)addresses.lock_check_rcx_null)
-			return 0;
+		return ((int)regs->ax) != 0;
 	}
 
-	return 1;
+	if (((u64)addresses.fastpath_incr <= user_stack[0] && user_stack[0] < (u64)addresses.fastpath_out) ||
+			((u64)addresses.trylock_incr <= user_stack[0] && user_stack[0] < (u64)addresses.trylock_out))
+	{
+		/*
+		 * Critical preemption in FastPath (or Trylock) while thread is incrementing its cs_counter.
+		 */
+		return 1;
+	}
+
+	return 0;
 }
 
 SEC("tp_btf/sched_switch")
@@ -140,10 +153,7 @@ int BPF_PROG(sched_switch_btf, bool preempt, struct task_struct *prev, struct ta
 	if (get_task_state(prev) & ((((TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE | TASK_STOPPED | TASK_TRACED | EXIT_DEAD | EXIT_ZOMBIE | TASK_PARKED) + 1) << 1) - 1))
 		return 0;
 
-	if (!qnode->cs_counter)
-		return 0;
-
-	if (is_critical_thread(prev, qnode))
+	if (qnode->cs_counter || is_critical_thread(prev, qnode))
 	{
 		DPRINT("Detected preemption: %s (%d) -> %s (%d)", prev->comm, prev->pid, next->comm, next->pid);
 		bpf_map_update_elem(&is_preempted_map, &key, &key, BPF_NOEXIST);

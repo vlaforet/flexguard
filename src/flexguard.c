@@ -84,7 +84,7 @@ static inline flexguard_qnode_ptr get_me()
     return &qnode_allocation_array[thread_id];
 }
 
-static inline void mcs_unlock(flexguard_lock_t *the_lock, flexguard_qnode_ptr qnode)
+static inline void mcs_exit(flexguard_lock_t *the_lock, flexguard_qnode_ptr qnode)
 {
     if (!qnode->next) // I seem to have no successor
     {
@@ -111,6 +111,10 @@ static inline void mcs_unlock(flexguard_lock_t *the_lock, flexguard_qnode_ptr qn
     qnode->next->waiting = 0;
 }
 
+/*
+ * Try to acquire the lock without blocking.
+ * Returns 0 on success, EBUSY if the lock is already held.
+ */
 int flexguard_trylock(flexguard_lock_t *the_lock)
 {
 #ifdef BPF
@@ -119,52 +123,66 @@ int flexguard_trylock(flexguard_lock_t *the_lock)
 
     if (!the_lock->lock_value)
     {
-#ifdef BPF
-        qnode->cs_counter += 1;
-        MEM_BARRIER;
-#endif
-
 #ifdef TIMESLICE_EXTENSION
         extend();
 #endif
-        if (__sync_val_compare_and_swap(&the_lock->lock_value, 0, 1) == 0)
+
+        // Expected value; will be the previous value of the lock after cmpxchg
+        register int expect __asm__("rax") = 0;
+        __asm__ volatile("lock cmpxchgl %2, %0" : "+m"(the_lock->lock_value), "+a"(expect) : "r"(1) : "memory");
+#ifdef BPF
+        __asm__ volatile("fg_trylock:" ::: "memory");
+#endif
+        if (expect == 0)
+        {
+#ifdef BPF
+            __asm__ volatile("fg_trylock_incr:" ::: "memory");
+            atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire);
+            __asm__ volatile("fg_trylock_out:" ::: "memory");
+#endif
             return 0; // Success
+        }
 #ifdef TIMESLICE_EXTENSION
         unextend();
-#endif
-
-#ifdef BPF
-        qnode->cs_counter -= 1;
 #endif
     }
 
     return EBUSY; // Locked
 }
 
-void flexguard_lock(flexguard_lock_t *the_lock)
+#pragma GCC push_options
+#pragma GCC optimize("O0")
+__attribute__((noinline)) __attribute__((noipa)) void flexguard_lock(flexguard_lock_t *the_lock)
 {
     flexguard_qnode_ptr qnode = get_me();
-#ifdef BPF
-    __asm__ volatile("fg_lock:" ::: "memory");
-
-    qnode->cs_counter += 1;
-
-    MEM_BARRIER;
-#endif
 
     if (!the_lock->lock_value)
     {
 #ifdef TIMESLICE_EXTENSION
         extend();
 #endif
-        if (__sync_val_compare_and_swap(&the_lock->lock_value, 0, 1) == 0)
+
+        // Expected value; will be the previous value of the lock after cmpxchg
+        register int expect __asm__("rax") = 0;
+        __asm__ volatile("lock cmpxchgl %2, %0" : "+m"(the_lock->lock_value), "+a"(expect) : "r"(1) : "memory");
+#ifdef BPF
+        __asm__ volatile("fg_fastpath:" ::: "memory");
+#endif
+        if (expect == 0)
+        {
+#ifdef BPF
+            __asm__ volatile("fg_fastpath_incr:" ::: "memory");
+            atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire);
+            __asm__ volatile("fg_fastpath_out:" ::: "memory");
+#endif
             return;
+        }
 #ifdef TIMESLICE_EXTENSION
         unextend();
 #endif
     }
 
-mcs_enqueue:
+flexguard_slow_path:
 
     // LOCK MCS
     uint8_t enqueued = 0;
@@ -183,7 +201,7 @@ mcs_enqueue:
         /*
          *  Exchange pred (rcx) and queue head.
          *  Store the pointer to the queue head in a register.
-         *  Uses the value in rax (pred) as an exchange parameter.
+         *  Uses the value in rcx (pred) as an exchange parameter.
          */
         __asm__ volatile("xchgq %0, (%1)" : "+r"(pred) : "r"(&the_lock->queue) : "memory");
 
@@ -192,8 +210,6 @@ mcs_enqueue:
 #endif
         if (pred != NULL) /* lock was not free */
         {
-            MEM_BARRIER;
-
 #ifdef FLEXGUARD_ALL
             if (atomic_exchange(&pred->next, qnode) == (void *)1) // make pred point to me
                 futex_wake((void *)&pred->next, 1);
@@ -204,10 +220,13 @@ mcs_enqueue:
             while (qnode->waiting != 0 && !BLOCKING_CONDITION(the_lock))
                 PAUSE;
         }
-#ifdef BPF
-        __asm__ volatile("fg_lock_end:" ::: "memory");
-#endif
     }
+
+#pragma GCC pop_options // Re-enable optimizations
+#ifdef BPF
+    __asm__ volatile("fg_phase2:" ::: "memory");
+    atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire);
+#endif
 
 #ifdef TIMESLICE_EXTENSION
     extend();
@@ -222,7 +241,7 @@ mcs_enqueue:
         {
             if (enqueued)
             {
-                mcs_unlock(the_lock, qnode);
+                mcs_exit(the_lock, qnode);
                 enqueued = 0;
             }
             if (the_lock->lock_value != 2)
@@ -238,11 +257,8 @@ mcs_enqueue:
 #endif
 
                 state = __sync_lock_test_and_set(&the_lock->lock_value, 2);
-                if (state != 0)
-                {
-                    if (!BLOCKING_CONDITION(the_lock))
-                        goto mcs_enqueue;
-                }
+                if (state != 0 && !BLOCKING_CONDITION(the_lock))
+                    goto flexguard_slow_path;
             }
         }
         else
@@ -255,7 +271,7 @@ mcs_enqueue:
 
     // UNLOCK MCS
     if (enqueued)
-        mcs_unlock(the_lock, qnode);
+        mcs_exit(the_lock, qnode);
 }
 
 void flexguard_unlock(flexguard_lock_t *the_lock)
@@ -268,8 +284,7 @@ void flexguard_unlock(flexguard_lock_t *the_lock)
 #endif
 
 #ifdef BPF
-    MEM_BARRIER;
-    qnode_allocation_array[thread_id].cs_counter -= 1; // Assuming qnode has already been initialized.
+    atomic_fetch_sub_explicit(&qnode_allocation_array[thread_id].cs_counter, 1, memory_order_release); // Assuming qnode has already been initialized.
 #endif
 }
 
@@ -300,14 +315,24 @@ static void deploy_bpf_code()
     }
 
 #ifdef HYBRID_MCS
-    extern char fg_lock;
-    skel->bss->addresses.lock = &fg_lock;
+    extern char fg_fastpath;
+    skel->bss->addresses.fastpath = &fg_fastpath;
+    extern char fg_fastpath_incr;
+    skel->bss->addresses.fastpath_incr = &fg_fastpath_incr;
+    extern char fg_fastpath_out;
+    skel->bss->addresses.fastpath_out = &fg_fastpath_out;
 
     extern char fg_lock_check_rcx_null;
     skel->bss->addresses.lock_check_rcx_null = &fg_lock_check_rcx_null;
+    extern char fg_phase2;
+    skel->bss->addresses.phase2 = &fg_phase2;
 
-    extern char fg_lock_end;
-    skel->bss->addresses.lock_end = &fg_lock_end;
+    extern char fg_trylock;
+    skel->bss->addresses.trylock = &fg_trylock;
+    extern char fg_trylock_incr;
+    skel->bss->addresses.trylock_incr = &fg_trylock_incr;
+    extern char fg_trylock_out;
+    skel->bss->addresses.trylock_out = &fg_trylock_out;
 #endif
 
     num_preempted_cs = &skel->bss->num_preempted_cs;
