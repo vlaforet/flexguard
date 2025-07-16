@@ -21,6 +21,7 @@ int uscl_init(uscl_lock_t *lock)
   lock->slice_valid = 0;
   if (0 != (rc = pthread_key_create(&lock->flthread_info_key, NULL)))
   {
+    printf("Error creating thread-specific key: %s (%d)\n", strerror(rc), rc);
     return rc;
   }
   return 0;
