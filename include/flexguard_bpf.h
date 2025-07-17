@@ -64,14 +64,11 @@ typedef struct hybrid_addresses_t
   {
     struct
     {
+      void *lock;
       void *fastpath;
-      void *fastpath_incr;
       void *fastpath_out;
       void *lock_check_rcx_null;
       void *phase2;
-      void *trylock;
-      void *trylock_incr;
-      void *trylock_out;
     };
     uint8_t padding[CACHE_LINE_SIZE];
   };

@@ -130,15 +130,10 @@ int flexguard_trylock(flexguard_lock_t *the_lock)
         // Expected value; will be the previous value of the lock after cmpxchg
         register int expect __asm__("rax") = 0;
         __asm__ volatile("lock cmpxchgl %2, %0" : "+m"(the_lock->lock_value), "+a"(expect) : "r"(1) : "memory");
-#ifdef BPF
-        __asm__ volatile("fg_trylock:" ::: "memory");
-#endif
         if (expect == 0)
         {
 #ifdef BPF
-            __asm__ volatile("fg_trylock_incr:" ::: "memory");
             atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire);
-            __asm__ volatile("fg_trylock_out:" ::: "memory");
 #endif
             return 0; // Success
         }
@@ -156,6 +151,10 @@ __attribute__((noinline)) __attribute__((noipa)) void flexguard_lock(flexguard_l
 {
     flexguard_qnode_ptr qnode = get_me();
 
+#ifdef BPF
+    atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire);
+#endif
+
     if (!the_lock->lock_value)
     {
 #ifdef TIMESLICE_EXTENSION
@@ -169,14 +168,10 @@ __attribute__((noinline)) __attribute__((noipa)) void flexguard_lock(flexguard_l
         __asm__ volatile("fg_fastpath:" ::: "memory");
 #endif
         if (expect == 0)
-        {
-#ifdef BPF
-            __asm__ volatile("fg_fastpath_incr:" ::: "memory");
-            atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire);
-            __asm__ volatile("fg_fastpath_out:" ::: "memory");
-#endif
             return;
-        }
+#ifdef BPF
+        __asm__ volatile("fg_fastpath_out:" ::: "memory");
+#endif
 #ifdef TIMESLICE_EXTENSION
         unextend();
 #endif
@@ -222,11 +217,10 @@ flexguard_slow_path:
         }
     }
 
-#pragma GCC pop_options // Re-enable optimizations
 #ifdef BPF
     __asm__ volatile("fg_phase2:" ::: "memory");
-    atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire);
 #endif
+#pragma GCC pop_options // Re-enable optimizations
 
 #ifdef TIMESLICE_EXTENSION
     extend();
@@ -315,10 +309,10 @@ static void deploy_bpf_code()
     }
 
 #ifdef HYBRID_MCS
+    skel->bss->addresses.lock = &flexguard_lock;
+
     extern char fg_fastpath;
     skel->bss->addresses.fastpath = &fg_fastpath;
-    extern char fg_fastpath_incr;
-    skel->bss->addresses.fastpath_incr = &fg_fastpath_incr;
     extern char fg_fastpath_out;
     skel->bss->addresses.fastpath_out = &fg_fastpath_out;
 
@@ -326,13 +320,6 @@ static void deploy_bpf_code()
     skel->bss->addresses.lock_check_rcx_null = &fg_lock_check_rcx_null;
     extern char fg_phase2;
     skel->bss->addresses.phase2 = &fg_phase2;
-
-    extern char fg_trylock;
-    skel->bss->addresses.trylock = &fg_trylock;
-    extern char fg_trylock_incr;
-    skel->bss->addresses.trylock_incr = &fg_trylock_incr;
-    extern char fg_trylock_out;
-    skel->bss->addresses.trylock_out = &fg_trylock_out;
 #endif
 
     num_preempted_cs = &skel->bss->num_preempted_cs;
