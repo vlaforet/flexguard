@@ -30,21 +30,22 @@ class LevelDBBenchmark(BenchmarkCore):
     def init(self, **kwargs):
         self.db_path = os.path.join(self.temp_dir, f"{uuid.uuid4()}.db")
 
-        try:
-            subprocess.run(
-                [
-                    self.bin,
-                    f"--db={self.db_path}",
-                    "--benchmarks=fillseq",
-                    "--threads=1",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-        except Exception as e:
-            print("Failed to init LevelDB:", e)
-            sys.exit(1)
+        if "init_db" in kwargs and kwargs["init_db"]:
+            try:
+                subprocess.run(
+                    [
+                        self.bin,
+                        f"--db={self.db_path}",
+                        "--benchmarks=fillseq",
+                        "--threads=1",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+            except Exception as e:
+                print("Failed to init LevelDB:", e)
+                sys.exit(1)
 
     def estimate_runtime(self, **kwargs):
         return kwargs["time_ms"] if "time_ms" in kwargs else 30000
@@ -87,7 +88,7 @@ class LevelDBBenchmark(BenchmarkCore):
                 self.bin,
                 *args,
                 f"--db={self.db_path}",
-                "--use_existing_db=1",
+                f"--use_existing_db={'1' if 'init_db' in kwargs and kwargs['init_db'] else '0'}",
             ]
             if c is not None
         ]

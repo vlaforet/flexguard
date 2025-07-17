@@ -14,30 +14,31 @@ class ConcLevelDBExperiment(ExperimentCore):
 
         for lock in locks:
             for t in threads:
-                self.tests.append(
-                    {
-                        "name": f"LevelDB with {lock} lock and concurrent workload with {t} threads",
-                        "benchmark": {
-                            "id": "leveldb",
-                            "args": {
-                                "lock": lock,
-                                "threads": bthreads if bthreads else t,
-                                "time_ms": 30000,
-                                "init_db": True,
-                                "benchmarks": ["readrandom"],
+                for bench, init in [("readrandom", True), ("fillrandom", False), ("fillseq", False), ("readseq", True), ("overwrite", True)]:
+                    self.tests.append(
+                        {
+                            "name": f"LevelDB with {lock} lock and concurrent workload with {t} threads",
+                            "benchmark": {
+                                "id": "leveldb",
+                                "args": {
+                                    "lock": lock,
+                                    "threads": bthreads if bthreads else t,
+                                    "time_ms": 30000,
+                                    "init_db": init,
+                                    "benchmarks": [bench],
+                                },
                             },
-                        },
-                        "concurrent": {
-                            "id": "scheduling",
-                            "args": {
-                                "lock": "mcstas",
-                                "base-threads": t,
-                                "num-threads": t,
-                                "step-duration": 30000,  # Will be killed when LevelDB finishes
+                            "concurrent": {
+                                "id": "scheduling",
+                                "args": {
+                                    "lock": "mcstas",
+                                    "base-threads": t,
+                                    "num-threads": t,
+                                    "step-duration": 30000,  # Will be killed when LevelDB finishes
+                                },
                             },
-                        },
-                    }
-                )
+                        }
+                    )
 
     def report(self, results, exp_dir):
         results_ylim = results[~results["lock"].isin(["mcs"])]
