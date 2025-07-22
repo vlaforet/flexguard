@@ -133,7 +133,8 @@ int flexguard_trylock(flexguard_lock_t *the_lock)
         if (expect == 0)
         {
 #ifdef BPF
-            atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire);
+            qnode->cs_counter++; // Intel/AMD
+// atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire); // ARM
 #endif
             return 0; // Success
         }
@@ -145,14 +146,22 @@ int flexguard_trylock(flexguard_lock_t *the_lock)
     return EBUSY; // Locked
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-__attribute__((noinline)) __attribute__((noipa)) void flexguard_lock(flexguard_lock_t *the_lock)
+/*
+ * Disable optimizations for this function to ensure that branches stay in the right place.
+ * or verify that branches are in the right place using `make ASSEMBLY_DUMP=1`.
+ *
+ * Optimizations are re-enabled on line 230.
+ */
+// #pragma GCC push_options
+// #pragma GCC optimize("O0")
+// __attribute__((noinline)) __attribute__((noipa))
+void flexguard_lock(flexguard_lock_t *the_lock)
 {
     flexguard_qnode_ptr qnode = get_me();
 
 #ifdef BPF
-    atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire);
+    qnode->cs_counter++; // Intel/AMD
+    // atomic_fetch_add_explicit(&qnode->cs_counter, 1, memory_order_acquire); // ARM
 #endif
 
     if (!the_lock->lock_value)
@@ -220,7 +229,7 @@ flexguard_slow_path:
 #ifdef BPF
     __asm__ volatile("fg_phase2:" ::: "memory");
 #endif
-#pragma GCC pop_options // Re-enable optimizations
+    // #pragma GCC pop_options // Re-enable optimizations
 
 #ifdef TIMESLICE_EXTENSION
     extend();
@@ -278,7 +287,9 @@ void flexguard_unlock(flexguard_lock_t *the_lock)
 #endif
 
 #ifdef BPF
-    atomic_fetch_sub_explicit(&qnode_allocation_array[thread_id].cs_counter, 1, memory_order_release); // Assuming qnode has already been initialized.
+    // Assuming qnode has already been initialized.
+    qnode_allocation_array[thread_id].cs_counter--; // Intel/AMD
+    // atomic_fetch_sub_explicit(&qnode_allocation_array[thread_id].cs_counter, 1, memory_order_release); // ARM
 #endif
 }
 
