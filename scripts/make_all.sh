@@ -6,7 +6,7 @@ usage() {
     echo "    -s suffix      suffix the executables with suffix"
     echo "    -d             debug mode"
     echo "    -p             enable pause counter"
-    echo "    -w waitmode    set condvars wait mode (AUTO, BLOCK, SPIN)"
+    echo "    -w waitmode    set condvars wait mode (AUTO, BLOCK, SPIN). Default: BLOCK"
     echo "    -h             show this usage message"
 }
 
@@ -14,7 +14,7 @@ USUFFIX=""
 VERBOSE=0
 DEBUG=0
 PAUSE_COUNTER=0
-CONDWAIT="AUTO"
+CONDWAIT="BLOCK"
 while getopts "hs:vdpw:" OPTION; do
     case $OPTION in
     h)
