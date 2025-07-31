@@ -85,6 +85,8 @@ class RecordCommand:
         for exp in self.experiments:
             print(f"Running experiment {exp.name}")
             exp_dir = os.path.join(self.results_dir, exp.name)
+            if not os.path.exists(exp_dir):
+                os.makedirs(exp_dir)
 
             results = {}
             for replication in range(self.replication):
@@ -191,5 +193,7 @@ class RecordCommand:
             else:
                 df = pd.concat(rows, ignore_index=True)
                 output_file = os.path.join(exp_dir, f"{exp.name}.csv")
-                df.to_csv(output_file)
+                df.to_csv(
+                    output_file,
+                )
                 print(f"Recorded {exp.name} experiment results to {output_file}")
