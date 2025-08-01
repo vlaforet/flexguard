@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 usage() {
     echo "$0 [-v] [-s suffix] [-d]"
@@ -112,3 +113,5 @@ compile_and_suffix "flexguardall" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1 FLEXGUAR
 compile_and_suffix "flexguardextend" "LOCK_VERSION=FLEXGUARD ADD_PADDING=1 TIMESLICE_EXTENSION=1"
 
 make clean >/dev/null
+
+echo "All builds completed successfully."

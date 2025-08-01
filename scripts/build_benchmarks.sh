@@ -7,3 +7,5 @@ set -e
 ./scripts/build_streamcluster.sh $*
 ./scripts/build_volrend.sh $*
 ./scripts/build_dedup.sh $*
+
+echo "All builds completed successfully."
