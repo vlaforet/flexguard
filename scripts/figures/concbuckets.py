@@ -10,9 +10,7 @@ import seaborn as sns
 
 
 def make_plot(cluster_name, core_count):
-    results = pd.read_csv(
-        os.path.join(common.results_dir, "concbuckets.csv")
-    )
+    results = pd.read_csv(os.path.join(common.results_dir, "concbuckets.csv"))
 
     if core_count == 104:
         results = results[results["concurrent_num-threads"] <= 256]
@@ -28,7 +26,7 @@ def make_plot(cluster_name, core_count):
         .mean()
     )
     print(
-        f"FlexGuard improves non-oversubscribed performance on average by {100*(av_tp_no_sub["flexguard"]-av_tp_no_sub["mutex"])/av_tp_no_sub["mutex"]}% over POSIX"
+        f"FlexGuard improves non-oversubscribed performance on average by {100*(av_tp_no_sub['flexguard']-av_tp_no_sub['mutex'])/av_tp_no_sub['mutex']}% over POSIX"
     )
 
     av_tp_sub = (
@@ -37,7 +35,7 @@ def make_plot(cluster_name, core_count):
         .mean()
     )
     print(
-        f"FlexGuard improves oversubscribed performance on average by {100*(av_tp_sub["flexguard"]-av_tp_sub["mutex"])/av_tp_sub["mutex"]}% over POSIX"
+        f"FlexGuard improves oversubscribed performance on average by {100*(av_tp_sub['flexguard']-av_tp_sub['mutex'])/av_tp_sub['mutex']}% over POSIX"
     )
 
     plt.figure(figsize=(10, 6))

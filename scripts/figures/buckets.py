@@ -25,7 +25,7 @@ def make_plot(cluster_name, core_count, threads_cutoff):
         .mean()
     )
     print(
-        f"FlexGuard improves non-oversubscribed performance on average by {100*(av_tp_no_sub["flexguard"]-av_tp_no_sub["mutex"])/av_tp_no_sub["mutex"]}% over POSIX"
+        f"FlexGuard improves non-oversubscribed performance on average by {100*(av_tp_no_sub['flexguard']-av_tp_no_sub['mutex'])/av_tp_no_sub['mutex']}% over POSIX"
     )
 
     av_tp_sub = (
@@ -34,7 +34,7 @@ def make_plot(cluster_name, core_count, threads_cutoff):
         .mean()
     )
     print(
-        f"FlexGuard improves oversubscribed performance on average by {100*(av_tp_sub["flexguard"]-av_tp_sub["mutex"])/av_tp_sub["mutex"]}% over POSIX"
+        f"FlexGuard improves oversubscribed performance on average by {100*(av_tp_sub['flexguard']-av_tp_sub['mutex'])/av_tp_sub['mutex']}% over POSIX"
     )
 
     fig, axes = plt.subplots(
