@@ -114,9 +114,9 @@ def save_fig(fig, name):
 matplotlib.use("pgf")
 matplotlib.rcParams.update(
     {
-        "pgf.texsystem": "pdflatex",
+        #"pgf.texsystem": "pdflatex",
         "font.family": "serif",
-        "text.usetex": True,
+        #"text.usetex": True,
         "pgf.rcfonts": False,
         "svg.hashsalt": "fixed-salt",
     }
