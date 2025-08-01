@@ -111,12 +111,9 @@ def save_fig(fig, name):
     print(f"Wrote full plot to {output_path}.svg and {output_path}.png")
 
 
-matplotlib.use("pgf")
 matplotlib.rcParams.update(
     {
-        #"pgf.texsystem": "pdflatex",
         "font.family": "serif",
-        #"text.usetex": True,
         "pgf.rcfonts": False,
         "svg.hashsalt": "fixed-salt",
     }
