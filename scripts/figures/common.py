@@ -99,11 +99,14 @@ def legend(
 
 
 def save_fig(fig, name):
-    output_path = os.path.join(base_dir, "fig", name)
+    figs_path = os.path.join(results_dir, "figs")
+    if not os.path.exists(figs_path):
+        os.makedirs(figs_path)
+    output_path = os.path.join(figs_path, name)
     #    fig.savefig(f"{output_path}.svg", dpi=600, bbox_inches="tight")
     #    fig.savefig(f"{output_path}.pgf", dpi=600, bbox_inches="tight")
     fig.savefig(f"{output_path}.svg", dpi=600, metadata={"Date": ""})
-    #fig.savefig(f"{output_path}.pgf", dpi=600)
+    # fig.savefig(f"{output_path}.pgf", dpi=600)
     fig.savefig(f"{output_path}.png", dpi=600)
     print(f"Wrote full plot to {output_path}.svg and {output_path}.png")
 
