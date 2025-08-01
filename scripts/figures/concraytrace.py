@@ -11,7 +11,7 @@ from matplotlib.ticker import MultipleLocator
 
 
 def make_plot(cluster_name, core_count):
-    results = pd.read_csv(os.path.join(common.results_dir, "concraytrace.csv"))
+    results = pd.read_csv(os.path.join(common.results_dir, "concraytrace/concraytrace.csv"))
 
     benchmark_threads = results["threads"].max()
 

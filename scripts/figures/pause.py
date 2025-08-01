@@ -9,7 +9,7 @@ import seaborn as sns
 
 
 def main():
-    results = pd.read_csv(os.path.join(common.results_dir, "pause.csv"))
+    results = pd.read_csv(os.path.join(common.results_dir, "pause/pause.csv"))
 
     results = results[(results["lock"] != "spinpark")]
 

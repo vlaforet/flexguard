@@ -11,7 +11,7 @@ from matplotlib.ticker import MultipleLocator
 
 
 def make_plot(cluster_name, core_count):
-    results = pd.read_csv(os.path.join(common.results_dir, "concdedup.csv"))
+    results = pd.read_csv(os.path.join(common.results_dir, "concdedup/concdedup.csv"))
 
     if core_count == 104:
         results = results[results["concurrent_num-threads"] <= 256]

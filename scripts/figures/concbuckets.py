@@ -10,7 +10,7 @@ import seaborn as sns
 
 
 def make_plot(cluster_name, core_count):
-    results = pd.read_csv(os.path.join(common.results_dir, "concbuckets.csv"))
+    results = pd.read_csv(os.path.join(common.results_dir, "concbuckets/concbuckets.csv"))
 
     if core_count == 104:
         results = results[results["concurrent_num-threads"] <= 256]

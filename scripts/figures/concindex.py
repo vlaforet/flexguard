@@ -12,7 +12,7 @@ exp_dir = os.path.join(common.base_dir, "results", "concindex")
 
 
 def make_plot(cluster_name, core_count):
-    results = pd.read_csv(os.path.join(common.results_dir, "concindex.csv"))
+    results = pd.read_csv(os.path.join(common.results_dir, "concindex/concindex.csv"))
 
     if core_count == 104:
         results = results[results["concurrent_num-threads"] <= 256]

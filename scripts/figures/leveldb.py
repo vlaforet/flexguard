@@ -10,7 +10,7 @@ import seaborn as sns
 
 
 def make_plot(cluster_name, bench_name, core_count, power_of_10=6):
-    results = pd.read_csv(os.path.join(common.results_dir, "leveldb.csv"))
+    results = pd.read_csv(os.path.join(common.results_dir, "leveldb/leveldb.csv"))
 
     if core_count == 104:
         results = results[results["threads"] <= 256]

@@ -12,7 +12,7 @@ from matplotlib.ticker import FixedLocator
 
 def make_plot(cluster_name, core_count):
     results = pd.read_csv(
-        os.path.join(common.results_dir, "scheduling.csv")
+        os.path.join(common.results_dir, "scheduling/scheduling.csv")
     )
 
     zero_rows = (results["threads"] == 0) & (results["value"] == 0)

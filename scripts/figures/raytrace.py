@@ -10,7 +10,7 @@ import seaborn as sns
 
 
 def make_plot(cluster_name, core_count):
-    results = pd.read_csv(os.path.join(common.results_dir, "raytrace.csv"))
+    results = pd.read_csv(os.path.join(common.results_dir, "raytrace/raytrace.csv"))
 
     if core_count == 104:
         results = results[results["threads"] <= 256]

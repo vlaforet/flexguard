@@ -11,7 +11,7 @@ import seaborn as sns
 
 
 def make_plot(cluster_name, core_count, threads_cutoff):
-    results = pd.read_csv(os.path.join(common.results_dir, "buckets.csv"))
+    results = pd.read_csv(os.path.join(common.results_dir, "buckets/buckets.csv"))
 
     if core_count == 104:
         results = results[results["num-threads"] <= 256]

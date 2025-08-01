@@ -10,7 +10,7 @@ import seaborn as sns
 
 
 def main():
-    results = pd.read_csv(os.path.join(common.results_dir, "fairness.csv"))
+    results = pd.read_csv(os.path.join(common.results_dir, "fairness/fairness.csv"))
 
     throughput_columns = [
         col for col in results.columns if col.startswith("throughput_t")

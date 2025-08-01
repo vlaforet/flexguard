@@ -103,9 +103,9 @@ def save_fig(fig, name):
     #    fig.savefig(f"{output_path}.svg", dpi=600, bbox_inches="tight")
     #    fig.savefig(f"{output_path}.pgf", dpi=600, bbox_inches="tight")
     fig.savefig(f"{output_path}.svg", dpi=600, metadata={"Date": ""})
-    fig.savefig(f"{output_path}.pgf", dpi=600)
+    #fig.savefig(f"{output_path}.pgf", dpi=600)
     fig.savefig(f"{output_path}.png", dpi=600)
-    print(f"Wrote full plot to {output_path}.svg and {output_path}.pgf")
+    print(f"Wrote full plot to {output_path}.svg and {output_path}.png")
 
 
 matplotlib.use("pgf")
