@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 
-path = os.path.dirname(os.path.realpath(__file__))
+path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 tasks = [
     "scheduling",
@@ -46,14 +46,9 @@ parser.add_argument("extend_nodes", type=int)
 parser.add_argument("--logs-dir", default="logs", help="Directory to store task logs")
 args = parser.parse_args()
 
-if (args.export):
+if args.export:
     for task in tasks:
-        subprocess.run(
-            cmd_export(task),
-            text=True,
-            check=False,
-            shell=True
-        )
+        subprocess.run(cmd_export(task), text=True, check=False, shell=True)
 
     print("Exported tasks")
     sys.exit(0)
@@ -92,15 +87,12 @@ for task in tasks_extend:
     extend_queue.put(task)
 
 
-def safe_filename(task):
-    # Generates a unique and safe filename for each task
-    hash_digest = hashlib.md5(task.encode()).hexdigest()
-    short_cmd = task.split()[0].replace("/", "_")  # Short prefix
-    return f"{short_cmd}_{hash_digest}.log"
+def safe_filename(task, node):
+    return f"{task}_{node.split('.')[0]}.log"
 
 
 def worker(node, task_queue, cmd_func, image):
-    log_file = os.path.join(logs_dir, safe_filename(node))
+    log_file = os.path.join(logs_dir, safe_filename("install", node))
     print(f"[{node}] Using image: {image} → {log_file}", flush=True)
     try:
         with open(log_file, "w") as f:
@@ -125,10 +117,10 @@ def worker(node, task_queue, cmd_func, image):
         except queue.Empty:
             break
 
-        log_file = os.path.join(logs_dir, safe_filename(task))
+        log_file = os.path.join(logs_dir, safe_filename(task, node))
         print(f"[{node}] Running: {task} → {log_file}", flush=True)
 
-        with open(log_file, "w") as f:
+        with open(log_file, "a") as f:
             f.write(f"[Node: {node} | Task: {task}]\n\n")
             f.flush()
 
@@ -171,7 +163,13 @@ threads = []
 
 for node in normal_pool:
     t = threading.Thread(
-        target=worker, args=(node, normal_queue, cmd, "http://public.rennes.grid5000.fr/~vlaforet/debian12-hybridlock.dsc")
+        target=worker,
+        args=(
+            node,
+            normal_queue,
+            cmd,
+            "http://public.rennes.grid5000.fr/~vlaforet/debian12-hybridlock.dsc",
+        ),
     )
     t.start()
     threads.append(t)
