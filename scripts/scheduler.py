@@ -9,6 +9,8 @@ import sys
 import threading
 import time
 
+path = os.path.dirname(os.path.realpath(__file__))
+
 tasks = [
     "scheduling",
     "buckets",
@@ -24,17 +26,17 @@ tasks = [
 ]
 
 cmd = (
-    lambda task: f'cd bpf-hybrid-locks && sudo ./scripts/suite.sh record -e {task} -r 1 --locks "mcs,futex,mutex,flexguard,mcstp,malthusian,shuffle,uscl"'
+    lambda task: f'cd {path} && sudo ./scripts/suite.sh record -e {task} -r 1 --locks "mcs,futex,mutex,flexguard,mcstp,malthusian,shuffle,uscl"'
 )
 
 tasks_extend = tasks
 
 cmd_extend = (
-    lambda task: f'cd bpf-hybrid-locks && sudo ./scripts/suite.sh record -e {task} -r 1 --locks "flexguardextend,spinextend"'
+    lambda task: f'cd {path} && sudo ./scripts/suite.sh record -e {task} -r 1 --locks "flexguardextend,spinextend"'
 )
 
 cmd_export = (
-    lambda task: f'cd bpf-hybrid-locks && sudo ./scripts/suite.sh record -e {task} -r 1 --locks "mcs,futex,mutex,flexguard,mcstp,malthusian,shuffle,uscl,flexguardextend,spinextend" --only-cache'
+    lambda task: f'cd {path} && sudo ./scripts/suite.sh record -e {task} -r 1 --locks "mcs,futex,mutex,flexguard,mcstp,malthusian,shuffle,uscl,flexguardextend,spinextend" --only-cache'
 )
 
 parser = argparse.ArgumentParser()
