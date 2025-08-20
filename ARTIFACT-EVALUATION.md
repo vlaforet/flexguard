@@ -66,7 +66,7 @@ Once you are done with this reservation, you can release the machine by typing `
 Clone the FlexGuard repository and update submodules:
 
 ```shell
-git clone -b aec git@gitlab.inria.fr:flexguard/flexguard.git
+git clone -b aec https://gitlab.inria.fr/flexguard/flexguard.git
 cd flexguard
 git submodule update --init --recursive
 ```
