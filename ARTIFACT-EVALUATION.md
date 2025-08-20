@@ -289,3 +289,38 @@ Ensure you have executed this command on a paradoxe machine:
 ```
 
 If this does not solve the issue, this is probably due to a too short run time. Try running the experiments again. The scheduler will resume work without restarting from the beginning.
+
+### How to test if everything installed correctly?
+You can test each benchmark individually using these commands:
+
+The **shared-memory-access microbenchmark** is installed properly if this command succeeds:
+```shell
+./build/scheduling_mutex -n 1 -b 1
+```
+
+The **hash-table microbenchmark** is installed properly if this command succeeds:
+```shell
+./build/buckets_mutex -d 1000
+```
+
+The **PiBench database index** is installed properly if this command succeeds:
+```shell
+ext/index-benchmarks/build/_deps/pibench-build/src/PiBench ext/index-benchmarks/build/wrappers/libbtreelc_mutex_wrapper.so --threads=2 --mode=time --seconds=1 --records=100 --pcm=False
+```
+
+**Dedup** is installed properly if this command succeeds (after ~15s):
+```shell
+ext/parsec-benchmark/pkgs/kernels/dedup/inst/amd64-linux.gcc/bin/dedup -c -p -wgzip -t4 -iext/parsec-benchmark/pkgs/kernels/dedup/run/FC-6-x86_64-disc1.iso
+```
+
+**Raytrace** requires the working directory to be changed. If the raytrace command succeeds (after ~20s), Raytrace and its input files are properly installed.
+```shell
+cd ext/parsec-benchmark/ext/splash2x/apps/raytrace/run/
+../inst/amd64-linux.gcc/bin/raytrace -p1 -a8 car.env
+```
+
+**Streamcluster** is installed properly if this command succeeds:
+```shell
+ext/parsec-benchmark/pkgs/kernels/streamcluster/inst/amd64-linux.gcc/bin/streamcluster 10 30 512 1024 1024 2000 none /tmp/streamcluster.txt 4
+```
+
