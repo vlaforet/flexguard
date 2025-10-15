@@ -1,7 +1,17 @@
-Hybrid Lock
+FlexGuard
 ====
 
-This is a fork of the [libslock project](https://github.com/tudordavid/libslock) with a new kind of lock that can automatically switch from spinning to blocking. This is done according to the current system load measured by detecting preemptions with ebpf.
+Performance-oriented applications require efficient locks to harness the computing power of multicore architectures. While fast, spinlock algorithms suffer severe performance degradation when thread counts exceed available hardware capacity, i.e., in oversubscribed scenarios. Existing solutions rely on imprecise heuristics for blocking, leading to suboptimal performance. We present FlexGuard, the first approach that systematically switches from busy-waiting to blocking precisely when a lock-holding thread is preempted. FlexGuard achieves this by communicating with the OS scheduler via eBPF, unlike prior approaches. FlexGuard matches or improves performance in LevelDB, a memory-optimized database index, PARSEC's Dedup, and SPLASH2X's Raytrace and Streamcluster, boosting throughput by 1-6x in non-oversubscribed and up to 5x in oversubscribed scenarios.
+
+## Source code
+
+FlexGuard's source code is available in these files:
+
+- **src/flexguard.c** User-space code, contains `lock()`/`unlock()` functions.
+- **src/flexguard.bpf.c** *eBPF* code, contains the `sched_switch` event handler of the critical section preemption monitor.
+- **include/flexguard_bpf.h** Shared header between *eBPF* and user-space code. Contains type definitions for MCS qnodes.
+- **include/flexguard.h** User-space header, contains user-space type definitions, and functions declarations.
+
 
 ## Installation
 
@@ -20,56 +30,48 @@ After cloning the repository update submodules:
 git submodule update --init --recursive
 ```
 
-## Building
-### Getting Started
-All binaries can be made at the same time thanks to the `make_all_versions.sh` script from the root directory.
+## Getting Started
+### Building
+All lock binaries can be built at the same time using the `./scripts/make_all.sh` script:
 
 ```
-./scripts/make_all_versions.sh [-v] [-s suffix] [-d] [-l locks]
+./scripts/make_all.sh [-v] [-s suffix] [-d]
     -v             verbose
-    -s suffix      suffix the executable with suffix
-    -d             delete
-    -l locks       specify which lock(s) to make
+    -s suffix      suffix the executables with suffix
+    -d             debug mode
+    -p             enable pause counter
+    -w waitmode    set condvars wait mode (AUTO, BLOCK, SPIN). Default: BLOCK
 ```
 
-Binaries can also be built separately using `make`. 
-
+To build all default versions use
 ```
-make LOCK_VERSION=HYBRIDLOCK
-```
-
-### Locks
-There are several locks available in this library.
-Any of these tags can be added to the make command to compile the desired version.
-
-```
-LOCK_VERSION=SPINLOCK
-LOCK_VERSION=HYBRIDLOCK // Hybrid lock
-LOCK_VERSION=FLEXGUARD   // Hybrid lock version 2
-LOCK_VERSION=MCS
-LOCK_VERSION=MCSTAS
-LOCK_VERSION=CLH
-LOCK_VERSION=TICKET
-LOCK_VERSION=MUTEX
-LOCK_VERSION=FUTEX      // Raw futex lock
+./scripts/make_all.sh
 ```
 
-### No BPF
-If you do not need BPF for the Hybrid Lock (for example when some benchmarks) you can disable BPF entirely. This will significantly speed up compilation.
+Built files will be located in `build/`.
+
+### (Optional) Building benchmarks
+Benchmarks used in the paper can be built using the `./scripts/build_*.sh` scripts. For example, build LevelDB with
 ```
-make LOCK_VERSION=HYBRIDLOCK NOBPF=1
+./scripts/build_leveldb-1.20.sh
 ```
 
-### Debug
-When working on an implementation debug mode can help.
+### Usage
+The `build/` directory contains microbenchmark binaries for each lock versions as described in the next section as well as interposition helpers using `LD_PRELOAD` to replace all POSIX `pthread` locks (`mutex`, `rwlock`) by a specific lock implementation.
+
+For example, to use FlexGuard on LevelDB (requires root):
 ```
-make LOCK_VERSION=MCS DEBUG=1
+./build/interpose_flexguard.sh ./ext/leveldb-1.20/out-static/db_bench --benchmarks=readrandom --threads=50 --num=100000 --db=/tmp/flexguard-level.db
 ```
 
+and to compare it with a standard POSIX mutex lock:
+```
+./build/interpose_mutex.sh ./ext/leveldb-1.20/out-static/db_bench --benchmarks=readrandom --threads=50 --num=100000 --db=/tmp/mutex-level.db
+```
 
 ## Microbenchmarks
-### Scheduling
-The `scheduling` benchmark has been tailored to test the hybrid lock.
+### Single-lock shared variable microbenchmark
+The `scheduling` benchmark has been tailored to test FlexGuard.
 
 ```
 scheduling -- lock stress test
@@ -94,89 +96,40 @@ Options:
         A measurement will be taken every x thread step (default=1)
   -i, --increasing-only <int>
         Whether to increase then decrease or only increase thread count (default=1)
+  -l, --latency <int>
+        If true, measure cs latency else measure total throughput (default=0)
+  -m, --multi-locks <int>
+        How many locks to use (default=1)
 ```
 
-The `scripts/scheduling_all.sh` script can be run to compute a `scheduling` benchmark for different lock types (by default hybridlock, futex and mcs), different cache lines (by default 1 and 5) and different delays between critical sections (by default 0, 1000 and 1000000). The resulting CSVs will be placed in `results`.
-
-Example:
-```
-./scripts/scheduling_all.sh
-ls results
-
-futex_c0_t1.csv        hybrid_emulated_c0_t1.csv        mcs_c0_t1.csv
-futex_c0_t5.csv        hybrid_emulated_c0_t5.csv        mcs_c0_t5.csv
-futex_c1000000_t1.csv  hybrid_emulated_c1000000_t1.csv  mcs_c1000000_t1.csv
-futex_c1000000_t5.csv  hybrid_emulated_c1000000_t5.csv  mcs_c1000000_t5.csv
-futex_c1000_t1.csv     hybrid_emulated_c1000_t1.csv     mcs_c1000_t1.csv
-futex_c1000_t5.csv     hybrid_emulated_c1000_t5.csv     mcs_c1000_t5.csv
-```
-
-A Python script `scripts/chart_scheduling.py` is then available to create a graph from these CSVs.
-```
-usage: chart_scheduling.py [-h] [-i INPUT_FOLDER] [-c CONTENTION [CONTENTION ...]]
-                           [-t CACHE_LINE [CACHE_LINE ...]] [-l LOCK [LOCK ...]] [-o OUTPUT_FILE]
-                           [--increasing-only]
-
-Chart data from scheduling benchmark
-
-options:
-  -h, --help            show this help message and exit
-  -i INPUT_FOLDER       Input folder for CSVs (default="")
-  -c CONTENTION [CONTENTION ...]
-                        Contention delays to show (default=[1000])
-  -t CACHE_LINE [CACHE_LINE ...]
-                        Cache lines to show (default=[1])
-  -l LOCK [LOCK ...]    Locks to show (default=["Futex", "Atomic_CLH", "Hybridlock"])
-  -o OUTPUT_FILE        Locks to show (default="out.png")
-  --increasing-only     Only show the increasing thread count part (default=False)
-```
-
-Example:
-```
-cd results
-../scripts/chart_scheduling.py -c 0 -t 1 5 -l futex mcs
-```
-
-### Correctness benchmark
-The `./scripts/test_correctness.sh` benchmark is made to test the correctness of all locks at the same time.
+### Hash table benchmark
+The `buckets` benchmark creates 100 hash table buckets, each bucket protected using a lock. The buckets are uniformly spread across the value range. `N` threads are created a insert/get keys from the hash table using a skewed Zipfian distribution.
 
 ```
-./scripts/test_correctness.sh [-v] [-s suffix] [-n num_cores] [-l locks]
-    -d duration    test duration
-    -s suffix      suffix the executable with suffix
-    -n num_cores   number of cores to test on
-    -l locks       specify which lock(s) to make
-```
+buckets -- lock stress test
 
-It will output a `correctness.out` file at the root of the repository containing the correctness results.
+Usage:
+  buckets [options...]
 
-# LevelDB Benchmark
-## Installation
-
+Options:
+  -h, --help
+        Print this message
+  -d, --duration <int>
+        Duration of the experiment in ms (default=10000)
+  -n, --num-threads <int>
+        Maximum number of threads (default=10)
+  -b, --buckets <int>
+        Number of buckets (default=100)
+  -m, --max-value <int>
+        Maximum value (default=100000)
+  -o, --offset-changes <int>
+        Number of time to change the offset (default=40)
+  -c, --non-critical-cycles <int>
+        Number of cycles between critical sections (default=0)
+  -p, --pin-threads <int>
+        Enable thread pinning (default=0)
+  -t, --trace
+        Enable tracing (default=0)
+        Lock tracing is disabled. If you use that option only the benchmark will be traced.
+        Recompile with TRACING=1 to enable lock tracing.
 ```
-git clone --recurse-submodules https://github.com/google/leveldb.git
-cd leveldb && mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build .
-```
-
-## Build bpf-hybrid-locks with LiTL
-In bpf-hybrid-locks root directory:
-```
-make all litl # Per-lock state
-make all litl HYBRID_GLOBAL_STATE=1 # Global lock state
-```
-
-## Usage
-The LevelDB benchmark can then be launched stock:
-```
-~/leveldb/build/db_bench --benchmarks=fillrandom,readrandom --threads=50 --num=100000 --db=/tmp/db
-```
-
-Or using bpf-hybrid-locks: (Must be root)
-```
-~/bpf-hybrid-locks/litl/liblibslock_original.sh ~/leveldb/build/db_bench --benchmarks=fillrandom,readrandom --threads=50 --num=100000 --db=/tmp/db
-```
-
-`--threads=50` specifies the number of database clients
-
-`--num=100000` specifies the amount of operations done by each client
