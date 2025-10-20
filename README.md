@@ -1,6 +1,11 @@
-FlexGuard
+FlexGuard: Fast Mutual Exclusion Independent of Subscription (SOSP'25, Seoul, Korea)
 ====
 
+FlexGuard is the first user-space lock that consistently allows spinlock performance without their performance collapse in oversubscription (more threads than cores). Flexguard can transparently replace `pthread` locks to improve application performance.
+
+More details are available in our [FlexGuard paper](https://gitlab.inria.fr/flexguard/flexguard/-/raw/master/flexguard-sosp25.pdf?inline=true) presented at [SOSP 2025](https://sigops.org/s/conferences/sosp/2025/index.html) in Seoul, Republic of Korea. 
+
+**Abstract:**
 Performance-oriented applications require efficient locks to harness the computing power of multicore architectures. While fast, spinlock algorithms suffer severe performance degradation when thread counts exceed available hardware capacity, i.e., in oversubscribed scenarios. Existing solutions rely on imprecise heuristics for blocking, leading to suboptimal performance. We present FlexGuard, the first approach that systematically switches from busy-waiting to blocking precisely when a lock-holding thread is preempted. FlexGuard achieves this by communicating with the OS scheduler via eBPF, unlike prior approaches. FlexGuard matches or improves performance in LevelDB, a memory-optimized database index, PARSEC's Dedup, and SPLASH2X's Raytrace and Streamcluster, boosting throughput by 1-6x in non-oversubscribed and up to 5x in oversubscribed scenarios.
 
 ## Source code
